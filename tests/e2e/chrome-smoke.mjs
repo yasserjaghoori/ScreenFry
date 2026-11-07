@@ -91,10 +91,15 @@ chrome.stdio[4].on("data", (chunk) => {
 function cdp(method, params = {}, sessionId) {
   return new Promise((resolve, reject) => {
     const id = ++nextId;
-    const timer = setTimeout(() => {
-      pending.delete(id);
-      reject(Error(`Timed out: ${method}`));
-    }, 12000);
+    const timer = setTimeout(
+      () => {
+        pending.delete(id);
+        reject(Error(`Timed out: ${method}`));
+      },
+      method === "Extensions.loadUnpacked" || method === "Browser.getVersion"
+        ? 60_000
+        : 20_000,
+    );
     pending.set(id, { resolve, reject, timer });
     chrome.stdio[3].write(
       JSON.stringify({ id, method, params, sessionId }) + "\0",
@@ -164,6 +169,8 @@ const site = (path = "/watch?v=fixture") => `https://youtube.com${path}`;
 const shots = join(root, "dist/screenshots");
 mkdirSync(shots, { recursive: true });
 async function screenshot(page, name, width = 1280, height = 1000) {
+  if (process.env.CI && !process.env.CAPTURE_E2E_SCREENSHOTS) return;
+  await cdp("Page.bringToFront", {}, page.session);
   await cdp(
     "Emulation.setDeviceMetricsOverride",
     { width, height, deviceScaleFactor: 1, mobile: false },
@@ -178,6 +185,7 @@ async function screenshot(page, name, width = 1280, height = 1000) {
 }
 let controller;
 try {
+  await cdp("Browser.getVersion");
   const { id: extId } = await cdp("Extensions.loadUnpacked", {
     path: join(root, "dist/chrome"),
   });
@@ -555,7 +563,7 @@ try {
   );
 } catch (error) {
   check("script error", false, error.message);
-  if (process.env.DEBUG_E2E) console.error(chromeErrors);
+  if (chromeErrors) console.error("Isolated Chrome diagnostics:", chromeErrors);
 } finally {
   console.log(
     `\n${checks.filter(Boolean).length} passed, ${checks.filter((x) => !x).length} failed`,
