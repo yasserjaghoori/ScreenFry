@@ -1,37 +1,37 @@
 # Screentime
 
-A privacy-first Chrome and Safari extension for commitment-based website limits, recurring schedules, 10-minute PIN visits and selective feed blocking.
-
-**Sealproof:** once you seal a restriction, you can make it stricter at any time, but anything looser waits until the commitment ends. Your PIN opens a site for 10 minutes and never changes the rule.
-
-## Run
-
-Use the Node version in `.nvmrc`. Full environment and browser installation instructions are in [Development setup](docs/SETUP.md).
-
-```bash
-npm ci
-npm test            # unit tests
-npm run build       # → dist/chrome
-npm run test:e2e    # real headless Chrome smoke test
-```
-
-Chrome: open `chrome://extensions`, turn on Developer mode, choose **Load unpacked** and select `dist/chrome`. Onboarding opens automatically. Safari: see [docs/SAFARI.md](docs/SAFARI.md).
+A Chrome and Safari extension that combines feed removal and SocialFocus-style website controls, with daily allowances and allowed time windows.
 
 ## Phase 1 features
 
-- Mandatory onboarding with a 6-digit PIN (salted PBKDF2 verifier, escalating cooldowns, no recovery shortcut).
-- Private-browsing coverage that is reported only once the browser proves it (Chrome API; Safari by observing a Private tab).
-- Daily limits with per-weekday allowances. Time counts only for the focused, active tab while you're present. Resets at local midnight. Warnings at 5 and 1 minute.
-- Weekly schedules: multiple per site, overnight, overlapping, live updates, correct across DST and time-zone changes.
-- Commitments (until end of today, 7 days, 30 days or a custom date) enforced in the core policy layer, with queued changes you can withdraw.
-- 10-minute PIN visits shared across tabs and restarts, with override time tracked separately.
-- Feed blocking for YouTube, X, Instagram, Reddit, Facebook and LinkedIn, limited to feed pages so search and direct links keep working.
-- Dashboard, popup and blocked page, with dark mode.
+- **Five launch sites:** YouTube, Instagram, X, Reddit and Substack.
+- **Individual website controls:** hide feeds, recommendations and navigation buttons using grouped toggles. Keep useful search, messages and direct posts unless you choose to hide them.
+- **Per-website daily limits:** block the entire website once its allowance is used. Each site has its own budget, shared across tabs and windows, resetting at local midnight.
+- **A separate Windows page:** choose recurring days and times, then whitelist websites for that window. A listed website is blocked outside all its enabled windows, even with daily time remaining. Multiple windows combine; they do not restart the allowance. Unlisted websites keep their normal settings.
+- **Playback blocking:** enabling YouTube Shorts or Instagram Reels blocking rejects direct links, notification routes and detected in-page short-form players. It never converts them to a normal video player. X, Reddit and Substack also have optional video-playback controls.
+- **Usage counting:** the active tab in the focused browser counts, along with background tabs actually playing audio or video. Merely open background tabs do not count. Multiple tabs on the same website count once per elapsed second.
+- **Optional settings password:** protects changes to website controls, allowances and windows. No mandatory PIN, temporary access bypass, timed commitment or queued change.
+- **Local storage:** no account, backend, API key or analytics. Each browser has its own settings and usage.
+
+## Run
+
+Use the Node version in `.nvmrc`. See [Development setup](docs/SETUP.md) for browser installation.
+
+```bash
+npm ci
+npm run check       # unit tests, typecheck and Chrome build
+npm run test:e2e    # isolated Chrome integration test
+npm run build:safari
+```
+
+Chrome: open `chrome://extensions`, enable Developer mode, **Load unpacked** and choose `dist/chrome`. Safari: follow [Safari setup](docs/SAFARI.md).
+
+## References and reuse
+
+The interface is informed by the installed SocialFocus extension. Feed selectors are adapted in part from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia); its MIT notice is bundled in the extension's `THIRD_PARTY_NOTICES.txt`. SocialFocus source code and assets are not included.
 
 ## Docs
 
-[Setup](docs/SETUP.md) · [Project brief](docs/PROJECT_BRIEF.md) · [Architecture](docs/ARCHITECTURE.md) · [Threat model](docs/THREAT_MODEL.md) · [Privacy](docs/PRIVACY.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Phase 1 audit](docs/PHASE1_AUDIT.md)
+[Project brief](docs/PROJECT_BRIEF.md) · [Setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Testing](docs/TESTING.md) · [Privacy](docs/PRIVACY.md) · [Enforcement limits](docs/THREAT_MODEL.md)
 
-## Honest limitation
-
-An extension can't make itself impossible to uninstall, stop you from disabling it in browser settings, or protect its local storage from someone who controls the device. "Sealproof" means Screentime itself offers no casual way to permanently loosen a commitment.
+Feed selectors depend on website markup. Runtime testing on real signed-in websites and Safari is still needed. The extension cannot prevent removal or enforce settings in another browser or profile.

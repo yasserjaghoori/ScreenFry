@@ -1,136 +1,87 @@
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export const ALL_DAYS: DayOfWeek[] = [0, 1, 2, 3, 4, 5, 6];
-
-/**
- * `pin`: a correct PIN grants a 10-minute temporary visit (Phase 1).
- * `strict`: reserved for a future phase — the policy engine already refuses overrides
- * for committed strict rules, but no UI offers it and the background normalizes it to `pin`.
- */
-export type EnforcementMode = 'pin' | 'strict';
-export type BrowserKind = 'chrome' | 'safari';
-
+export type BrowserKind = "chrome" | "safari";
+export type FeedSite = "youtube" | "instagram" | "x" | "reddit" | "substack";
 export interface DailyAllowance {
   defaultMinutes: number;
   byWeekday?: Partial<Record<DayOfWeek, number>>;
 }
-
 export interface WeeklySchedule {
   id: string;
   days: DayOfWeek[];
-  /** Minutes after local midnight. start === end means the whole day. start > end crosses midnight. */
+  /** Local minutes. Equal endpoints mean all day; start > end crosses midnight. End may be 1440. */
   startMinute: number;
   endMinute: number;
 }
-
-export type RulePatch = Partial<Pick<WebsiteRule, 'label' | 'domains' | 'enabled' | 'dailyAllowance' | 'schedules'>> & {
-  /** Queued removal of the whole rule. */
-  remove?: true;
-};
-
-export interface PendingRuleChange {
-  requestedAt: number;
-  applyAt: number;
-  patch: RulePatch;
+export interface AccessWindow extends WeeklySchedule {
+  label: string;
+  enabled: boolean;
+  domains: string[];
 }
-
 export interface WebsiteRule {
   id: string;
   label: string;
   domains: string[];
   enabled: boolean;
+  blocked: boolean;
   dailyAllowance?: DailyAllowance;
-  schedules: WeeklySchedule[];
-  commitmentEndsAt?: number;
-  enforcementMode: EnforcementMode;
-  pendingChange?: PendingRuleChange;
+  showTimer: boolean;
   createdAt: number;
   updatedAt: number;
 }
-
 export interface UsageDay {
   dateKey: string;
-  /** Ordinary (non-override) time on sites covered by each rule. Drives daily limits. */
   millisecondsByRule: Record<string, number>;
-  /** Time spent inside PIN override sessions, tracked separately and never counted against limits. */
-  overrideMillisecondsByRule: Record<string, number>;
-  /** Registrable-ish host → focused time. Only recorded when general history tracking is on. */
   millisecondsByHost: Record<string, number>;
-  /** Warning thresholds (minutes remaining) already shown per rule today. */
   warningsSent: Record<string, number[]>;
 }
-
-export interface TemporaryOverride {
-  ruleId: string;
-  startedAt: number;
-  expiresAt: number;
-}
-
-export interface OverrideHistoryEntry extends TemporaryOverride {
-  id: string;
-  label: string;
-}
-
-export interface PinVerifier {
-  algorithm: 'PBKDF2-SHA-256';
+export interface PasswordVerifier {
+  algorithm: "PBKDF2-SHA-256";
   iterations: number;
   salt: string;
   verifier: string;
 }
-
-export interface PinAttemptState {
+export interface PasswordAttempts {
   failedAttempts: number;
   cooldownUntil?: number;
 }
-
-export type FeedSite = 'youtube' | 'x' | 'instagram' | 'reddit' | 'facebook' | 'linkedin';
 export interface FeedSettings {
   globalEnabled: boolean;
   sites: Record<FeedSite, Record<string, boolean>>;
 }
-
-/**
- * - `verified`: Chrome's `extension.isAllowedIncognitoAccess()` returned true at `lastCheckedAt`.
- * - `observed`: the extension saw a private tab with its own APIs at `lastObservedAt` (positive
- *   proof of coverage at that moment; used for Safari, which has no permission-query API).
- * - `unverified`: coverage has not been confirmed. Never presented as active.
- */
-export type PrivateAccessStatus = 'verified' | 'observed' | 'unverified';
-
+export type PrivateAccessStatus = "verified" | "observed" | "unverified";
 export interface ProtectionStatus {
   browser: BrowserKind;
   privateAccess: PrivateAccessStatus;
   lastCheckedAt?: number;
   lastObservedAt?: number;
 }
-
 export interface AppState {
-  schemaVersion: 2;
+  schemaVersion: 3;
   onboardingComplete: boolean;
-  pin?: PinVerifier;
-  pinAttempts: PinAttemptState;
+  settingsPassword?: PasswordVerifier;
+  passwordAttempts: PasswordAttempts;
   rules: WebsiteRule[];
+  windows: AccessWindow[];
   usage: Record<string, UsageDay>;
-  overrides: Record<string, TemporaryOverride>;
-  overrideHistory: OverrideHistoryEntry[];
+  usageAsOf?: number;
   feedSettings: FeedSettings;
   protection: ProtectionStatus;
-  /** General per-site history for unrestricted sites. Limit tracking is always on. */
   trackingEnabled: boolean;
   warningsEnabled: boolean;
-  lastWallClockAt?: number;
-  possibleClockRollbackAt?: number;
+  migrationNotice?: string;
 }
-
-export type PolicyReason = 'daily-limit' | 'schedule';
+export type PolicyReason =
+  | "daily-limit"
+  | "outside-window"
+  | "site-blocked"
+  | "short-form";
 export interface PolicyDecision {
-  status: 'allowed' | 'blocked' | 'temporarily-unlocked';
+  status: "allowed" | "blocked";
   ruleId?: string;
   ruleLabel?: string;
   reasons: PolicyReason[];
-  /** Earliest instant at which every applicable restriction has ended. Undefined if none within 8 days. */
   nextAccessAt?: number;
-  overrideExpiresAt?: number;
   remainingMilliseconds?: number;
   allowanceMinutes?: number;
-  canOverride?: boolean;
 }

@@ -1,38 +1,37 @@
 # Project brief
 
-## Goal
+## Approved scope — November 7, 2026
 
-Sam and Yasser are building a free productivity tool that combines feed blocking, daily website allowances, and recurring time windows. A short daily allowance should not make distracting sites available immediately after waking or before starting work: schedules and allowances must work together.
+Combine the feed-blocking approach of Saner Social Media with SocialFocus-style grouped, per-website controls. Launch on Chrome and Safari for **YouTube, Instagram, X, Reddit and Substack**.
 
-This brief captures only the relevant project discussion supplied on November 7, 2026. The private conversation export is not part of this repository. Discussion is background context, not an instruction to implement every proposed idea.
+Each website has its own settings page with grouped feed/button toggles, full-site blocking, a daily allowance and an optional timer. The installed SocialFocus interface was inspected for its site picker, daily-limit selector, grouped toggles and password setting. Its private implementation is not used.
 
-## Product priorities
+## Windows
 
-- Chrome and Safari extensions first, replacing separate feed-removal and time-limit extensions.
-- Per-site daily limits plus recurring scheduled restrictions. The existing editor models blocked windows; allowed-window wording is a product decision to confirm before changing it.
-- Selective removal of feeds and recommendations while useful search and direct content stay available.
-- Close short-form video entry points, including direct YouTube Shorts links and notification links, so hiding a button alone cannot leave an infinite-scroll route open.
-- Commitment-based restrictions that resist casual changes. The current implementation seals rules until an end date and offers a separate, time-limited PIN visit.
-- Local storage and no required paid services in the extension phase.
+Windows live on their own page. A window has a name, recurring weekdays, start/end times and a website whitelist. Whitelisted sites are available inside any of their enabled windows and completely blocked outside them. Multiple windows are allowed, including overnight windows. Sites not whitelisted in any enabled window keep their ordinary website settings.
 
-## Existing implementation
+Daily budgets remain per website and are shared across every allowed window. A 10-minute YouTube allowance with noon–1 p.m. and 6–8 p.m. windows means 10 minutes total, not 10 minutes in each window. Having unused allowance does not permit access outside those windows.
 
-The starting repository already includes React/TypeScript extension pages, a shared policy engine, state persistence, PIN verification, usage tracking, feed blockers, and a macOS containing app for Safari. That containing app enables the extension; it is not yet the native Screen Time product.
+## Playback and timing
 
-Chrome and Safari each keep their own rules, usage, and PIN. Extension removal, browser settings, other profiles, and local device access remain outside extension enforcement. See `THREAT_MODEL.md` for the current contract.
+Count the focused active tab and any background tab actually playing audio or video. Do not count an inactive, non-playing tab. Count concurrent tabs on the same website once per second; different websites can accrue time simultaneously.
 
-## Later phases and open decisions
+A website's short-form setting blocks playback itself, including notification links, direct routes and detected in-page players. Hiding the entry button or converting Shorts into regular videos is insufficient. YouTube Shorts and Instagram Reels are dedicated settings. Other launch sites have a broader video-playback switch.
 
-1. Native macOS companion: investigate supported enforcement, browser integration, and any desired shared state.
-2. iOS app: investigate Apple's authorization, entitlements, distribution requirements, and supported Screen Time APIs before promising capabilities.
-3. Resolve whether strict blocking without PIN visits should be exposed, how allowed windows should be presented, and what recovery experience is acceptable.
+## Optional settings password
 
-The conversation's proposed random Screen Time passcode, deletion prevention, and automatic browser installation are research ideas, not validated platform capabilities or current product guarantees.
+Password protection is optional and protects edits. There is no mandatory PIN, extra-time bypass, timed commitment, queued weakening or “Sealproof” product promise. A fresh install starts unrestricted so the user chooses their controls. Changes apply immediately when authorized.
+
+## Implementation and later work
+
+Phase 1 stays local to each browser. The Safari containing app enables the extension; it is not a native Screen Time enforcement app. Native macOS/iOS work remains a later phase requiring its own platform investigation.
+
+Old daily usage is retained. Old mandatory PINs, commitments and visits are removed. Legacy blocked schedules are converted to their complementary allowed windows, with a review notice.
 
 ## References
 
-- [Repository](https://github.com/yasserjaghoori/Screentime)
-- [News Feed Eradicator](https://github.com/jordwest/news-feed-eradicator)
-- [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia)
+- [Screentime](https://github.com/yasserjaghoori/Screentime)
+- [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia) — MIT-licensed selectors adapted with attribution.
+- [SocialFocus](https://socialfocus.app) — product reference, also inspected locally in Chrome.
 
-The latter two are reference projects, not dependencies. Check their licenses before reusing code.
+Private conversation exports and unrelated discussions are not repository content or implementation instructions.

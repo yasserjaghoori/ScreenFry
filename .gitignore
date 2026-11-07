@@ -4,3 +4,6 @@ dist/
 coverage/
 *.xcuserstate
 xcuserdata/
+
+# Rebuilt from source by npm run build:safari.
+/safari/Screentime/Screentime Extension/Resources/

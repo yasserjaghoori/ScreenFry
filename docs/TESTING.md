@@ -1,52 +1,29 @@
 # Testing
 
-## Automated
-
 ```bash
-npm test          # 77 unit tests (Vitest, TZ fixed to America/New_York for DST cases)
-npm run build     # typecheck + build + build invariants (classic content script, no network calls)
-npm run test:e2e  # builds, then drives a real headless Chrome (CHROME_PATH to override)
+npm run check
+npm run test:e2e
+npm run build:safari
+xcodegen generate --spec safari/Screentime/project.yml
+xcodebuild -project safari/Screentime/Screentime.xcodeproj -scheme Screentime \
+  -configuration Debug -derivedDataPath dist/safari CODE_SIGNING_ALLOWED=NO build
 ```
 
-| Area | Where |
-|---|---|
-| Daily limits, weekday allowances, midnight reset, DST days, zero-minute days | `tests/policy.test.ts` |
-| Schedules: same-day, overnight, overlapping, all-day, DST, next access, upcoming windows | `tests/policy.test.ts` |
-| Overrides: shared across URLs, exact expiry, clock rollback, strict-mode refusal | `tests/policy.test.ts`, `tests/actions.test.ts` |
-| Multiple tabs (single tracked tab), idle/audible/locked, midnight split, gap cap, warnings | `tests/tracking.test.ts` |
-| Commitment locking and pending changes (every weakening kind, extensions, queued removal) | `tests/commitments.test.ts`, `tests/actions.test.ts` |
-| PIN: verifier, format, cooldowns, no overwrite, change requires current PIN | `tests/security-and-matching.test.ts`, `tests/actions.test.ts` |
-| Overrides surviving restarts, restrictions returning after expiry | `tests/actions.test.ts` |
-| URL matching, direct YouTube links, alias groups, unrelated Google services | `tests/policy.test.ts`, `tests/security-and-matching.test.ts` |
-| Feed blockers: toggles, path scoping, X tabs, Shorts → player | `tests/security-and-matching.test.ts` |
-| Storage persistence, schema migration, recovery after a failed write | `tests/storage.test.ts` |
-| Real Chrome: install → onboarding, DNR redirect of direct links and subdomains, queued weakening, PIN override, second-tab reuse, countdown overlay, sender checks, re-block on expiry | `tests/e2e/chrome-smoke.mjs` |
+Unit tests cover allowances, zero/unlimited budgets, aliases, allowed-window union, weekday and overnight windows, DST, combined next access, playback URL decisions, optional-password authorization, migration and deduplicated multi-tab accounting.
 
-## Manual: Chrome and Incognito
+The Chrome integration test uses a throwaway profile and protocol-served local fixtures under the launch sites' origins. It checks real controls, network redirects, in-page/notification routes, media playback reporting, optional-password protection and privileged-message rejection. A small generated WebM fixture exercises actual muted video playback. No everyday browser profile or installed extension settings are changed. Screenshots are written under `dist/screenshots` for visual review.
 
-1. `npm run build`, open `chrome://extensions`, turn on Developer mode, **Load unpacked** → `dist/chrome`. Onboarding opens.
-2. Try a 5-digit PIN and mismatched PINs (both refused), then create a PIN.
-3. On the private-browsing step, choose **Check again** without changing anything. It must say *not confirmed*.
-4. Open `chrome://extensions/?id=<id>`, turn on **Allow in Incognito**, return, **Check again** → *Sealproof-ready*. Turn it off; Chrome reloads the extension, and the dashboard must show *not confirmed* again.
-5. Add YouTube with a 1-minute limit and a 7-day commitment. Keep a YouTube tab active in a focused window. Expect the 1-minute warning, then a redirect to the sealed page within a few seconds of the limit.
-6. Check that these redirect: `youtube.com/watch?v=…`, `youtube.com/shorts/…`, `m.youtube.com`, `youtu.be/…` and a page embedding `youtube-nocookie.com/embed/…`. `google.com/search?q=youtube` and Gmail must still work.
-7. Enter a wrong PIN three times → 30-second countdown. After it ends, enter the correct PIN → the site opens with a countdown pill. Open YouTube in a second tab: it's open too, with the same countdown.
-8. Quit Chrome during the visit and reopen it. The countdown continues from the same end time. When it ends, every YouTube tab returns to the sealed page.
-9. Edit the rule to 60 minutes, then remove the site → both appear as *Requested change*, and YouTube stays sealed. **Withdraw request** removes the pending change.
-10. Open an Incognito window (with access allowed) and repeat step 6.
-11. Leave the computer idle for 2+ minutes on a non-playing YouTube page. Usage should stop growing. Play a video without touching anything: usage keeps growing.
+Do not run a build while the integration test is using `dist/chrome`.
 
-## Manual: Safari Private Browsing
+## Manual browser acceptance
 
-1. `npm run build:safari`, then `cd safari/Screentime && xcodegen generate && open Screentime.xcodeproj`. Pick a signing team for both targets (or use Safari ▸ Develop ▸ *Allow Unsigned Extensions* for local testing) and run the app.
-2. Click **Open Safari Extension Settings**, turn on Screentime, allow **All Websites**, and turn on **Allow in Private Browsing**.
-3. Complete onboarding. On the private-browsing step, **Check again** must say *not confirmed* until a Private window (⇧⌘N) is open. With one open, it shows *Sealproof-ready* with a timestamp.
-4. Repeat Chrome steps 5–9 in a normal and a Private window.
-5. Turn off Private Browsing access in Safari. The dashboard keeps the last-observed time (Safari doesn't report the change). Confirm the wording doesn't claim live coverage.
-6. Safari has no idle API, so step 11 doesn't apply. Time counts while the window is focused.
+1. Load the extension, open Websites, and confirm YouTube, Instagram, X, Reddit and Substack are available without a PIN. Fresh settings should not block anything until enabled.
+2. Try feed and button toggles independently. Confirm direct posts, search, messages and author pages remain usable unless their relevant setting is enabled.
+3. Give YouTube a 1-minute allowance. Confirm focused usage counts, background muted video/audio counts, and an inactive paused tab does not count. Two playing YouTube tabs must not consume two minutes per elapsed minute.
+4. Add two Windows entries containing YouTube. Confirm access in either window, full-site blocking outside both, and one shared daily budget. Check other sites remain unaffected unless listed. Try overnight and weekday-specific windows.
+5. Enable Shorts/Reels blocking. Open from home/search, a notification, a direct link and a profile/modal, including SPA navigation. Confirm playback is suppressed rather than opened in the normal player. Verify regular videos/direct posts still work.
+6. Enable an optional settings password. Reload the dashboard/popup, confirm edits need it, then turn it off using the correct password. It must not grant extra access time.
+7. Enable Chrome Incognito and Safari Private Browsing permissions if desired, then repeat the checks there. Safari's status must state its observation limit.
+8. Sleep/wake, restart the browser, cross midnight and change time zone. Confirm persisted usage, local-window semantics and reasonable gap accounting.
 
-## Reliability checks (manual)
-
-- Sleep the Mac for 10 minutes with a limited site focused. On wake, usage grows by at most 90 seconds.
-- Change the time zone while a schedule is active. Pages re-evaluate within a minute, and the next-access time uses the new zone.
-- Move the clock back an hour during an override. The override is cancelled and the dashboard shows the clock-change notice.
+The automated fixtures validate known routes and markup, not the current DOM of every real website. Real signed-in pages, Substack selectors, opaque players and Safari runtime still require the manual checks above.

@@ -14,13 +14,13 @@ npm run test:e2e
 
 `.nvmrc` selects the verified Node version. If you do not use nvm, install that Node version with your preferred manager. The extension needs no `.env`, API key, database, or backend. GitHub access is needed to push changes; `gh auth status` checks the local GitHub CLI login.
 
-Run builds and the Chrome smoke test sequentially: builds replace `dist/chrome`, and the smoke test loads that directory into an isolated temporary browser profile. The test does not install the extension into your everyday profile or retain its test PIN.
+Run builds and the Chrome smoke test sequentially: builds replace `dist/chrome`, and the smoke test loads that directory into an isolated temporary browser profile. The test does not install the extension into your everyday profile or retain its test password.
 
 ## Chrome
 
 1. Run `npm run build`.
 2. Open `chrome://extensions`, enable Developer mode, click **Load unpacked**, and select the repository's `dist/chrome` directory.
-3. Complete onboarding and choose your own PIN. If private browsing should be covered, enable **Allow in Incognito** in the extension's details and confirm it during onboarding.
+3. Choose your website controls. Password protection is optional in Settings. If private browsing should be covered, enable **Allow in Incognito** in the extension's details and confirm it in Settings.
 4. After source changes, rebuild and reload the extension on `chrome://extensions`.
 
 Google Chrome must be installed for `npm run test:e2e`. On macOS its default path is `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`. Set `CHROME_PATH` to use a different compatible browser binary.
@@ -39,7 +39,7 @@ xcodebuild -project safari/Screentime/Screentime.xcodeproj \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-The compiled app is `dist/safari/Build/Products/Debug/Screentime.app`. An unsigned build proves compilation and packaging; it does not prove the extension is enabled in Safari. For local runtime testing, follow `SAFARI.md` to allow unsigned extensions, or choose your signing team for both targets in Xcode and run the app. Enable Screentime, website access, and (if desired) Private Browsing access in Safari. Choose your PIN yourself during onboarding.
+The compiled app is `dist/safari/Build/Products/Debug/Screentime.app`. An unsigned build proves compilation and packaging; it does not prove the extension is enabled in Safari. For local runtime testing, follow `SAFARI.md` to allow unsigned extensions, or choose your signing team for both targets in Xcode and run the app. Enable Screentime, website access, and (if desired) Private Browsing access in Safari. You can optionally protect settings with your own password.
 
 For signed development, open the project:
 
@@ -47,7 +47,7 @@ For signed development, open the project:
 open safari/Screentime/Screentime.xcodeproj
 ```
 
-Browser permission and private-browsing switches belong to each browser profile. Chrome and Safari do not share their rules or PINs.
+Browser permission and private-browsing switches belong to each browser profile. Chrome and Safari do not share their settings, usage or passwords.
 
 ## Working together
 

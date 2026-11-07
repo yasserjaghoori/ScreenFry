@@ -1,18 +1,87 @@
-.popup { width: 360px; padding: 18px; }
-.popup-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.popup-title { font-weight: 750; }
-.mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--green); color: #fff; }
-.site-card { padding: 18px; }
-.site-card h1 { font-size: 21px; margin: 6px 0 6px; letter-spacing: -0.03em; word-break: break-word; }
-.status { font-size: 13px; font-weight: 650; color: var(--muted); }
-.status-blocked { color: var(--warn); }
-.status-temporarily-unlocked { color: var(--info); }
-.status-allowed { color: var(--green); }
-.ring { flex: none; width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--green) var(--progress), var(--soft) 0); position: relative; }
-.ring::before { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--paper); }
-.ring span { position: relative; font-size: 12px; font-weight: 750; }
-.popup-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 14px 0 0; }
-.popup-stat { padding: 11px 12px; background: var(--soft); border-radius: 12px; font-size: 13px; }
-.popup-stat.wide { grid-column: 1 / -1; }
-.popup-stat strong { display: block; margin-top: 4px; font-size: 15px; }
-.popup .button { width: 100%; margin-top: 13px; }
+.popup {
+  width: 380px;
+  padding: 18px 20px;
+  max-height: 590px;
+  overflow-y: auto;
+}
+.popup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.popup-title {
+  font-size: 19px;
+  font-weight: 750;
+}
+.popup-head .button {
+  font-size: 12px;
+}
+.popup-nav {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+  gap: 20px;
+}
+.popup-nav button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  padding: 0 0 12px;
+  font-size: 13px;
+}
+.popup-nav .selected {
+  color: var(--green);
+  border-color: var(--green);
+}
+.site-picker {
+  width: 100%;
+  background: var(--green);
+  color: white;
+  font-size: 17px;
+  font-weight: 600;
+  border: 0;
+  padding: 13px 16px;
+  margin: 0 0 22px;
+  border-radius: 12px;
+}
+.site-picker option {
+  background: var(--paper);
+  color: var(--ink);
+}
+.popup .site-summary {
+  display: none;
+}
+.popup .control-section {
+  margin-bottom: 22px;
+}
+.popup .control-row {
+  padding: 12px 14px;
+  font-size: 13px;
+  gap: 12px;
+}
+.popup .control-row select {
+  max-width: 160px;
+}
+.popup .control-group {
+  border-radius: 13px;
+}
+.popup .settings-block {
+  padding: 18px;
+}
+.popup .password-gate h2 {
+  font-size: 17px;
+}
+.popup .password-gate p {
+  font-size: 13px;
+}
+.popup .control-row input[type="number"] {
+  width: 65px;
+}
+.popup .control-row .row {
+  gap: 6px;
+}
+.popup .control-row .button {
+  padding: 7px 10px;
+}

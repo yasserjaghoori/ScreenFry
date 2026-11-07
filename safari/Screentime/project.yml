@@ -26,8 +26,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime
-        MARKETING_VERSION: "0.2.0"
-        CURRENT_PROJECT_VERSION: "2"
+        MARKETING_VERSION: "0.3.0"
+        CURRENT_PROJECT_VERSION: "3"
     dependencies:
       - target: Screentime Extension
         embed: true
@@ -64,5 +64,5 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime.Extension
-        MARKETING_VERSION: "0.2.0"
-        CURRENT_PROJECT_VERSION: "2"
+        MARKETING_VERSION: "0.3.0"
+        CURRENT_PROJECT_VERSION: "3"
