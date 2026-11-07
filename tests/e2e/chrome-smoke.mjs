@@ -465,8 +465,12 @@ try {
   await cdp("Runtime.enable", {}, media.session);
   await sleep(100);
   const iso = contexts.find(
-    (c) => c.sessionId === media.session && c.auxData?.type === "isolated",
+    (c) =>
+      c.sessionId === media.session &&
+      c.auxData?.type === "isolated" &&
+      c.origin === `chrome-extension://${extId}`,
   );
+  if (!iso) throw new Error("Screentime content-script world not found");
   const forbidden = await cdp(
     "Runtime.evaluate",
     {

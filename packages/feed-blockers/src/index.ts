@@ -77,7 +77,12 @@ export const siteDefinitions: SiteDefinition[] = [
           'yt-lockup-view-model:has(a[href*="/shorts/"])',
           'ytd-video-renderer:has(a[href*="/shorts/"])',
           'grid-shelf-view-model:has(a[href*="/shorts/"])',
-          'a[href^="/shorts/"]',
+          'a[href^="/shorts"]',
+          // Sidebar and mini-guide entries use a title/label rather than a /shorts/ href.
+          'ytd-guide-entry-renderer:has(a[href^="/shorts"])',
+          'ytd-guide-entry-renderer:has(a#endpoint[title="Shorts"])',
+          'ytd-mini-guide-entry-renderer[aria-label="Shorts"]',
+          'ytd-pivot-bar-item-renderer:has([title="Shorts"])',
           "ytd-shorts",
           "ytm-shorts-lockup-view-model",
           "ytm-shorts",
