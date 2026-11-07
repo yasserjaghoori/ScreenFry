@@ -23,6 +23,8 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
     entitlements:
       path: Screentime/Screentime.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime
@@ -61,6 +63,8 @@ targets:
           NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).SafariWebExtensionHandler"
     entitlements:
       path: Screentime Extension/Screentime Extension.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime.Extension

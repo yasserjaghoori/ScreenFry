@@ -7,6 +7,7 @@ npm run build:safari
 xcodegen generate --spec safari/Screentime/project.yml
 xcodebuild -project safari/Screentime/Screentime.xcodeproj -scheme Screentime \
   -configuration Debug -derivedDataPath dist/safari CODE_SIGNING_ALLOWED=NO build
+node scripts/verify-safari.mjs dist/safari/Build/Products/Debug/Screentime.app
 ```
 
 Unit tests cover allowances, zero/unlimited budgets, aliases, allowed-window union, weekday and overnight windows, DST, combined next access, playback URL decisions, optional-password authorization, migration and deduplicated multi-tab accounting.
@@ -27,3 +28,11 @@ Do not run a build while the integration test is using `dist/chrome`.
 8. Sleep/wake, restart the browser, cross midnight and change time zone. Confirm persisted usage, local-window semantics and reasonable gap accounting.
 
 The automated fixtures validate known routes and markup, not the current DOM of every real website. Real signed-in pages, Substack selectors, opaque players and Safari runtime still require the manual checks above.
+
+## Local installation check — November 7, 2026
+
+Chrome loaded version 0.3.0 and displayed its welcome and website controls. Safari loaded a locally development-signed version 0.3.0, reported it enabled, and confirmed website access. Existing feed-blocking extensions were disabled for the requested comparison.
+
+This check found and fixed XcodeGen clearing the sandbox entitlement dictionaries. The corrected bundle passes strict recursive signature verification and the packaging verifier. A single persistent Safari installation remains registered.
+
+Live enabled-control acceptance is still pending: browser automation rejected access to extension-internal settings pages. Normal-site baseline loading was observed, but feed toggles, live time-limit exhaustion, Windows and short-form blocking have not yet been verified in these everyday browser profiles. The isolated Chrome integration checks above are separate evidence.

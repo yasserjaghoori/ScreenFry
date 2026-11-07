@@ -26,7 +26,10 @@ The generated extension `Resources/` directory is not versioned. Always run `npm
 
 - Safari reads `manifest.json` from the root of the appex `Contents/Resources`. The top-level files are added individually and only `assets/` is a folder reference, because Vite's hashed file names change every build.
 - Both targets have the App Sandbox entitlement. The handler implements `NSExtensionRequestHandling`. Native messaging is unused in Phase 1.
+- Sandbox properties must be declared in `project.yml`, as well as the generated entitlement files. XcodeGen otherwise rewrites those files as empty dictionaries. CI runs `scripts/verify-safari.mjs` after the build to catch this.
 - Bundle IDs are `com.screentime.Screentime` and `com.screentime.Screentime.Extension`. Change them in `project.yml` to match your team.
+
+For a local signed development build, select your Apple development team in Xcode or pass signing options to `xcodebuild`. Keep signing identities out of version control. Build outside iCloud-synced directories when Finder metadata interferes with signature validation, and verify the resulting bundle with `codesign --verify --deep --strict` before installation. Keep one installed containing app to avoid duplicate Safari extension registrations.
 
 ## Behaviour differences from Chrome
 
