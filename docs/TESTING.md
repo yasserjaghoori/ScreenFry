@@ -40,3 +40,15 @@ After the user enabled YouTube controls, Chrome's real signed-in homepage report
 Safari was updated to a locally signed 0.3.1 with a native app icon and monochrome toolbar clock. The installed app passed strict signature and packaging checks, reported enabled, and the toolbar exposed a visible button named Screentime. On the public YouTube homepage, the home feed and Notifications button were absent after the update. A subsequent direct Shorts test reached a blank loading tab without a verifiable destination, so Safari's live short-form redirect remains unverified.
 
 The automation tool rejected access to extension-internal settings pages, so settings were enabled manually by the user. Live time-limit exhaustion, Windows and the remaining site controls still need manual acceptance. The isolated Chrome integration checks above are separate evidence. The toolbar icon does not change the tool's extension-page access restriction.
+
+## Paused follow-up — source 0.3.2
+
+Before the user's restart request, `npm run check` passed all 63 unit tests and the build. A subsequent isolated Chrome run against 0.3.2 finished with 43 passed, zero failed. The signed Safari 0.3.2 build also completed successfully in `/tmp/screentime-safari-icons`; it was not installed, and that build's signature/package verification and live acceptance were not completed.
+
+The local change uses `declarativeNetRequestWithHostAccess`, required by Apple for Safari redirects, and adds permission checks to both packaging verifiers. This is a confirmed manifest/documentation mismatch, not a confirmed diagnosis of the blank Safari tab. Further native Safari attempts were interrupted by concurrent input, a lost window connection and the user's pause. Do not infer successful navigation or blocking from those attempts. Resume from `AI_HANDOFF.md` after the restart when requested.
+
+## Post-restart follow-up — November 7, 2026
+
+Node 24.14.0 and `npm ci` succeeded. `npm run check` passed 63 tests, typecheck and build; the isolated Chrome suite finished 43 passed, zero failed. Safari 0.3.2 was rebuilt under `/tmp/screentime-safari-032`, signature/package-verified, installed in place and verified again. Its containing app reported enabled; one persistent 0.3.2 extension copy was registered.
+
+Live Chrome showed the hidden YouTube feed/Notifications. Clicking the still-visible Shorts navigation entry reached a blocked URL labeled YouTube Shorts. The bare `/shorts` navigation selector remains a follow-up. Safari's clock and homepage hiding survived reboot before the update. After the update, direct Shorts and ordinary search attempts stayed in loading states without verified destination/content; these checks remain inconclusive. Test tabs were closed. No automated access to the previously denied installed-extension settings was attempted.

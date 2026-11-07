@@ -49,6 +49,8 @@ if (!errors.length) {
   const manifest = JSON.parse(
     readFileSync(join(resources, "manifest.json"), "utf8"),
   );
+  if (!manifest.permissions.includes("declarativeNetRequestWithHostAccess"))
+    errors.push("Safari redirect permission is missing");
   for (const iconMap of [manifest.icons, manifest.action.default_icon]) {
     if (!iconMap?.["16"] || !iconMap?.["32"])
       errors.push("missing embedded icon declarations");

@@ -6,6 +6,8 @@ const read = (path) => readFileSync(new URL(path, dist), "utf8");
 const errors = [];
 
 const manifest = JSON.parse(read("manifest.json"));
+if (!manifest.permissions.includes("declarativeNetRequestWithHostAccess"))
+  errors.push("redirect rules require declarativeNetRequestWithHostAccess in Safari");
 for (const [purpose, icons] of Object.entries({
   extension: manifest.icons,
   toolbar: manifest.action.default_icon,

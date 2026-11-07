@@ -27,6 +27,7 @@ The generated extension `Resources/` directory is not versioned. Always run `npm
 - Safari reads `manifest.json` from the root of the appex `Contents/Resources`. The top-level files are added individually; `assets/` and `icons/` are folder references so manifest paths remain intact.
 - The extension declares transparent monochrome toolbar PNGs and colored extension PNGs. The containing app uses a native AppIcon asset catalog. Regenerate all PNGs on macOS with `swift scripts/generate-icons.swift`; generated images are committed so CI needs no graphics tools.
 - Both targets have the App Sandbox entitlement. The handler implements `NSExtensionRequestHandling`. Native messaging is unused in Phase 1.
+- Redirect rules require `declarativeNetRequestWithHostAccess` plus granted host access in Safari. The shared manifest uses that permission, which Chrome also supports. Both package verifiers check it. See [Apple's content-blocking documentation](https://developer.apple.com/documentation/safariservices/blocking-content-with-your-safari-web-extension).
 - Sandbox properties must be declared in `project.yml`, as well as the generated entitlement files. XcodeGen otherwise rewrites those files as empty dictionaries. CI runs `scripts/verify-safari.mjs` after the build to catch this.
 - Bundle IDs are `com.screentime.Screentime` and `com.screentime.Screentime.Extension`. Change them in `project.yml` to match your team.
 

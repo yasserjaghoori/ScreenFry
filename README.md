@@ -2,6 +2,8 @@
 
 A Chrome and Safari extension that combines feed removal and SocialFocus-style website controls, with daily allowances and allowed time windows.
 
+**Development status — November 7, 2026:** source **0.3.2** includes the Safari redirect-permission correction on `codex/project-setup` in [draft PR #1](https://github.com/yasserjaghoori/Screentime/pull/1). Safari 0.3.2 is installed, signature/package-verified and reports enabled. All 63 unit tests and 43 isolated Chrome integration checks pass. Live Chrome Shorts blocking works; Safari's direct Shorts and search navigation remain inconclusive loading states. See the [complete AI handoff](docs/AI_HANDOFF.md) for requirements, assessment and remaining acceptance work.
+
 ## Phase 1 features
 
 - **Five launch sites:** YouTube, Instagram, X, Reddit and Substack.
@@ -30,8 +32,21 @@ Chrome: open `chrome://extensions`, enable Developer mode, **Load unpacked** and
 
 The interface is informed by the installed SocialFocus extension. Feed selectors are adapted in part from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia); its MIT notice is bundled in the extension's `THIRD_PARTY_NOTICES.txt`. SocialFocus source code and assets are not included.
 
+The product should retain SocialFocus's practical interaction model: choose a website, set its own allowance, and adjust grouped feed/button/playback controls. Allowed windows belong on their own page. The optional password protects changes; it does not grant extra browsing time. The old mandatory PIN, temporary visits and commitment-based product are superseded.
+
+The clock logo includes monochrome toolbar PNGs, colored extension icons and a native Safari containing-app icon. It was visibly present in Safari's toolbar. Regenerate the committed assets on macOS with `swift scripts/generate-icons.swift`.
+
+## Verification and remaining work
+
+- **Source 0.3.2:** after the restart, 63 unit tests, typecheck/build and 43 isolated Chrome integration checks pass. The signed Safari build and installed bundle pass strict signature and packaging checks; one installed extension copy is registered and its host reports enabled.
+- **Previous CI:** GitHub CI passed Chrome tests and unsigned Safari compilation/package checks on 0.3.1. Check PR #1 for the newest run after the 0.3.2 push.
+- **Everyday browser checks:** after the restart, Chrome's YouTube home feed and Notifications were hidden, and clicking its Shorts navigation reached the blocked URL. Safari's home feed and Notifications were absent before the 0.3.2 update, and its toolbar clock survived reboot and update. Safari's direct Shorts and ordinary search attempts remained in loading states without a verified destination/content, so Safari playback enforcement and useful-page preservation remain unverified.
+- **Open acceptance work:** real-profile limit exhaustion and allowed windows, regular-content preservation, all five sites' signed-in selectors, short-form notification/modal loopholes, private browsing and sleep/clock boundaries. Chrome still displayed a Shorts navigation entry despite blocking its destination; review the bare `/shorts` selector separately.
+
+The 0.3.2 fix replaces `declarativeNetRequest` with `declarativeNetRequestWithHostAccess`, which [Apple requires for Safari redirect rules](https://developer.apple.com/documentation/safariservices/blocking-content-with-your-safari-web-extension). Chrome supports the same permission. This corrects a documented compatibility mismatch; it does not yet establish the cause or resolution of the blank Safari tab.
+
 ## Docs
 
-[Project brief](docs/PROJECT_BRIEF.md) · [Setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Testing](docs/TESTING.md) · [Privacy](docs/PRIVACY.md) · [Enforcement limits](docs/THREAT_MODEL.md)
+[AI handoff](docs/AI_HANDOFF.md) · [Project brief](docs/PROJECT_BRIEF.md) · [Setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Testing](docs/TESTING.md) · [Privacy](docs/PRIVACY.md) · [Enforcement limits](docs/THREAT_MODEL.md)
 
 Feed selectors depend on website markup. Runtime testing on real signed-in websites and Safari is still needed. The extension cannot prevent removal or enforce settings in another browser or profile.
