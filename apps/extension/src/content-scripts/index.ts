@@ -8,19 +8,18 @@ import {
 } from "@feeds/index";
 import type { TabMessage } from "@browser/messages";
 import { STATE_KEY } from "@browser/storage";
+import { extensionPageUrl } from "@browser/urls";
+import { createBatchedTask } from "@browser/scheduling";
 import { evaluatePolicy, matchingRules } from "@policy/index";
 import type { AppState, PolicyDecision } from "@shared/index";
 const isTop = window === window.top;
 let state: AppState | undefined,
-  redirecting = false,
-  evaluationQueued = false;
+  redirecting = false;
 const STYLE = "screentime-feed-blocker";
 let lastReportedPlaying: boolean | undefined,
   lastReportAt = 0;
 function blockedUrl(label: string) {
-  return chrome.runtime.getURL(
-    `blocked.html?${new URLSearchParams({ label, url: location.href })}`,
-  );
+  return extensionPageUrl("blocked.html", { label, url: location.href });
 }
 function applyCss(css: string) {
   let sheet = document.getElementById(STYLE) as HTMLStyleElement | null;
@@ -116,7 +115,6 @@ function markXTab() {
     document.documentElement.dataset.screentimeXTab = value;
 }
 function evaluate() {
-  evaluationQueued = false;
   if (!state || redirecting || !/^https?:/.test(location.href)) return;
   const decision = evaluatePolicy(state, location.href, Date.now());
   const short = documentShortForm();
@@ -137,11 +135,7 @@ function evaluate() {
   reportMedia();
   if (isTop) overlay.update(decision);
 }
-function queueEvaluation() {
-  if (evaluationQueued) return;
-  evaluationQueued = true;
-  queueMicrotask(evaluate);
-}
+const queueEvaluation = createBatchedTask(evaluate);
 const overlay = (() => {
   let host: HTMLElement | undefined, pill: HTMLElement, toast: HTMLElement;
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -212,13 +206,30 @@ chrome.storage.onChanged.addListener((changes, area) => {
     evaluate();
   }
 });
-// Mutation observation catches SPA/notification modal entry points before the next heartbeat.
-new MutationObserver(queueEvaluation).observe(document.documentElement, {
-  subtree: true,
-  childList: true,
-  attributes: true,
-  attributeFilter: ["href", "src", "aria-selected", "is-active", "hidden"],
-});
+// CSS already applies to new elements. Only supported social sites need DOM checks
+// for player/modal and selected-tab changes; unrelated pages keep timer/media tracking.
+// A website may repeatedly remove our style, so never respond in a microtask loop.
+if (siteFor(location.hostname)) {
+  const observer = new MutationObserver((records) => {
+    if (
+      records.some(
+        (record) => !(record.target instanceof Element && record.target.id === STYLE),
+      )
+    )
+      queueEvaluation();
+  });
+  const observe = () => {
+    if (document.documentElement)
+      observer.observe(document.documentElement, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ["href", "src", "aria-selected", "is-active", "hidden"],
+      });
+  };
+  if (document.documentElement) observe();
+  else document.addEventListener("DOMContentLoaded", observe, { once: true });
+}
 for (const event of [
   "play",
   "playing",

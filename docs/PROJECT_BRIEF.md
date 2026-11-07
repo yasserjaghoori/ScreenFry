@@ -1,4 +1,6 @@
-# Project brief
+# ScreenFry project brief
+
+The user-facing product is now **ScreenFry**, following Claude's 0.4.0 rename and ember redesign. The repository, package, Xcode scheme and stable bundle identifiers retain Screentime. The functional scope below is unchanged.
 
 ## Approved scope — November 7, 2026
 

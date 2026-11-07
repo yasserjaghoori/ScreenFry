@@ -1,6 +1,6 @@
 # Architecture
 
-- `apps/extension`: React dashboard, popup, welcome and blocked pages; MV3 background and classic content script.
+- `apps/extension`: ScreenFry React dashboard, popup, welcome and blocked pages; shared background implementation and classic content script. Chrome runs a module service worker; Safari packaging selects a nonpersistent module background page.
 - `packages/core`: authorized state transitions, optional password hashing, usage accounting, storage migration and domain matching.
 - `packages/policy-engine`: pure allowance/window/short-form decisions and upcoming boundaries.
 - `packages/feed-blockers`: grouped per-site selector definitions and short-form URL matching.
@@ -19,7 +19,7 @@ Legacy mandatory PINs, overrides, commitments and queued changes are discarded. 
 
 A website is blocked if manually blocked, its daily allowance is exhausted, it is outside every matching enabled allowed window, or its URL identifies disabled short-form content. A matching window is not required for unlisted sites. Overlapping allowed windows combine with OR; all independent restrictions must permit access. Forecasting searches the complete policy so midnight alone does not claim access before the next window.
 
-Network redirect rules cover blocked domains and direct Shorts/Reels routes. Tab enforcement replaces already-open blocked sites. Content scripts enforce storage changes, recognized in-page players and SPA routes, and pause restricted media before redirecting. Button hiding, feed removal and playback blocking have separate controls.
+Network rules cover blocked domains and direct Shorts/Reels routes. Chrome redirects matched requests to its blocked page; Safari uses block actions, with tab/content enforcement responsible for notice routing. Safari live notice routing remains unverified. Tab enforcement replaces already-open blocked sites. Content scripts enforce storage changes, recognized in-page players and SPA routes, and pause restricted media before redirecting. Button hiding, feed removal and playback blocking have separate controls. DOM mutation checks are limited to supported social sites and coalesced into 50 ms macrotasks so stylesheet removal cannot create an input-starving microtask loop. Media play events still pause restricted playback synchronously. Other pages retain periodic, storage-change and media-event enforcement without a document-wide mutation observer.
 
 ## Usage
 

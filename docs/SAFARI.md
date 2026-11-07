@@ -1,6 +1,6 @@
 # Safari Web Extension packaging
 
-`safari/Screentime` holds a minimal macOS containing app plus a Safari Web Extension target, described by `project.yml` (XcodeGen). The app only tells the user how to enable the extension and shows whether Safari reports it as enabled. It is not the Phase 2 macOS app.
+`safari/Screentime` holds a minimal macOS containing app plus a Safari Web Extension target, described by `project.yml` (XcodeGen). The ScreenFry containing app only tells the user how to enable the extension and shows whether Safari reports it as enabled. It is not the Phase 2 macOS app.
 
 Requirements: macOS 13+, Xcode 16+, [XcodeGen](https://github.com/yonaskolb/XcodeGen), and an Apple Developer team for signed builds.
 
@@ -12,7 +12,7 @@ xcodegen generate                    # only needed after changing project.yml or
 open Screentime.xcodeproj
 ```
 
-Choose a signing team for both targets, then run **Screentime**. For unsigned local testing, turn on Safari ▸ Settings ▸ Advanced ▸ _Show features for web developers_, then Develop ▸ _Allow Unsigned Extensions_.
+Choose a signing team for both targets, then run the **Screentime** scheme, which produces **ScreenFry.app**. For unsigned local testing, turn on Safari ▸ Settings ▸ Advanced ▸ _Show features for web developers_, then Develop ▸ _Allow Unsigned Extensions_.
 
 To check it compiles without signing:
 
@@ -22,12 +22,18 @@ xcodebuild -project Screentime.xcodeproj -scheme Screentime CODE_SIGNING_ALLOWED
 
 The generated extension `Resources/` directory is not versioned. Always run `npm run build:safari` before generating or opening a fresh checkout in Xcode.
 
+## Background execution
+
+`npm run build:safari` copies the verified Chrome build and runs `scripts/prepare-safari.mjs`. Chrome keeps its MV3 module service worker; Safari receives a nonpersistent module background page (`background.scripts`, `type: module`, `persistent: false`). The JavaScript implementation is shared. The package verifier checks the Safari entry and background mode, in addition to icons, sandbox entitlements, attribution and version.
+
+This packaging was introduced after Safari reported that its background content failed to load. Use Safari's Extensions settings and background-content diagnostics to verify runtime loading; a signed build alone does not establish that it is running. Network rules use schema string values, rather than Chrome-only runtime enum objects. Navigation builds a static resource URL first, then appends encoded query/fragment components.
+
 ## Packaging details
 
 - Safari reads `manifest.json` from the root of the appex `Contents/Resources`. The top-level files are added individually; `assets/` and `icons/` are folder references so manifest paths remain intact.
 - The extension declares transparent monochrome toolbar PNGs and colored extension PNGs. The containing app uses a native AppIcon asset catalog. Regenerate all PNGs with `npm run icons` (`scripts/generate-icons.mjs`, any OS); generated images are committed so CI needs no graphics tools. The containing app is named ScreenFry (`ScreenFry.app`) but keeps the `com.screentime.*` bundle identifiers so Safari keeps its existing registration and settings. It also bundles `BrandIcon.png` and sets it as the Dock icon at launch, so a stale icon cache cannot show the generic placeholder.
 - Both targets have the App Sandbox entitlement. The handler implements `NSExtensionRequestHandling`. Native messaging is unused in Phase 1.
-- Redirect rules require `declarativeNetRequestWithHostAccess` plus granted host access in Safari. The shared manifest uses that permission, which Chrome also supports. Both package verifiers check it. See [Apple's content-blocking documentation](https://developer.apple.com/documentation/safariservices/blocking-content-with-your-safari-web-extension).
+- Network rules require `declarativeNetRequestWithHostAccess` plus granted host access in Safari. The shared manifest uses that permission, which Chrome also supports. Both package verifiers check it. See [Apple's content-blocking documentation](https://developer.apple.com/documentation/safariservices/blocking-content-with-your-safari-web-extension).
 - Sandbox properties must be declared in `project.yml`, as well as the generated entitlement files. XcodeGen otherwise rewrites those files as empty dictionaries. CI runs `scripts/verify-safari.mjs` after the build to catch this.
 - Bundle IDs are `com.screentime.Screentime` and `com.screentime.Screentime.Extension`. Change them in `project.yml` to match your team.
 
@@ -41,7 +47,7 @@ For local updates, quit the containing app and update the installed bundle in pl
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Private Browsing check | No API. Coverage is confirmed only after Screentime sees one of its tabs in a Private window. It can't detect the setting being turned off later. |
 | Usage                  | Focused active tab plus reported background audio/video playback. Safari has no `idle` API.                                                       |
-| Network blocking       | Uses `declarativeNetRequest` regex redirects where Safari supports them. If they fail, tab redirects and the content script still enforce.        |
+| Network blocking       | Uses `declarativeNetRequest` block actions; tab/content enforcement supplies the notice URL. Live notice routing remains unverified.        |
 | State                  | Separate from Chrome. Usage, rules and optional settings password aren't shared in Phase 1.                                                       |
 
-Safari runtime behaviour hasn't been verified in CI. Use the manual acceptance checks in `TESTING.md`.
+Safari runtime behaviour is not verified in CI. The current signed build failed final live Shorts acceptance and is left disabled after a performance incident; see `TESTING.md` before retesting. Use an isolated environment for further diagnosis.

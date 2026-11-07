@@ -1,3 +1,29 @@
+# ScreenFry — latest assistance handoff
+
+Updated November 7, 2026. The user-facing product is **ScreenFry**; repository/package/scheme/bundle identifiers retain Screentime.
+
+## Current state superseding the historical snapshot below
+
+Claude pushed `877f8f7` (Shorts navigation and isolated-world lookup) and `2e78a48` (ScreenFry 0.4.0 ember redesign, Today summaries, popup site buttons and Mac Dock icon fallback). Those commits were fast-forwarded into local `codex/project-setup`.
+
+Current source and installed Safari app: **0.4.2**, native build **11**. The persistent app is `/Users/samhangster/Applications/ScreenFry.app`; the old Screentime.app was replaced/renamed with a backup. Chrome's management page confirmed **0.4.2 enabled** after Reload. Stable identifiers remain unchanged. Preserve the user's untracked duplicate Xcode projects.
+
+**Safari is intentionally disabled after a performance incident.** The user had to force quit Safari, unchecked ScreenFry, and reported that Safari became much faster. Do not silently describe the extension as enabled or Safari acceptance as passed. The user authorized a controlled retest: home and normal search improved, but direct Shorts remained in a loading state without a confirmed blocked destination, and native control was interrupted. ScreenFry was disabled again and the setup app confirmed it off. Test tabs were closed. Further Safari testing should use an isolated environment before another everyday-profile retest.
+
+A concrete starvation bug was reproduced in an isolated profile: when the fixture repeatedly removes the injected stylesheet, the old content script's mutation microtasks prevent a normal timer from firing and the test times out. Version 0.4.2 batches updates into 50 ms macrotasks, ignores its own style-text writes and restricts DOM observation to supported social sites. The same fixture remains responsive after the fix. Media-event pausing stays immediate; other domains retain policy/timer/media tracking. Current validation: **70 unit tests**, typecheck/build, **44 isolated Chrome integration checks**, plus strict signature/package verification of built and installed Safari bundles. This verifies the reproduced starvation fix; the subsequent limited live retest did not establish full Safari recovery.
+
+Safari's reload also exposed a background-content failure. Its package now uses a nonpersistent module background page while Chrome retains its worker. Chrome-specific runtime enum lookups were replaced with portable network-rule strings. Extension navigation separates static resource paths from query/fragment data, with regression tests. Safari was observed enabled with background content loaded before the performance incident. Build 11 uses a network block action in Safari to avoid its failing cross-scheme regex redirect, while existing tab/content enforcement supplies notice routing. That routing remains unverified in live Safari.
+
+The README was rewritten around actual product behavior, current names and installation steps, removing historical installation/version claims. See `docs/TESTING.md` for detailed evidence and remaining work. Chrome normal search, homepage and direct Shorts were checked on 0.4.2 after Reload, with Shorts reaching the blocked URL. On Safari 0.4.0, normal search and hiding worked but direct Shorts produced an invalid-address error. Do not mark Safari's final redirect, limits/windows or remaining sites verified without new evidence.
+
+The fixes preserve original blocked destination URLs. The speculative canonical-URL network redirect experiment was removed. No hidden settings-storage bypass or blocked extension-controls automation was used. Keep all current requirements below, including optional password only and separate allowed windows; do not reintroduce PIN visits or commitments.
+
+## Historical requirements and assessment record
+
+The retained snapshot below describes earlier 0.3.x work. Its requirements and reference-extension assessment remain useful; its version/path/test-status statements are superseded by the current section, README and Testing document.
+
+---
+
 # Screentime — complete AI handoff
 
 Prepared November 7, 2026 (America/New_York). This is a project brief and an evidence-based progress record for another AI assisting Sam and Yasser. Later direct user instructions supersede it. Distinguish requirements, implemented behavior and verified behavior throughout.

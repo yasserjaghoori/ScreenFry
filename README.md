@@ -1,54 +1,71 @@
 # ScreenFry
 
-_Repository and package names still say Screentime; the product is now ScreenFry._
+ScreenFry is a Chrome and Safari extension for using social websites with fewer distractions. It combines feed and button controls with per-website daily allowances and recurring allowed-time windows.
 
-A Chrome and Safari extension that combines feed removal and SocialFocus-style website controls, with daily allowances and allowed time windows.
+This is a development build. Chrome fixture coverage and Safari runtime acceptance are tracked separately in [Testing](docs/TESTING.md); Safari acceptance is not complete.
 
-**Development status, November 7, 2026:** source **0.4.0** renames the product to ScreenFry, adds the ember redesign and a robust macOS Dock icon, and keeps the 0.3.2 Safari redirect-permission correction on `codex/project-setup` in [draft PR #1](https://github.com/yasserjaghoori/Screentime/pull/1). Safari 0.3.2 is installed, signature/package-verified and reports enabled. All 63 unit tests and 43 isolated Chrome integration checks pass. Live Chrome Shorts blocking works; Safari's direct Shorts and search navigation remain inconclusive loading states. See the [complete AI handoff](docs/AI_HANDOFF.md) for requirements, assessment and remaining acceptance work.
+The GitHub repository, npm package, Xcode scheme and internal browser identifiers retain the name **Screentime**. The user-facing product and macOS app are **ScreenFry**.
 
-## Phase 1 features
+## Website controls
 
-- **Five launch sites:** YouTube, Instagram, X, Reddit and Substack.
-- **Individual website controls:** hide feeds, recommendations and navigation buttons using grouped toggles. Keep useful search, messages and direct posts unless you choose to hide them.
-- **Per-website daily limits:** block the entire website once its allowance is used. Each site has its own budget, shared across tabs and windows, resetting at local midnight.
-- **A separate Windows page:** choose recurring days and times, then whitelist websites for that window. A listed website is blocked outside all its enabled windows, even with daily time remaining. Multiple windows combine; they do not restart the allowance. Unlisted websites keep their normal settings.
-- **Playback blocking:** enabling YouTube Shorts or Instagram Reels blocking rejects direct links, notification routes and detected in-page short-form players. It never converts them to a normal video player. X, Reddit and Substack also have optional video-playback controls.
-- **Usage counting:** the active tab in the focused browser counts, along with background tabs actually playing audio or video. Merely open background tabs do not count. Multiple tabs on the same website count once per elapsed second.
-- **Optional settings password:** protects changes to website controls, allowances and windows. No mandatory PIN, temporary access bypass, timed commitment or queued change.
-- **Local storage:** no account, backend, API key or analytics. Each browser has its own settings and usage.
+The initial sites are **YouTube, Instagram, X, Reddit and Substack**. Choose a website to adjust its own feed, navigation, playback and time-limit controls. The popup provides the same site controls; the dashboard adds a Today usage summary and separate Windows and Settings pages. Light and dark themes are available.
 
-## Run
+- Hide selected feeds, recommendations, comments or navigation buttons. Search, messages, profiles and direct content remain available unless another selected control restricts them.
+- Set a separate daily allowance for each website, or choose no limit. Exhausting the allowance blocks the entire website, including already-open tabs.
+- Enable **Block Shorts entirely** for YouTube or **Block Reels entirely** for Instagram. Recognized direct routes and in-page players are blocked and playback is paused. X, Reddit and Substack also have independent video-playback controls.
+- Optionally protect changes with a settings password. The password authorizes edits; it does not grant additional browsing time. A fresh installation starts unrestricted.
 
-Use the Node version in `.nvmrc`. See [Development setup](docs/SETUP.md) for browser installation.
+## How time and windows work
+
+Time counts while a website is the active tab in the focused browser window, and while its audio or video actually plays in a background tab, including muted video. An inactive, non-playing tab does not count. Simultaneous tabs on the same website count once per elapsed second. Each browser keeps its own daily usage, resetting at local midnight.
+
+On the **Windows** page, create one or more recurring windows and whitelist websites for each. Listed websites are blocked outside all their enabled windows, even with unused daily time. Unlisted websites retain their normal controls. Multiple matching windows combine and share the website's single daily allowance; overnight windows are supported.
+
+For example, YouTube with a 10-minute allowance and noon–1 p.m. plus 6–8 p.m. windows gets **10 minutes total per day**, usable in either window. It is blocked at 3 p.m.
+
+## Build and install
+
+Use the Node version in `.nvmrc`:
 
 ```bash
+nvm use
 npm ci
-npm run check       # unit tests, typecheck and Chrome build
-npm run test:e2e    # isolated Chrome integration test
-npm run build:safari
+npm run build
 ```
 
-Chrome: open `chrome://extensions`, enable Developer mode, **Load unpacked** and choose `dist/chrome`. Safari: follow [Safari setup](docs/SAFARI.md).
+### Chrome
 
-## References and reuse
+Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `dist/chrome`. Enable ScreenFry and grant the website access needed for its controls. After rebuilding, use **Reload** on its extension card to load the new files. Enable **Allow in Incognito** separately if desired.
 
-The interface is informed by the installed SocialFocus extension. Feed selectors are adapted in part from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia); its MIT notice is bundled in the extension's `THIRD_PARTY_NOTICES.txt`. SocialFocus source code and assets are not included.
+### Safari on macOS
 
-The product should retain SocialFocus's practical interaction model: choose a website, set its own allowance, and adjust grouped feed/button/playback controls. Allowed windows belong on their own page. The optional password protects changes; it does not grant extra browsing time. The old mandatory PIN, temporary visits and commitment-based product are superseded.
+Install Xcode and XcodeGen, then run from the repository root:
 
-The clock logo includes monochrome toolbar PNGs, colored extension icons and a native Safari containing-app icon. It was visibly present in Safari's toolbar. Regenerate the committed assets on any OS with `npm run icons` (`scripts/generate-icons.mjs`).
+```bash
+npm run build:safari
+xcodegen generate --spec safari/Screentime/project.yml
+```
 
-## Verification and remaining work
+Open `safari/Screentime/Screentime.xcodeproj`, select the **Screentime** scheme, configure signing for both targets and build. The containing app is **ScreenFry.app**, with an embedded **ScreenFry Extension.appex**. Enable ScreenFry in Safari Settings → Extensions and grant website access. Private Browsing access is a separate Safari setting.
 
-- **Source 0.3.2:** after the restart, 63 unit tests, typecheck/build and 43 isolated Chrome integration checks pass. The signed Safari build and installed bundle pass strict signature and packaging checks; one installed extension copy is registered and its host reports enabled.
-- **Previous CI:** GitHub CI passed Chrome tests and unsigned Safari compilation/package checks on 0.3.1. Check PR #1 for the newest run after the 0.3.2 push.
-- **Everyday browser checks:** after the restart, Chrome's YouTube home feed and Notifications were hidden, and clicking its Shorts navigation reached the blocked URL. Safari's home feed and Notifications were absent before the 0.3.2 update, and its toolbar clock survived reboot and update. Safari's direct Shorts and ordinary search attempts remained in loading states without a verified destination/content, so Safari playback enforcement and useful-page preservation remain unverified.
-- **Open acceptance work:** real-profile limit exhaustion and allowed windows, regular-content preservation, all five sites' signed-in selectors, short-form notification/modal loopholes, private browsing and sleep/clock boundaries. Chrome still displayed a Shorts navigation entry despite blocking its destination; review the bare `/shorts` selector separately.
+See [Safari setup](docs/SAFARI.md) for command-line builds and packaging checks. Keep one installed containing app. When upgrading from Screentime.app, preserve the internal bundle identifiers, quit the old containing app, back it up and replace/rename the installation safely rather than leaving two registered copies.
 
-The 0.3.2 fix replaces `declarativeNetRequest` with `declarativeNetRequestWithHostAccess`, which [Apple requires for Safari redirect rules](https://developer.apple.com/documentation/safariservices/blocking-content-with-your-safari-web-extension). Chrome supports the same permission. This corrects a documented compatibility mismatch; it does not yet establish the cause or resolution of the blank Safari tab.
+## Development and verification
 
-## Docs
+```bash
+npm run check       # unit tests, typecheck and verified Chrome build
+npm run test:e2e    # isolated Chrome browser integration tests
+npm run icons       # regenerate extension and native app clock icons
+```
 
-[AI handoff](docs/AI_HANDOFF.md) · [Project brief](docs/PROJECT_BRIEF.md) · [Setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Testing](docs/TESTING.md) · [Privacy](docs/PRIVACY.md) · [Enforcement limits](docs/THREAT_MODEL.md)
+Builds and integration tests share `dist/chrome`; run them sequentially. The browser tests use local fixtures and disposable profiles. They do not establish that every selector works on today's signed-in websites or that Safari runtime behavior passes. Current results and unfinished acceptance checks belong in [Testing](docs/TESTING.md), rather than installation-specific claims in this README.
 
-Feed selectors depend on website markup. Runtime testing on real signed-in websites and Safari is still needed. The extension cannot prevent removal or enforce settings in another browser or profile.
+## Privacy and limitations
+
+The extension stores settings and usage locally. It has no account, backend, analytics or API key. Chrome and Safari do not share settings, passwords or allowances.
+
+Website markup changes can break selectors. A video reached through a normal watch/embed URL without short-form signals cannot always be identified as a Short. Opaque media players may need additional support. Browser permissions must remain enabled, and the extension cannot prevent disabling or removal. See [Enforcement limits](docs/THREAT_MODEL.md).
+
+The interface is informed by [SocialFocus](https://socialfocus.app). Selected feed selectors are adapted from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia), with its full MIT notice bundled in both browser builds. SocialFocus source code and assets are not included.
+
+[Project brief](docs/PROJECT_BRIEF.md) · [Development setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Testing](docs/TESTING.md) · [Privacy](docs/PRIVACY.md) · [AI handoff](docs/AI_HANDOFF.md)

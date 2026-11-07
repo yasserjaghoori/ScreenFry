@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { send, setSettingsCredential } from "@browser/messages";
 import { STATE_KEY } from "@browser/storage";
+import { extensionPageUrl } from "@browser/urls";
 import { migrateState } from "@core/defaults";
 import { launchSites } from "@core/sites";
 import { siteFor } from "@feeds/index";
@@ -43,7 +44,7 @@ function Popup() {
   }, []);
   const open = (page: string) =>
     chrome.tabs.create({
-      url: chrome.runtime.getURL(`dashboard.html?site=${site}#${page}`),
+      url: extensionPageUrl("dashboard.html", { site }, page),
     });
   return (
     <main className="popup">

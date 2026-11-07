@@ -360,6 +360,22 @@ try {
     "Shorts and Reels controls save",
     (await send({ type: "SET_FEEDS", feedSettings: feeds })).ok,
   );
+  const styleChurn = await open(site());
+  const timerDelay = await evaluate(
+    styleChurn.session,
+    `new Promise(resolve=>{
+      const observer=new MutationObserver(()=>document.getElementById('screentime-feed-blocker')?.remove());
+      observer.observe(document.head,{childList:true});
+      document.getElementById('screentime-feed-blocker')?.remove();
+      const start=performance.now();
+      setTimeout(()=>{observer.disconnect();resolve(performance.now()-start)},200);
+    })`,
+  );
+  check(
+    "page timers remain responsive when a website repeatedly removes injected styles",
+    timerDelay < 1500,
+  );
+  await cdp("Target.closeTarget", { targetId: styleChurn.id });
   for (const [name, url] of [
     ["Shorts notification", site("/shorts/fixture?feature=notification")],
     ["individual Reel", "https://instagram.com/reel/fixture"],

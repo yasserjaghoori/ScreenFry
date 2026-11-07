@@ -39,7 +39,7 @@ xcodebuild -project safari/Screentime/Screentime.xcodeproj \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-The compiled app is `dist/safari/Build/Products/Debug/Screentime.app`. An unsigned build proves compilation and packaging; it does not prove the extension is enabled in Safari. For local runtime testing, follow `SAFARI.md` to allow unsigned extensions, or choose your signing team for both targets in Xcode and run the app. Enable Screentime, website access, and (if desired) Private Browsing access in Safari. You can optionally protect settings with your own password.
+The compiled app is `dist/safari/Build/Products/Debug/ScreenFry.app`. The Xcode scheme and source directories retain the Screentime name. An unsigned build proves compilation and packaging; it does not prove the extension is enabled in Safari. For local runtime testing, follow `SAFARI.md` to allow unsigned extensions, or choose your signing team for both targets in Xcode and run the app. Enable ScreenFry, website access, and (if desired) Private Browsing access in Safari. You can optionally protect settings with your own password.
 
 For signed development, open the project:
 

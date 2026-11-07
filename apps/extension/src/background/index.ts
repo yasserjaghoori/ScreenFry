@@ -19,6 +19,7 @@ import {
   sessionArea,
 } from "@browser/platform";
 import { chromeStateStore } from "@browser/storage";
+import { extensionPageUrl, networkBlockAction } from "@browser/urls";
 import { evaluatePolicy, nextPolicyBoundary } from "@policy/index";
 import type { AppState, PolicyDecision } from "@shared/index";
 const ctx: actions.ActionContext = {
@@ -32,9 +33,10 @@ const HEARTBEAT = "heartbeat",
 const extensionOrigin = chrome.runtime.getURL("");
 const browser = detectBrowser();
 function blockedPageUrl(url: string, decision: PolicyDecision): string {
-  return chrome.runtime.getURL(
-    `blocked.html?${new URLSearchParams({ url, label: decision.ruleLabel ?? "This website" })}`,
-  );
+  return extensionPageUrl("blocked.html", {
+    url,
+    label: decision.ruleLabel ?? "This website",
+  });
 }
 async function enforceTab(
   id: number,
@@ -71,17 +73,12 @@ async function syncNetworkRules(state: AppState) {
     addRules.push({
       id,
       priority: 1,
-      action: {
-        type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
-        redirect: {
-          regexSubstitution: `${chrome.runtime.getURL("blocked.html")}?${new URLSearchParams({ label, source: "network" })}&url=\\1`,
-        },
-      },
+      action: networkBlockAction(browser, label),
       condition: {
         regexFilter,
         resourceTypes: [
-          chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
-          chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
+          "main_frame" as chrome.declarativeNetRequest.ResourceType,
+          "sub_frame" as chrome.declarativeNetRequest.ResourceType,
         ],
       },
     });

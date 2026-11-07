@@ -6,6 +6,12 @@ const read = (path) => readFileSync(new URL(path, dist), "utf8");
 const errors = [];
 
 const manifest = JSON.parse(read("manifest.json"));
+if (
+  /declarativeNetRequest\.(?:RuleActionType|ResourceType)\./.test(
+    read(manifest.background.service_worker),
+  )
+)
+  errors.push("network rules must use portable schema strings, not Chrome runtime enums");
 if (!manifest.permissions.includes("declarativeNetRequestWithHostAccess"))
   errors.push("redirect rules require declarativeNetRequestWithHostAccess in Safari");
 for (const [purpose, icons] of Object.entries({

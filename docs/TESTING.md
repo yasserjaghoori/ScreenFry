@@ -1,4 +1,4 @@
-# Testing
+# ScreenFry testing
 
 ```bash
 npm run check
@@ -7,7 +7,7 @@ npm run build:safari
 xcodegen generate --spec safari/Screentime/project.yml
 xcodebuild -project safari/Screentime/Screentime.xcodeproj -scheme Screentime \
   -configuration Debug -derivedDataPath dist/safari CODE_SIGNING_ALLOWED=NO build
-node scripts/verify-safari.mjs dist/safari/Build/Products/Debug/Screentime.app
+node scripts/verify-safari.mjs dist/safari/Build/Products/Debug/ScreenFry.app
 ```
 
 Unit tests cover allowances, zero/unlimited budgets, aliases, allowed-window union, weekday and overnight windows, DST, combined next access, playback URL decisions, optional-password authorization, migration and deduplicated multi-tab accounting.
@@ -15,6 +15,18 @@ Unit tests cover allowances, zero/unlimited budgets, aliases, allowed-window uni
 The Chrome integration test uses a throwaway profile and protocol-served local fixtures under the launch sites' origins. It checks real controls, network redirects, in-page/notification routes, media playback reporting, optional-password protection and privileged-message rejection. A small generated WebM fixture exercises actual muted video playback. No everyday browser profile or installed extension settings are changed. Local runs write screenshots under `dist/screenshots` for visual review. CI skips supplemental screenshot capture to avoid compositor timing failures; set `CAPTURE_E2E_SCREENSHOTS=1` to request captures there. Browser startup has a separate readiness wait and bounded timeout.
 
 Do not run a build while the integration test is using `dist/chrome`.
+
+## Current verification — 0.4.2, November 7, 2026
+
+- Synced Claude's `877f8f7` and `2e78a48`: the ScreenFry rename, ember theme, Today summaries, popup site buttons, native clock fallback, broader Shorts navigation selectors and isolated-world lookup fix.
+- Node 24.14.0 / `npm ci` succeeded. The final `npm run check` passed **70 unit tests**, typecheck and verified build. The final isolated Chrome suite passed **44 checks**, including a new style-removal responsiveness regression.
+- **Freeze reproduced and regression-tested:** against the old 0.4.1 content script, a fixture repeatedly removing the injected style prevented a normal page timer from firing; the integration call timed out after 20 seconds. The 0.4.2 content script coalesces mutations into 50 ms macrotasks, ignores its own style-text changes and observes DOM mutations only on supported social sites. The same fixture's 200 ms timer now completes below the 1.5-second limit. Playback-event pausing remains synchronous; policy/storage/timer enforcement remains active on other domains.
+- The signed **ScreenFry.app 0.4.2, build 11** was built and installed at `~/Applications/ScreenFry.app`. Both built and installed bundles pass strict recursive signature and package verification. The original Screentime.app was renamed/replaced with a backup; unrelated duplicate Xcode projects were preserved.
+- Chrome's extension-management page confirms **0.4.2 enabled** after the final Reload. Live YouTube search returned result headings, the homepage remained usable with no Shorts/Notifications entry in its accessibility tree, and a direct Shorts URL reached the blocked URL with its original destination preserved. Only URL metadata was inspected at that extension-page destination. Test tabs were closed.
+- Safari 0.4.0 showed hidden home/Notifications/Shorts controls and ordinary search results. A direct Shorts route produced a user-confirmed invalid-address error. Later extension reloads exposed a background-content load failure. Safari packaging now selects a nonpersistent module background page, and network rules use portable schema strings. Safari was observed enabled with background content loaded during 0.4.1 testing.
+- **Safari performance acceptance failed:** the user reported a very slow browser, had to force quit it, then disabled ScreenFry and reported a substantial recovery. Safari is intentionally **left disabled** after installing 0.4.2. The isolated regression validates the specific starvation fix, but does not establish that all Safari performance/redirect issues are resolved. The user authorized a controlled one-page retest. On build 10, YouTube home and ordinary search became responsive (roughly 3.5 and 2.7 seconds), but the direct Shorts route remained unverified. Build 11 changes Safari network actions to block requests rather than cross-scheme regex redirects, retaining tab/content notice routing. During the final direct-route retest, Safari stayed in a loading state without a confirmed blocked destination; native input was also interrupted by detected interaction. Reloading the extension did not establish a successful result. ScreenFry was disabled again, its native setup app confirmed it off, and our test tabs were closed. Do not treat limited normal-page improvement as complete Safari recovery.
+
+Remaining acceptance includes final Safari performance/Shorts recovery, real-profile allowance exhaustion/windows, private browsing, all five sites' current signed-in selectors, opaque players, restart/sleep/midnight and time-zone behavior. Older dated notes below are historical, not current installed state.
 
 ## Manual browser acceptance
 

@@ -51,6 +51,16 @@ if (!errors.length) {
   );
   if (!manifest.permissions.includes("declarativeNetRequestWithHostAccess"))
     errors.push("Safari redirect permission is missing");
+  if (
+    manifest.background?.service_worker ||
+    manifest.background?.type !== "module" ||
+    manifest.background?.persistent !== false ||
+    manifest.background?.scripts?.length !== 1 ||
+    !existsSync(
+      join(resources, manifest.background?.scripts?.[0] ?? "missing-background"),
+    )
+  )
+    errors.push("missing packaged Safari nonpersistent module background page");
   for (const iconMap of [manifest.icons, manifest.action.default_icon]) {
     if (!iconMap?.["16"] || !iconMap?.["32"])
       errors.push("missing embedded icon declarations");
