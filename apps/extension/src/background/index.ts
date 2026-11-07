@@ -1,216 +1,268 @@
-import { applyMaturePendingChange, mutateRule } from '@core/commitments';
-import { localDateKey } from '@core/date';
-import { createPinVerifier, clearPinAttempts, recordFailedPin, verifyPin } from '@core/pin';
+/**
+ * Manifest V3 service worker. It is deliberately thin glue: all decisions live in
+ * @core/actions, @core/tracking and @policy. The worker may be suspended at any moment,
+ * so nothing important lives only in memory — the tracking session is kept in session storage
+ * and every timer has a persistent alarm behind it.
+ */
+import * as actions from '@core/actions';
+import type { ActionResult } from '@core/actions';
+import { creditUsage, nextTrackingBoundary, pickTrackedTab, shouldCount, type IdleState, type TrackingSession } from '@core/tracking';
+import { parseWebUrl } from '@core/domains';
+import { CONTENT_SCRIPT_REQUESTS, type Request, type TabMessage } from '@browser/messages';
+import { detectBrowser, hasIdleApi, queryPrivateAccess, sessionArea } from '@browser/platform';
 import { chromeStateStore } from '@browser/storage';
-import type { Request, Response } from '@browser/messages';
-import { evaluatePolicy } from '@policy/index';
-import type { AppState, WebsiteRule } from '@shared/index';
+import { evaluatePolicy, evaluateRule, nextPolicyBoundary } from '@policy/index';
+import type { AppState, PolicyDecision } from '@shared/index';
 
-const OVERRIDE_MS = 10 * 60_000;
-const TRACKING_ALARM = 'tracking-heartbeat';
-let active: { tabId: number; ruleId: string; startedAt: number } | undefined;
-let idle = false;
-let focused = true;
+const ctx: actions.ActionContext = { store: chromeStateStore, now: () => Date.now() };
+const HEARTBEAT_ALARM = 'heartbeat';
+const BOUNDARY_ALARM = 'policy-boundary';
+const SESSION_KEY = 'trackingSession';
+const IDLE_SECONDS = 60;
+const DNR_ID_BASE = 10_000;
+const extensionOrigin = chrome.runtime.getURL('');
+const browser = detectBrowser();
 
-const blockedUrl = (original: string, decision: ReturnType<typeof evaluatePolicy>): string => {
-  const params = new URLSearchParams({
-    url: original,
-    ruleId: decision.ruleId ?? '',
-    label: decision.ruleLabel ?? 'This website',
-    reasons: decision.reasons.join(','),
-    next: String(decision.nextAccessAt ?? '')
-  });
+// ─────────────────────────── Blocking ───────────────────────────
+
+function blockedPageUrl(original: string, decision: PolicyDecision): string {
+  const params = new URLSearchParams({ ruleId: decision.ruleId ?? '', label: decision.ruleLabel ?? 'This website' });
+  params.set('url', original);
   return chrome.runtime.getURL(`blocked.html?${params}`);
-};
-
-function isExtensionPage(url?: string): boolean {
-  return !url || url.startsWith(chrome.runtime.getURL('')) || !/^https?:/.test(url);
 }
 
-async function flushActive(now = Date.now()): Promise<void> {
-  if (!active) return;
-  const session = active;
-  active = undefined;
-  const elapsed = Math.max(0, Math.min(now - session.startedAt, 2 * 60_000));
-  if (!elapsed) return;
-  await chromeStateStore.update((state) => {
-    const key = localDateKey(new Date(now));
-    const day = state.usage[key] ?? { dateKey: key, millisecondsByRule: {} };
-    day.millisecondsByRule[session.ruleId] = (day.millisecondsByRule[session.ruleId] ?? 0) + elapsed;
-    state.usage[key] = day;
-    return state;
-  });
+async function enforceTab(tabId: number, url: string | undefined, state: AppState, now: number): Promise<void> {
+  if (!url || !parseWebUrl(url)) return;
+  const decision = evaluatePolicy(state, url, now);
+  if (decision.status !== 'blocked') return;
+  try { await chrome.tabs.update(tabId, { url: blockedPageUrl(url, decision) }); } catch { /* tab closed */ }
 }
 
-async function refreshTracking(): Promise<void> {
-  await flushActive();
-  if (idle || !focused) return;
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  if (!tab?.id || isExtensionPage(tab.url)) return;
-  const state = await chromeStateStore.get();
-  if (!state.trackingEnabled) return;
-  const rule = state.rules.find((candidate) => candidate.enabled && candidate.domains.some((domain) => {
-    try { const host = new URL(tab.url!).hostname; return host === domain || host.endsWith(`.${domain}`); } catch { return false; }
-  }));
-  if (rule) {
-    const decision = evaluatePolicy(state, tab.url!, Date.now());
-    // Override minutes are intentionally represented by override history, not daily usage.
-    if (decision.status === 'allowed') active = { tabId: tab.id, ruleId: rule.id, startedAt: Date.now() };
-  }
-}
-
-async function enforceTab(tabId: number, url?: string): Promise<void> {
-  if (isExtensionPage(url)) return;
-  const decision = evaluatePolicy(await chromeStateStore.get(), url!, Date.now());
-  if (decision.status === 'blocked') await chrome.tabs.update(tabId, { url: blockedUrl(url!, decision) });
-}
-
-async function enforceAllTabs(): Promise<void> {
+async function enforceAllTabs(state: AppState): Promise<void> {
+  const now = Date.now();
   const tabs = await chrome.tabs.query({});
-  await Promise.all(tabs.filter((tab) => tab.id).map((tab) => enforceTab(tab.id!, tab.url)));
+  await Promise.all(tabs.map((tab) => (tab.id === undefined ? undefined : enforceTab(tab.id, tab.url, state, now))));
+  if (tabs.some((tab) => tab.incognito)) await noteObservedPrivateTab();
 }
 
-async function syncNetworkRules(state?: AppState): Promise<void> {
-  const current = state ?? await chromeStateStore.get();
-  const existing = await chrome.declarativeNetRequest.getDynamicRules();
-  const removeRuleIds = existing.filter((rule) => rule.id >= 10_000 && rule.id < 20_000).map((rule) => rule.id);
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+let lastNetworkRules = '';
+
+/**
+ * Network-level blocking for main frames and embeds. Rules are regenerated from the policy
+ * engine, so they disappear during an override and return when it ends. The original URL is
+ * appended by regex substitution so the blocked page can return to it later.
+ */
+async function syncNetworkRules(state: AppState): Promise<void> {
+  if (!chrome.declarativeNetRequest?.updateDynamicRules) return;
+  const now = Date.now();
   const addRules: chrome.declarativeNetRequest.Rule[] = [];
-  current.rules.forEach((rule, index) => {
-    if (!rule.enabled || index >= 10_000) return;
-    const decision = evaluatePolicy(current, `https://${rule.domains[0]}/`, Date.now());
+  state.rules.forEach((rule, index) => {
+    if (!rule.enabled || index >= 5_000) return;
+    const decision = evaluateRule(state, rule, now);
     if (decision.status !== 'blocked') return;
-    const escaped = rule.domains.map((domain) => domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-    const query = new URLSearchParams({
-      ruleId: rule.id, label: rule.label, reasons: decision.reasons.join(','), next: String(decision.nextAccessAt ?? '')
-    });
-    const redirectPrefix = `${chrome.runtime.getURL('blocked.html')}?${query}&url=`;
+    const domains = rule.domains.map(escapeRegex).join('|');
+    const query = new URLSearchParams({ ruleId: rule.id, label: rule.label });
     addRules.push({
-      id: 10_000 + index,
+      id: DNR_ID_BASE + index,
       priority: 1,
-      action: { type: chrome.declarativeNetRequest.RuleActionType.REDIRECT, redirect: { regexSubstitution: `${redirectPrefix}\\1` } },
+      action: { type: chrome.declarativeNetRequest.RuleActionType.REDIRECT, redirect: { regexSubstitution: `${chrome.runtime.getURL('blocked.html')}?${query}&url=\\1` } },
       condition: {
-        regexFilter: `^(https?://([^/]+\\.)?(${escaped})(:[0-9]+)?(/.*)?)$`,
+        regexFilter: `^(https?://([^/?#]+\\.)?(${domains})\\.?(:[0-9]+)?([/?#].*)?)$`,
         resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME, chrome.declarativeNetRequest.ResourceType.SUB_FRAME]
       }
     });
   });
-  await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+  const signature = JSON.stringify(addRules);
+  if (signature === lastNetworkRules) return;
+  try {
+    const existing = await chrome.declarativeNetRequest.getDynamicRules();
+    const removeRuleIds = existing.filter((rule) => rule.id >= DNR_ID_BASE).map((rule) => rule.id);
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+    lastNetworkRules = signature;
+  } catch (error) {
+    // Tab redirection and the content script still enforce if network rules are unavailable.
+    console.warn('Screentime: network rules unavailable', error instanceof Error ? error.message : error);
+  }
 }
 
-async function maintainState(): Promise<void> {
+// ─────────────────────────── Tracking ───────────────────────────
+
+let memorySession: TrackingSession | undefined;
+
+async function loadSession(): Promise<TrackingSession | undefined> {
+  const area = sessionArea();
+  if (!area) return memorySession;
+  try { return (await area.get(SESSION_KEY))[SESSION_KEY] as TrackingSession | undefined; } catch { return memorySession; }
+}
+
+async function saveSession(session: TrackingSession | undefined): Promise<void> {
+  memorySession = session;
+  const area = sessionArea();
+  if (!area) return;
+  try { await (session ? area.set({ [SESSION_KEY]: session }) : area.remove(SESSION_KEY)); } catch { /* memory fallback */ }
+}
+
+async function currentIdleState(): Promise<IdleState> {
+  if (!hasIdleApi()) return 'active'; // Safari: no idle API. Documented in THREAT_MODEL.md.
+  try { return await chrome.idle.queryState(IDLE_SECONDS) as IdleState; } catch { return 'active'; }
+}
+
+async function findTrackableTab(): Promise<chrome.tabs.Tab | undefined> {
+  try {
+    const window = await chrome.windows.getLastFocused({ populate: true });
+    if (!window.focused || window.id === undefined) return undefined;
+    const tab = pickTrackedTab(window.tabs ?? [], window.id);
+    if (!tab) return undefined;
+    const idleState = await currentIdleState();
+    return shouldCount({ windowFocused: true, idleState, audible: tab.audible }) ? tab : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function notifyWarnings(tabId: number, warnings: { label: string; minutesRemaining: number }[]): Promise<void> {
+  for (const warning of warnings) {
+    const message: TabMessage = { type: 'SCREENTIME_WARNING', label: warning.label, minutesRemaining: warning.minutesRemaining };
+    try { await chrome.tabs.sendMessage(tabId, message); } catch { /* no content script on this page */ }
+  }
+}
+
+/** Credits the running session up to now, then starts a new one if the user is still on a site. */
+async function checkpointTracking(): Promise<AppState> {
   const now = Date.now();
-  await chromeStateStore.update((state) => {
-    state.rules = state.rules.map((rule) => applyMaturePendingChange(rule, now));
-    for (const [ruleId, override] of Object.entries(state.overrides)) if (override.expiresAt <= now) delete state.overrides[ruleId];
-    if (state.lastWallClockAt && now < state.lastWallClockAt - 5 * 60_000) state.possibleClockRollbackAt = now;
-    state.lastWallClockAt = now;
-    return state;
+  const session = await loadSession();
+  let state: AppState;
+  if (session) {
+    let warnings: { label: string; minutesRemaining: number }[] = [];
+    state = await chromeStateStore.update((current) => {
+      const result = creditUsage(current, session.url, session.startedAt, now);
+      warnings = result.warnings;
+      return result.state;
+    });
+    if (warnings.length) await notifyWarnings(session.tabId, warnings);
+  } else state = await chromeStateStore.get();
+
+  const tab = await findTrackableTab();
+  await saveSession(tab?.id !== undefined && tab.url ? { tabId: tab.id, windowId: tab.windowId, url: tab.url, startedAt: now } : undefined);
+  if (tab?.incognito) await noteObservedPrivateTab();
+  return state;
+}
+
+// ───────────────────────── Orchestration ─────────────────────────
+
+let boundaryTimer: ReturnType<typeof setTimeout> | undefined;
+
+async function scheduleNextBoundary(state: AppState): Promise<void> {
+  const now = Date.now();
+  const session = await loadSession();
+  const candidates = [nextPolicyBoundary(state, now)];
+  const trackingBoundary = session ? nextTrackingBoundary(state, session.url, now) : undefined;
+  if (trackingBoundary) candidates.push(trackingBoundary);
+  const when = Math.max(now + 1_000, Math.min(...candidates));
+  await chrome.alarms.create(BOUNDARY_ALARM, { when });
+  // Alarms may be rounded up to 30s+; while the worker is awake, a timer makes short waits precise.
+  if (boundaryTimer) clearTimeout(boundaryTimer);
+  if (when - now < 60_000) boundaryTimer = setTimeout(() => { void reevaluate(); }, when - now + 50);
+}
+
+let chain: Promise<unknown> = Promise.resolve();
+/** Serializes full re-evaluations so events arriving together cannot interleave. */
+function reevaluate(): Promise<void> {
+  const run = chain.then(async () => {
+    await checkpointTracking();
+    const state = await actions.maintain(ctx);
+    await syncNetworkRules(state);
+    await enforceAllTabs(state);
+    await scheduleNextBoundary(state);
   });
+  chain = run.catch((error) => console.warn('Screentime: re-evaluation failed', error instanceof Error ? error.message : error));
+  return chain as Promise<void>;
 }
 
-async function handle(request: Request): Promise<Response> {
+let observedPrivateThisSession = false;
+async function noteObservedPrivateTab(): Promise<void> {
+  if (observedPrivateThisSession) return;
+  observedPrivateThisSession = true;
+  await actions.recordProtection(ctx, { observedPrivateTab: true });
+}
+
+async function refreshProtection(): Promise<AppState> {
+  const privateAccess = await queryPrivateAccess();
+  const tabs = await chrome.tabs.query({});
+  const observedPrivateTab = tabs.some((tab) => tab.incognito);
+  return actions.recordProtection(ctx, { privateAccess, observedPrivateTab });
+}
+
+async function ensureAlarms(): Promise<void> {
+  if (!(await chrome.alarms.get(HEARTBEAT_ALARM))) await chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 1 });
+}
+
+// ──────────────────────────── Messages ───────────────────────────
+
+const isExtensionSender = (sender: chrome.runtime.MessageSender) => Boolean(sender.url?.startsWith(extensionOrigin)) && sender.id === chrome.runtime.id;
+
+async function handle(request: Request, sender: chrome.runtime.MessageSender): Promise<ActionResult<unknown>> {
+  if (sender.id !== chrome.runtime.id) return { ok: false, error: 'Unknown sender.' };
+  if (!isExtensionSender(sender) && !CONTENT_SCRIPT_REQUESTS.has(request.type)) return { ok: false, error: 'Not allowed from web pages.' };
   const now = Date.now();
-  if (request.type === 'GET_STATE') return { ok: true, data: await chromeStateStore.get() };
-  if (request.type === 'GET_POLICY') return { ok: true, data: evaluatePolicy(await chromeStateStore.get(), request.url, now) };
-  if (request.type === 'CREATE_PIN') {
-    const verifier = await createPinVerifier(request.pin);
-    const state = await chromeStateStore.update((current) => ({ ...current, pin: verifier, pinAttempts: clearPinAttempts() }));
-    return { ok: true, data: state };
-  }
-  if (request.type === 'VERIFY_AND_OVERRIDE') {
-    const state = await chromeStateStore.get();
-    if (!state.pin) return { ok: false, error: 'PIN setup is incomplete.' };
-    if (state.pinAttempts.cooldownUntil && state.pinAttempts.cooldownUntil > now) {
-      return { ok: false, error: 'Too many attempts. Try again after the cooldown.', cooldownUntil: state.pinAttempts.cooldownUntil };
+  switch (request.type) {
+    case 'GET_STATE': return { ok: true, data: await chromeStateStore.get() };
+    case 'GET_POLICY': return { ok: true, data: evaluatePolicy(await chromeStateStore.get(), request.url, now) };
+    case 'PIN_STATUS': return actions.pinStatus(ctx);
+    case 'CREATE_PIN': return actions.createPin(ctx, request.pin);
+    case 'CHANGE_PIN': return actions.changePin(ctx, request.currentPin, request.newPin);
+    case 'VERIFY_AND_OVERRIDE': {
+      const result = await actions.requestOverride(ctx, request.url, request.pin);
+      // Remove network redirects before the page navigates back to the site.
+      if (result.ok) { await syncNetworkRules(await chromeStateStore.get()); void reevaluate(); }
+      return result;
     }
-    if (!await verifyPin(request.pin, state.pin)) {
-      const attempts = recordFailedPin(state.pinAttempts, now);
-      await chromeStateStore.update((current) => ({ ...current, pinAttempts: attempts }));
-      return { ok: false, error: 'Incorrect PIN.', cooldownUntil: attempts.cooldownUntil };
-    }
-    const override = { ruleId: request.ruleId, startedAt: now, expiresAt: now + OVERRIDE_MS };
-    await chromeStateStore.update((current) => {
-      current.pinAttempts = clearPinAttempts();
-      current.overrides[request.ruleId] = override;
-      current.overrideHistory.unshift({ ...override, id: crypto.randomUUID() });
-      current.overrideHistory = current.overrideHistory.slice(0, 200);
-      return current;
-    });
-    await syncNetworkRules();
-    return { ok: true, data: override };
+    case 'SAVE_RULE': { const result = await actions.saveRule(ctx, request.rule); await reevaluate(); return result; }
+    case 'DELETE_RULE': { const result = await actions.deleteRule(ctx, request.ruleId); await reevaluate(); return result; }
+    case 'CANCEL_PENDING': { const result = await actions.cancelPendingChange(ctx, request.ruleId); await reevaluate(); return result; }
+    case 'SET_FEEDS': return actions.setFeeds(ctx, request.feedSettings);
+    case 'SET_PREFERENCES': return actions.setPreferences(ctx, request);
+    case 'COMPLETE_ONBOARDING': return actions.completeOnboarding(ctx);
+    case 'REFRESH_PROTECTION': return { ok: true, data: await refreshProtection() };
+    case 'DELETE_HISTORY': return actions.deleteHistory(ctx);
+    case 'RESET_ALL': { const result = await actions.resetAll(ctx, request.pin); await reevaluate(); return result; }
+    default: return { ok: false, error: 'Unsupported request.' };
   }
-  if (request.type === 'SAVE_RULE') {
-    let outcome = 'applied';
-    const state = await chromeStateStore.update((current) => {
-      const index = current.rules.findIndex((rule) => rule.id === request.rule.id);
-      if (index < 0) current.rules.push(request.rule);
-      else {
-        const result = mutateRule(current.rules[index], request.rule, now);
-        outcome = result.outcome;
-        current.rules[index] = result.rule;
-      }
-      return current;
-    });
-    await syncNetworkRules(state);
-    await enforceAllTabs();
-    return { ok: true, data: { state, outcome } };
-  }
-  if (request.type === 'DELETE_RULE') {
-    const state = await chromeStateStore.update((current) => {
-      const rule = current.rules.find((candidate) => candidate.id === request.ruleId);
-      if (!rule) return current;
-      if (rule.commitmentEndsAt && rule.commitmentEndsAt > now) {
-        const proposed: WebsiteRule = { ...rule, enabled: false };
-        const result = mutateRule(rule, proposed, now);
-        current.rules = current.rules.map((candidate) => candidate.id === rule.id ? result.rule : candidate);
-      } else current.rules = current.rules.filter((candidate) => candidate.id !== request.ruleId);
-      return current;
-    });
-    await syncNetworkRules(state);
-    return { ok: true, data: state };
-  }
-  if (request.type === 'SET_FEEDS') {
-    const state = await chromeStateStore.update((current) => ({ ...current, feedSettings: request.feedSettings }));
-    return { ok: true, data: state };
-  }
-  if (request.type === 'COMPLETE_ONBOARDING') {
-    const state = await chromeStateStore.update((current) => ({ ...current, onboardingComplete: Boolean(current.pin) }));
-    return state.pin ? { ok: true, data: state } : { ok: false, error: 'Create a PIN first.' };
-  }
-  if (request.type === 'REFRESH_PROTECTION') {
-    const allowed = await chrome.extension.isAllowedIncognitoAccess();
-    const state = await chromeStateStore.update((current) => ({
-      ...current, protection: { browser: 'chrome', privateAccess: allowed ? 'verified' : 'unverified', lastCheckedAt: now }
-    }));
-    return { ok: true, data: state };
-  }
-  return { ok: false, error: 'Unsupported request.' };
 }
 
-chrome.runtime.onMessage.addListener((request: Request, _sender, respond) => {
-  handle(request).then(respond).catch((error: unknown) => respond({ ok: false, error: error instanceof Error ? error.message : 'Unexpected error' }));
+chrome.runtime.onMessage.addListener((request: Request, sender, respond) => {
+  handle(request, sender)
+    .then(respond)
+    .catch((error: unknown) => respond({ ok: false, error: error instanceof Error ? error.message : 'Unexpected error' }));
   return true;
 });
 
-chrome.tabs.onActivated.addListener(() => { void refreshTracking(); });
+// ───────────────────────────── Events ────────────────────────────
+
+chrome.tabs.onActivated.addListener(() => { void reevaluate(); });
 chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
-  if (change.url || change.status === 'complete') void enforceTab(tabId, change.url ?? tab.url);
-  if (change.url || change.status === 'complete') void refreshTracking();
+  if (change.url) void chromeStateStore.get().then((state) => enforceTab(tabId, change.url, state, Date.now()));
+  if (change.url || change.audible !== undefined || change.status === 'complete') void reevaluate();
+  if (tab.incognito) void noteObservedPrivateTab();
 });
-chrome.windows.onFocusChanged.addListener((windowId) => {
-  focused = windowId !== chrome.windows.WINDOW_ID_NONE;
-  void refreshTracking();
-});
-chrome.idle.setDetectionInterval(60);
-chrome.idle.onStateChanged.addListener((state) => { idle = state !== 'active'; void refreshTracking(); });
+chrome.tabs.onRemoved.addListener(() => { void reevaluate(); });
+chrome.windows.onFocusChanged.addListener(() => { void reevaluate(); });
+if (hasIdleApi()) {
+  chrome.idle.setDetectionInterval(IDLE_SECONDS);
+  chrome.idle.onStateChanged.addListener(() => { void reevaluate(); });
+}
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === TRACKING_ALARM) void (async () => { await flushActive(); await maintainState(); await syncNetworkRules(); await enforceAllTabs(); await refreshTracking(); })();
+  if (alarm.name === HEARTBEAT_ALARM || alarm.name === BOUNDARY_ALARM) void reevaluate();
 });
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
-  chrome.alarms.create(TRACKING_ALARM, { periodInMinutes: 1 });
+  await ensureAlarms();
   if (reason === 'install') await chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
-  await maintainState();
-  await syncNetworkRules();
+  await refreshProtection();
+  await reevaluate();
 });
-chrome.runtime.onStartup.addListener(() => { chrome.alarms.create(TRACKING_ALARM, { periodInMinutes: 1 }); void maintainState().then(() => syncNetworkRules()).then(enforceAllTabs).then(refreshTracking); });
-void maintainState().then(() => syncNetworkRules()).then(refreshTracking);
+chrome.runtime.onStartup.addListener(() => { void ensureAlarms().then(refreshProtection).then(reevaluate); });
+
+// Every wake-up (including after suspension) re-applies restrictions from persisted state.
+void ensureAlarms().then(reevaluate);
+console.info(`Screentime background ready (${browser})`);

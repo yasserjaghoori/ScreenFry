@@ -1,15 +1,10 @@
 import { defineConfig } from 'vitest/config';
-import { resolve } from 'node:path';
+import { alias } from './vite.shared.ts';
+
+// A fixed zone with DST makes midnight/DST tests deterministic on every machine.
+process.env.TZ = 'America/New_York';
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      '@shared': resolve(import.meta.dirname, 'packages/shared-types/src'),
-      '@core': resolve(import.meta.dirname, 'packages/core/src'),
-      '@policy': resolve(import.meta.dirname, 'packages/policy-engine/src'),
-      '@browser': resolve(import.meta.dirname, 'packages/browser-adapters/src'),
-      '@feeds': resolve(import.meta.dirname, 'packages/feed-blockers/src')
-    }
-  },
-  test: { root: import.meta.dirname }
+  resolve: { alias },
+  test: { root: import.meta.dirname, include: ['tests/**/*.test.ts'] }
 });

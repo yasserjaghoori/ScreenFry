@@ -1,0 +1,1 @@
+var e=new Set([`GET_POLICY`]);async function t(e){try{return await chrome.runtime.sendMessage(e)??{ok:!1,error:`Screentime is starting. Try again in a moment.`}}catch(e){return{ok:!1,error:e instanceof Error?e.message:`Screentime is unavailable.`}}}export{t as n,e as t};

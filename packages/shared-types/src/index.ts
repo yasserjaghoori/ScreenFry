@@ -1,6 +1,13 @@
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-export type EnforcementMode = 'pin';
-export type RestrictionKind = 'daily-limit' | 'schedule';
+export const ALL_DAYS: DayOfWeek[] = [0, 1, 2, 3, 4, 5, 6];
+
+/**
+ * `pin`: a correct PIN grants a 10-minute temporary visit (Phase 1).
+ * `strict`: reserved for a future phase — the policy engine already refuses overrides
+ * for committed strict rules, but no UI offers it and the background normalizes it to `pin`.
+ */
+export type EnforcementMode = 'pin' | 'strict';
+export type BrowserKind = 'chrome' | 'safari';
 
 export interface DailyAllowance {
   defaultMinutes: number;
@@ -10,14 +17,20 @@ export interface DailyAllowance {
 export interface WeeklySchedule {
   id: string;
   days: DayOfWeek[];
+  /** Minutes after local midnight. start === end means the whole day. start > end crosses midnight. */
   startMinute: number;
   endMinute: number;
 }
 
+export type RulePatch = Partial<Pick<WebsiteRule, 'label' | 'domains' | 'enabled' | 'dailyAllowance' | 'schedules'>> & {
+  /** Queued removal of the whole rule. */
+  remove?: true;
+};
+
 export interface PendingRuleChange {
   requestedAt: number;
   applyAt: number;
-  patch: Partial<Pick<WebsiteRule, 'enabled' | 'dailyAllowance' | 'schedules'>>;
+  patch: RulePatch;
 }
 
 export interface WebsiteRule {
@@ -36,7 +49,14 @@ export interface WebsiteRule {
 
 export interface UsageDay {
   dateKey: string;
+  /** Ordinary (non-override) time on sites covered by each rule. Drives daily limits. */
   millisecondsByRule: Record<string, number>;
+  /** Time spent inside PIN override sessions, tracked separately and never counted against limits. */
+  overrideMillisecondsByRule: Record<string, number>;
+  /** Registrable-ish host → focused time. Only recorded when general history tracking is on. */
+  millisecondsByHost: Record<string, number>;
+  /** Warning thresholds (minutes remaining) already shown per rule today. */
+  warningsSent: Record<string, number[]>;
 }
 
 export interface TemporaryOverride {
@@ -47,6 +67,7 @@ export interface TemporaryOverride {
 
 export interface OverrideHistoryEntry extends TemporaryOverride {
   id: string;
+  label: string;
 }
 
 export interface PinVerifier {
@@ -67,14 +88,23 @@ export interface FeedSettings {
   sites: Record<FeedSite, Record<string, boolean>>;
 }
 
+/**
+ * - `verified`: Chrome's `extension.isAllowedIncognitoAccess()` returned true at `lastCheckedAt`.
+ * - `observed`: the extension saw a private tab with its own APIs at `lastObservedAt` (positive
+ *   proof of coverage at that moment; used for Safari, which has no permission-query API).
+ * - `unverified`: coverage has not been confirmed. Never presented as active.
+ */
+export type PrivateAccessStatus = 'verified' | 'observed' | 'unverified';
+
 export interface ProtectionStatus {
-  privateAccess: 'verified' | 'unverified' | 'unavailable';
-  browser: 'chrome' | 'safari';
+  browser: BrowserKind;
+  privateAccess: PrivateAccessStatus;
   lastCheckedAt?: number;
+  lastObservedAt?: number;
 }
 
 export interface AppState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   onboardingComplete: boolean;
   pin?: PinVerifier;
   pinAttempts: PinAttemptState;
@@ -84,6 +114,7 @@ export interface AppState {
   overrideHistory: OverrideHistoryEntry[];
   feedSettings: FeedSettings;
   protection: ProtectionStatus;
+  /** General per-site history for unrestricted sites. Limit tracking is always on. */
   trackingEnabled: boolean;
   warningsEnabled: boolean;
   lastWallClockAt?: number;
@@ -96,7 +127,10 @@ export interface PolicyDecision {
   ruleId?: string;
   ruleLabel?: string;
   reasons: PolicyReason[];
+  /** Earliest instant at which every applicable restriction has ended. Undefined if none within 8 days. */
   nextAccessAt?: number;
   overrideExpiresAt?: number;
   remainingMilliseconds?: number;
+  allowanceMinutes?: number;
+  canOverride?: boolean;
 }

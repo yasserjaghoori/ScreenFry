@@ -1,28 +1,30 @@
 {
   "name": "screentime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --config vite.config.ts",
-    "build": "tsc --noEmit && vite build --config vite.config.ts",
+    "dev": "vite build --watch --config vite.config.ts",
+    "build": "tsc --noEmit && vite build --config vite.config.ts && vite build --config vite.content.config.ts && node scripts/verify-build.mjs",
     "build:safari": "npm run build && mkdir -p 'safari/Screentime/Screentime Extension/Resources' && rsync -a --delete dist/chrome/ 'safari/Screentime/Screentime Extension/Resources/'",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "check": "npm run test && npm run build"
+    "typecheck": "tsc --noEmit",
+    "check": "npm run test && npm run build",
+    "test:e2e": "npm run build && node tests/e2e/chrome-smoke.mjs"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@types/chrome": "latest",
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "vitest": "latest"
+    "@types/chrome": "0.3.7",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
   }
 }

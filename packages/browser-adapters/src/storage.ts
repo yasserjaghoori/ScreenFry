@@ -1,42 +1,30 @@
-import { createDefaultState } from '@core/defaults';
+import { migrateState } from '@core/defaults';
+import type { StateStore } from '@core/store';
 import type { AppState } from '@shared/index';
+import { detectBrowser } from './platform';
 
-const STATE_KEY = 'screentimeState';
+export const STATE_KEY = 'screentimeState';
 
-export interface StateStore {
-  get(): Promise<AppState>;
-  set(state: AppState): Promise<void>;
-  update(mutator: (state: AppState) => AppState | Promise<AppState>): Promise<AppState>;
+let updateQueue: Promise<unknown> = Promise.resolve();
+
+export async function readState(): Promise<AppState> {
+  const result = await chrome.storage.local.get(STATE_KEY);
+  return migrateState(result[STATE_KEY], detectBrowser());
 }
 
-let updateQueue = Promise.resolve();
-
+/**
+ * chrome.storage.local-backed store. Updates are serialized inside this context so concurrent
+ * messages cannot overwrite each other, and a failed mutation never poisons later updates.
+ */
 export const chromeStateStore: StateStore = {
-  async get() {
-    const result = await chrome.storage.local.get(STATE_KEY);
-    return result[STATE_KEY] ? result[STATE_KEY] as AppState : createDefaultState('chrome');
-  },
-  async set(state) {
-    await chrome.storage.local.set({ [STATE_KEY]: state });
-  },
-  async update(mutator) {
-    let resolved!: AppState;
-    updateQueue = updateQueue.then(async () => {
-      const current = await chromeStateStore.get();
-      resolved = await mutator(structuredClone(current));
-      await chromeStateStore.set(resolved);
+  get: readState,
+  update(mutator) {
+    const run = updateQueue.then(async () => {
+      const next = await mutator(await readState());
+      await chrome.storage.local.set({ [STATE_KEY]: next });
+      return next;
     });
-    await updateQueue;
-    return resolved;
+    updateQueue = run.catch(() => undefined);
+    return run;
   }
 };
-
-export class MemoryStateStore implements StateStore {
-  constructor(private state: AppState = createDefaultState()) {}
-  async get() { return structuredClone(this.state); }
-  async set(state: AppState) { this.state = structuredClone(state); }
-  async update(mutator: (state: AppState) => AppState | Promise<AppState>) {
-    this.state = await mutator(structuredClone(this.state));
-    return structuredClone(this.state);
-  }
-}

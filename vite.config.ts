@@ -1,33 +1,26 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
+import { alias, extensionRoot as root, outDir } from './vite.shared.ts';
 
-const root = resolve(import.meta.dirname, 'apps/extension');
-
+// Pages and the service worker (ES modules). The content script is built separately
+// by vite.content.config.ts because manifest content scripts cannot use `import`.
 export default defineConfig({
   root,
   publicDir: resolve(root, 'public'),
   plugins: [react()],
-  resolve: {
-    alias: {
-      '@shared': resolve(import.meta.dirname, 'packages/shared-types/src'),
-      '@core': resolve(import.meta.dirname, 'packages/core/src'),
-      '@policy': resolve(import.meta.dirname, 'packages/policy-engine/src'),
-      '@browser': resolve(import.meta.dirname, 'packages/browser-adapters/src'),
-      '@feeds': resolve(import.meta.dirname, 'packages/feed-blockers/src')
-    }
-  },
+  resolve: { alias },
   build: {
-    outDir: resolve(import.meta.dirname, 'dist/chrome'),
+    outDir,
     emptyOutDir: true,
+    target: 'es2022',
     rollupOptions: {
       input: {
         dashboard: resolve(root, 'dashboard.html'),
         popup: resolve(root, 'popup.html'),
         onboarding: resolve(root, 'onboarding.html'),
         blocked: resolve(root, 'blocked.html'),
-        background: resolve(root, 'src/background/index.ts'),
-        content: resolve(root, 'src/content-scripts/index.ts')
+        background: resolve(root, 'src/background/index.ts')
       },
       output: {
         entryFileNames: 'assets/[name].js',

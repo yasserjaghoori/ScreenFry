@@ -14,6 +14,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "types": ["chrome", "node", "vitest/globals"],
     "paths": {
@@ -24,5 +25,5 @@
       "@feeds/*": ["./packages/feed-blockers/src/*"]
     }
   },
-  "include": ["apps", "packages", "tests", "vite.config.ts"]
+  "include": ["apps", "packages", "tests", "vite.config.ts", "vite.content.config.ts", "vite.shared.ts", "vitest.config.ts"]
 }

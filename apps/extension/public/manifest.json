@@ -1,10 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Screentime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Commitment-based, privacy-first website limits and feed blocking.",
-  "permissions": ["storage", "tabs", "idle", "alarms", "webNavigation", "declarativeNetRequest"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "storage",
+    "tabs",
+    "idle",
+    "alarms",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "incognito": "spanning",
   "action": {
     "default_title": "Screentime",
@@ -16,17 +24,30 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["assets/content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "assets/content.js"
+      ],
       "run_at": "document_start",
       "all_frames": true
     }
   ],
-  "options_page": "dashboard.html",
   "web_accessible_resources": [
     {
-      "resources": ["blocked.html", "assets/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "blocked.html",
+        "assets/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
-  ]
+  ],
+  "minimum_chrome_version": "116",
+  "options_ui": {
+    "page": "dashboard.html",
+    "open_in_tab": true
+  }
 }
