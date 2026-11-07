@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Screentime",
-  "version": "0.3.2",
+  "name": "ScreenFry",
+  "version": "0.4.0",
   "description": "Hide distracting feeds and buttons, set daily website limits, and choose allowed time windows.",
   "permissions": [
     "storage",
@@ -15,7 +15,7 @@
   ],
   "incognito": "spanning",
   "action": {
-    "default_title": "Screentime",
+    "default_title": "ScreenFry",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/toolbar-16.png",

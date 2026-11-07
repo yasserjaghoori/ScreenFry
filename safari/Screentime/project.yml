@@ -17,7 +17,7 @@ targets:
     info:
       path: Screentime/Info.plist
       properties:
-        CFBundleDisplayName: Screentime
+        CFBundleDisplayName: ScreenFry
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
@@ -27,9 +27,12 @@ targets:
         com.apple.security.app-sandbox: true
     settings:
       base:
+        # The user-facing name. Bundle identifiers stay com.screentime.* so Safari keeps
+        # the existing registration and the settings stored against it.
+        PRODUCT_NAME: ScreenFry
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime
-        MARKETING_VERSION: "0.3.2"
-        CURRENT_PROJECT_VERSION: "5"
+        MARKETING_VERSION: "0.4.0"
+        CURRENT_PROJECT_VERSION: "6"
     dependencies:
       - target: Screentime Extension
         embed: true
@@ -60,7 +63,7 @@ targets:
     info:
       path: Screentime Extension/Info.plist
       properties:
-        CFBundleDisplayName: Screentime Extension
+        CFBundleDisplayName: ScreenFry Extension
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
@@ -72,6 +75,7 @@ targets:
         com.apple.security.app-sandbox: true
     settings:
       base:
+        PRODUCT_NAME: ScreenFry Extension
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime.Extension
-        MARKETING_VERSION: "0.3.2"
-        CURRENT_PROJECT_VERSION: "5"
+        MARKETING_VERSION: "0.4.0"
+        CURRENT_PROJECT_VERSION: "6"

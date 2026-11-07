@@ -5,42 +5,56 @@
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   color-scheme: light;
-  --bg: #f7f8fb;
-  --ink: #202b3c;
-  --muted: #737e8f;
-  --line: #e2e6ed;
-  --paper: #ffffff;
-  --card: rgba(255, 255, 255, 0.94);
-  --soft: #f1f3f7;
-  --green: #225ec4;
-  --green-2: #eaf0fc;
-  --warn-bg: #fff1e6;
-  --warn: #a85825;
-  --danger: #9c3d35;
-  --info-bg: #eef3f8;
-  --info: #2f5574;
-  --shadow: 0 18px 50px rgba(37, 53, 45, 0.08);
+  /* ScreenFry "ember" palette: warm cream and charcoal with a fry-orange accent. */
+  --bg: #f8f3ec;
+  --ink: #261e18;
+  --muted: #7c6f65;
+  --line: #ebe2d7;
+  --paper: #fffdf9;
+  --card: rgba(255, 253, 249, 0.96);
+  --soft: #f2ebe2;
+  --accent: #c9460f;
+  --accent-bright: #f4621f;
+  --accent-soft: #fdebdf;
+  --on-accent: #fff;
+  --ember-gradient: linear-gradient(160deg, #ff9a3c 0%, #f4621f 55%, #d63a16 100%);
+  --good: #2f7d4f;
+  --good-bg: #e6f3ea;
+  /* Legacy aliases: components written against the old blue theme. */
+  --green: var(--accent);
+  --green-2: var(--accent-soft);
+  --warn-bg: #fff1e2;
+  --warn: #a5520f;
+  --danger: #b0352b;
+  --info-bg: #f1ece6;
+  --info: #5b4a3d;
+  --shadow: 0 1px 2px rgba(60, 35, 15, 0.05), 0 12px 36px rgba(60, 35, 15, 0.07);
+  --radius: 18px;
   color: var(--ink);
   background: var(--bg);
 }
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #121614;
-    --ink: #e8ece9;
-    --muted: #98a29c;
-    --line: #2b322e;
-    --paper: #1a201d;
-    --card: rgba(28, 34, 31, 0.96);
-    --soft: #222925;
-    --green: #82adff;
-    --green-2: #25364f;
-    --warn-bg: #3a2a1c;
-    --warn: #f0b27a;
-    --danger: #f08a80;
-    --info-bg: #1d2a36;
-    --info: #9cc3e4;
-    --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+    --bg: #14100d;
+    --ink: #f4ece4;
+    --muted: #a5978b;
+    --line: #2f2620;
+    --paper: #1c1713;
+    --card: rgba(30, 24, 20, 0.96);
+    --soft: #27201a;
+    --accent: #ff8a4c;
+    --accent-bright: #ff8a4c;
+    --accent-soft: #3a2316;
+    --on-accent: #1d0e05;
+    --good: #7fd19f;
+    --good-bg: #1c2d22;
+    --warn-bg: #36261a;
+    --warn: #f3b37a;
+    --danger: #ff8f84;
+    --info-bg: #241d18;
+    --info: #d8c6b6;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 14px 40px rgba(0, 0, 0, 0.35);
   }
 }
 * {
@@ -91,15 +105,14 @@ h3 {
   border: 0;
   border-radius: 12px;
   padding: 11px 17px;
-  background: var(--green);
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
   font-weight: 650;
-  box-shadow: 0 5px 14px rgba(29, 91, 69, 0.17);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 28%, transparent);
+  transition: transform 0.12s, filter 0.12s;
 }
-@media (prefers-color-scheme: dark) {
-  .button {
-    color: #0e1512;
-  }
+.button:active {
+  transform: translateY(1px);
 }
 .button:hover {
   filter: brightness(0.96);
@@ -185,8 +198,8 @@ input[type="checkbox"] {
 }
 input:focus,
 select:focus {
-  border-color: #76a491;
-  box-shadow: 0 0 0 3px rgba(75, 135, 109, 0.14);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .check {
   display: inline-flex;
@@ -202,7 +215,7 @@ select:focus {
 .card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 .muted {
@@ -233,6 +246,10 @@ select:focus {
   border-radius: 50%;
   background: currentColor;
 }
+.pill.good {
+  background: var(--good-bg);
+  color: var(--good);
+}
 .pill.warn {
   background: var(--warn-bg);
   color: var(--warn);
@@ -257,17 +274,17 @@ select:focus {
   height: 26px;
   border: 0;
   border-radius: 999px;
-  background: #c9cfca;
+  background: #d9cfc4;
   padding: 0;
   transition: background 0.2s;
 }
 @media (prefers-color-scheme: dark) {
   .switch {
-    background: #3a423e;
+    background: #3d332b;
   }
 }
 .switch.on {
-  background: var(--green);
+  background: var(--accent-bright);
 }
 .switch::after {
   content: "";

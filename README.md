@@ -1,8 +1,10 @@
-# Screentime
+# ScreenFry
+
+_Repository and package names still say Screentime; the product is now ScreenFry._
 
 A Chrome and Safari extension that combines feed removal and SocialFocus-style website controls, with daily allowances and allowed time windows.
 
-**Development status — November 7, 2026:** source **0.3.2** includes the Safari redirect-permission correction on `codex/project-setup` in [draft PR #1](https://github.com/yasserjaghoori/Screentime/pull/1). Safari 0.3.2 is installed, signature/package-verified and reports enabled. All 63 unit tests and 43 isolated Chrome integration checks pass. Live Chrome Shorts blocking works; Safari's direct Shorts and search navigation remain inconclusive loading states. See the [complete AI handoff](docs/AI_HANDOFF.md) for requirements, assessment and remaining acceptance work.
+**Development status, November 7, 2026:** source **0.4.0** renames the product to ScreenFry, adds the ember redesign and a robust macOS Dock icon, and keeps the 0.3.2 Safari redirect-permission correction on `codex/project-setup` in [draft PR #1](https://github.com/yasserjaghoori/Screentime/pull/1). Safari 0.3.2 is installed, signature/package-verified and reports enabled. All 63 unit tests and 43 isolated Chrome integration checks pass. Live Chrome Shorts blocking works; Safari's direct Shorts and search navigation remain inconclusive loading states. See the [complete AI handoff](docs/AI_HANDOFF.md) for requirements, assessment and remaining acceptance work.
 
 ## Phase 1 features
 
@@ -34,7 +36,7 @@ The interface is informed by the installed SocialFocus extension. Feed selectors
 
 The product should retain SocialFocus's practical interaction model: choose a website, set its own allowance, and adjust grouped feed/button/playback controls. Allowed windows belong on their own page. The optional password protects changes; it does not grant extra browsing time. The old mandatory PIN, temporary visits and commitment-based product are superseded.
 
-The clock logo includes monochrome toolbar PNGs, colored extension icons and a native Safari containing-app icon. It was visibly present in Safari's toolbar. Regenerate the committed assets on macOS with `swift scripts/generate-icons.swift`.
+The clock logo includes monochrome toolbar PNGs, colored extension icons and a native Safari containing-app icon. It was visibly present in Safari's toolbar. Regenerate the committed assets on any OS with `npm run icons` (`scripts/generate-icons.mjs`).
 
 ## Verification and remaining work
 

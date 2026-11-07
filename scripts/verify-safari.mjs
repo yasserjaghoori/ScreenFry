@@ -5,9 +5,9 @@ import { resolve, join } from "node:path";
 
 const projectRoot = resolve(import.meta.dirname, "..");
 const app = resolve(
-  process.argv[2] ?? "dist/safari/Build/Products/Debug/Screentime.app",
+  process.argv[2] ?? "dist/safari/Build/Products/Debug/ScreenFry.app",
 );
-const extension = join(app, "Contents/PlugIns/Screentime Extension.appex");
+const extension = join(app, "Contents/PlugIns/ScreenFry Extension.appex");
 const resources = join(extension, "Contents/Resources");
 const plist = (path) =>
   JSON.parse(
@@ -71,6 +71,8 @@ if (!errors.length) {
   }
   if (!existsSync(join(app, "Contents/Resources/AppIcon.icns")))
     errors.push("missing native app icon");
+  if (!existsSync(join(app, "Contents/Resources/BrandIcon.png")))
+    errors.push("missing bundled Dock icon");
   const packageVersion = JSON.parse(
     readFileSync(join(projectRoot, "package.json"), "utf8"),
   ).version;

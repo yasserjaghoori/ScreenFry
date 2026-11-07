@@ -9,7 +9,8 @@ function Onboarding() {
   return (
     <main className="focus-page">
       <section className="card focus-card onboarding">
-        <span className="eyebrow">Welcome to Screentime</span>
+        <img className="focus-logo" src="icons/icon-128.png" alt="" />
+        <span className="eyebrow">Welcome to ScreenFry</span>
         <h1>
           A quieter corner
           <br />

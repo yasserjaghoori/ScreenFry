@@ -5,7 +5,7 @@ import { siteDefinitions } from "@feeds/index";
 import { hostMatchesDomain } from "@core/domains";
 import type { AppState, FeedSite, WebsiteRule } from "@shared/index";
 import { formatDuration } from "./format";
-import { evaluatePolicy, usageFor } from "@policy/index";
+import { siteStatus } from "./siteStatus";
 export function Switch({
   label,
   checked,
@@ -75,8 +75,7 @@ export function SiteControls({
     if (result.ok) onState(result.data);
     else onError(result.error);
   }
-  const decision = evaluatePolicy(state, `https://${info.domain}/`, Date.now());
-  const used = usageFor(state, rule.id, new Date());
+  const status = siteStatus(state, site);
   const groups = [
     ...new Set(Object.values(definition.elements).map((e) => e.group)),
   ];
@@ -86,12 +85,23 @@ export function SiteControls({
         <div className="site-avatar" style={{ background: info.color }}>
           {info.symbol}
         </div>
-        <div>
-          <h2>{definition.name}</h2>
+        <div className="site-summary-text">
+          <div className="site-summary-title">
+            <h2>{definition.name}</h2>
+            <span className={`pill ${status.blocked ? "warn" : "good"}`}>
+              {status.blocked ? "Blocked now" : "Available"}
+            </span>
+          </div>
           <p className="muted small">
-            {formatDuration(used)} used today ·{" "}
-            {decision.status === "blocked" ? "Currently blocked" : "Available"}
+            {formatDuration(status.usedMs)} used today
+            {status.limitMinutes !== undefined &&
+              ` · ${status.limitMinutes ? formatDuration(status.limitMinutes * 60_000) : "0m"} daily limit`}
           </p>
+          {status.progress !== undefined && (
+            <span className="meter large" aria-hidden="true">
+              <span style={{ width: `${status.progress * 100}%` }} />
+            </span>
+          )}
         </div>
       </div>
       <section className="control-section">

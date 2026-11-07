@@ -40,14 +40,14 @@ export async function send<T>(request: Request): Promise<Response<T>> {
         password: request.password ?? settingsCredential,
       })) as Response<T>) ?? {
         ok: false,
-        error: "Screentime is starting. Try again.",
+        error: "ScreenFry is starting. Try again.",
       }
     );
   } catch (error) {
     return {
       ok: false,
       error:
-        error instanceof Error ? error.message : "Screentime is unavailable.",
+        error instanceof Error ? error.message : "ScreenFry is unavailable.",
     };
   }
 }

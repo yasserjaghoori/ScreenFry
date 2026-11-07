@@ -550,7 +550,7 @@ try {
     "popup offers the same five website controls",
     await evaluate(
       popup.session,
-      `document.querySelectorAll('#site-picker option').length===5`,
+      `document.querySelectorAll('#site-picker [role=radio]').length===5`,
     ),
   );
   const x = await send({

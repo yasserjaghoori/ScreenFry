@@ -8,6 +8,7 @@ import { siteFor } from "@feeds/index";
 import type { AppState, FeedSite } from "@shared/index";
 import { SiteControls } from "../ui/SiteControls";
 import { SettingsGate } from "../ui/SettingsGate";
+import { siteStatus } from "../ui/siteStatus";
 import "../styles/global.css";
 import "../styles/dashboard.css";
 import "../styles/popup.css";
@@ -47,7 +48,10 @@ function Popup() {
   return (
     <main className="popup">
       <header className="popup-head">
-        <strong className="popup-title">Screentime</strong>
+        <strong className="popup-title">
+          <img src="icons/icon-64.png" alt="" />
+          ScreenFry
+        </strong>
         <button
           className="button ghost"
           onClick={() => void open("settings")}
@@ -62,24 +66,40 @@ function Popup() {
         </button>
         <button onClick={() => void open("windows")}>Windows ↗</button>
       </nav>
-      <label className="sr-only" htmlFor="site-picker">
-        Website
-      </label>
-      <select
+      <div
         id="site-picker"
         className="site-picker"
-        value={site}
-        onChange={(e) => {
-          setSite(e.target.value as FeedSite);
-          setError("");
-        }}
+        role="radiogroup"
+        aria-label="Website"
       >
         {launchSites.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
+          <button
+            key={s.id}
+            role="radio"
+            aria-checked={site === s.id}
+            aria-label={s.name}
+            title={s.name}
+            className={site === s.id ? "selected" : ""}
+            onClick={() => {
+              setSite(s.id);
+              setError("");
+            }}
+          >
+            <span className="site-avatar small-avatar" style={{ background: s.color }}>
+              {s.symbol}
+            </span>
+            <span className="chip-label">{s.name}</span>
+          </button>
         ))}
-      </select>
+      </div>
+      {state && (
+        <p className="popup-status">
+          <strong>{launchSites.find((s) => s.id === site)!.name}</strong>
+          <span className={siteStatus(state, site).blocked ? "blocked" : ""}>
+            {siteStatus(state, site).label}
+          </span>
+        </p>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}

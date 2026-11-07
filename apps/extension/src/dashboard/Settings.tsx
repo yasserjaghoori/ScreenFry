@@ -169,7 +169,7 @@ export function Settings({
       <section className="card settings-block">
         <h2>Private browsing</h2>
         <p className="muted">
-          Allow Screentime in private windows if you want your controls to apply
+          Allow ScreenFry in private windows if you want your controls to apply
           there too.
         </p>
         <PrivateAccessGuide

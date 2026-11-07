@@ -30,9 +30,10 @@ function Blocked() {
   const allowed = decision?.status === "allowed";
   return (
     <main className="focus-page">
-      <section className="card focus-card">
-        <span className="eyebrow">Screentime</span>
-        <h1>{allowed ? "You can continue." : `${label} is blocked.`}</h1>
+      <section className={`card focus-card ${allowed ? "" : "is-blocked"}`}>
+        <img className="focus-logo" src="icons/icon-128.png" alt="" />
+        <span className="eyebrow">ScreenFry</span>
+        <h1>{allowed ? "You can continue." : `${label} is off for now.`}</h1>
         {decision?.reasons.includes("short-form") && (
           <p className="muted">
             Short-form playback is turned off for this website. Direct links and
@@ -52,7 +53,9 @@ function Blocked() {
         )}
         {!decision && <p className="muted">Checking website settings…</p>}
         {decision?.nextAccessAt && (
-          <p>Available {formatWhen(decision.nextAccessAt)}.</p>
+          <p className="next-access">
+            Back {formatWhen(decision.nextAccessAt)}
+          </p>
         )}
         {error && (
           <p className="error" role="alert">

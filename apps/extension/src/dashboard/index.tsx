@@ -8,6 +8,7 @@ import type { AppState, FeedSite } from "@shared/index";
 import { Icon } from "../ui/Icon";
 import { SiteControls } from "../ui/SiteControls";
 import { SettingsGate } from "../ui/SettingsGate";
+import { siteStatus } from "../ui/siteStatus";
 import { Windows } from "./Windows";
 import { Settings } from "./Settings";
 import "../styles/global.css";
@@ -52,16 +53,19 @@ function Dashboard() {
     history.replaceState(null, "", `${location.pathname}?site=${site}#${page}`);
     setNotice(undefined);
   }, [page, site]);
-  if (!state) return <main className="main">Loading Screentime…</main>;
+  if (!state) return <main className="main loading">Loading ScreenFry…</main>;
   const title = pages.find((p) => p.id === page)!.label;
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
   return (
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="mark">
-            <Icon name="limits" />
-          </div>
-          <span>Screentime</span>
+          <img className="mark" src="icons/icon-64.png" alt="" />
+          <span>ScreenFry</span>
         </div>
         <nav className="nav" aria-label="Sections">
           {pages.map((p) => (
@@ -76,23 +80,48 @@ function Dashboard() {
             </button>
           ))}
         </nav>
-        <p className="sidebar-foot muted">
-          Less scrolling.
-          <br />
-          More room for your day.
-        </p>
+        <section className="today" aria-label="Today’s usage">
+          <h2>Today</h2>
+          {launchSites.map((s) => {
+            const status = siteStatus(state, s.id);
+            return (
+              <button
+                key={s.id}
+                className="today-row"
+                onClick={() => {
+                  setSite(s.id);
+                  setPage("websites");
+                }}
+              >
+                <span className="today-name">
+                  <span className="dot" style={{ background: s.color }} />
+                  {s.name}
+                </span>
+                <span className={`today-value ${status.blocked ? "blocked" : ""}`}>
+                  {status.blocked ? "Blocked" : status.label.replace(" today", "")}
+                </span>
+                {status.progress !== undefined && (
+                  <span className="meter" aria-hidden="true">
+                    <span style={{ width: `${status.progress * 100}%` }} />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </section>
+        <p className="sidebar-foot muted">Less feed. More day.</p>
       </aside>
       <main className="main">
         <header className="page-head">
           <div>
-            <span className="eyebrow">Screentime</span>
+            <span className="eyebrow">{today}</span>
             <h1>{title}</h1>
             <p className="muted">
               {page === "websites"
                 ? "Keep the useful parts. Choose what gets in the way."
                 : page === "windows"
                   ? "Choose when websites are available."
-                  : "Make Screentime work for you."}
+                  : "Make ScreenFry work for you."}
             </p>
           </div>
           {state.settingsPassword && unlocked && (
@@ -146,7 +175,10 @@ function Dashboard() {
                     >
                       {s.symbol}
                     </span>
-                    <span>{s.name}</span>
+                    <span className="website-name">
+                      {s.name}
+                      <small>{siteStatus(state, s.id).label}</small>
+                    </span>
                     <span className="site-chevron">›</span>
                   </button>
                 ))}

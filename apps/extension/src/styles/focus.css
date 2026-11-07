@@ -1,6 +1,8 @@
-.focus-page { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--paper) 90%, transparent) 0, transparent 38%), var(--bg); }
-.focus-card { width: min(640px, 100%); padding: clamp(26px, 6vw, 52px); text-align: center; }
-.focus-card h1 { font-size: clamp(30px, 6vw, 48px); letter-spacing: -0.045em; margin: 14px 0 12px; line-height: 1.08; }
+.focus-page { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(ellipse 70% 55% at 50% -10%, color-mix(in srgb, var(--accent-bright) 22%, transparent) 0, transparent 70%), radial-gradient(circle at 85% 110%, color-mix(in srgb, var(--accent-bright) 10%, transparent) 0, transparent 45%), var(--bg); }
+.focus-card { width: min(640px, 100%); padding: clamp(28px, 6vw, 56px); text-align: center; }
+.focus-logo { display: block; width: 92px; height: 92px; margin: -6px auto 10px; }
+.focus-card h1 { font-size: clamp(30px, 6vw, 48px); font-weight: 800; letter-spacing: -0.045em; margin: 12px 0 12px; line-height: 1.06; text-wrap: balance; }
+.next-access { display: inline-block; margin: 6px 0 0; padding: 8px 14px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
 .focus-card p { line-height: 1.6; }
 .seal { margin: 0 auto 16px; display: grid; place-items: center; width: 70px; height: 70px; border-radius: 22px; background: var(--green-2); color: var(--green); }
 .seal.open { background: var(--soft); }

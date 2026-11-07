@@ -18,7 +18,7 @@ export function protectionLabel(protection: ProtectionStatus): {
     return {
       ready: true,
       title: "Private browsing confirmed",
-      detail: `Screentime saw itself running in a Private window on ${formatDate(protection.lastObservedAt)}. Safari can’t report if this is later turned off, so re-check after changing extension settings.`,
+      detail: `ScreenFry saw itself running in a Private window on ${formatDate(protection.lastObservedAt)}. Safari can’t report if this is later turned off, so re-check after changing extension settings.`,
     };
   }
   return {
@@ -27,7 +27,7 @@ export function protectionLabel(protection: ProtectionStatus): {
     detail:
       protection.browser === "safari"
         ? "Safari has no API that reports this setting. Follow the steps, open a Private window, then check again."
-        : "Chrome reports that Screentime is not allowed in Incognito.",
+        : "Chrome reports that ScreenFry is not allowed in Incognito.",
   };
 }
 
@@ -61,7 +61,7 @@ export function PrivateAccessGuide({
         <ol className="guide">
           <li>
             Open <strong>Safari → Settings → Extensions</strong> and select
-            Screentime.
+            ScreenFry.
           </li>
           <li>
             Turn on <strong>Allow in Private Browsing</strong>, and set website
@@ -69,7 +69,7 @@ export function PrivateAccessGuide({
           </li>
           <li>Open a new Private window (⇧⌘N) and leave it open.</li>
           <li>
-            Come back here and choose <strong>Check again</strong>. Screentime
+            Come back here and choose <strong>Check again</strong>. ScreenFry
             confirms coverage only when it can see that Private window.
           </li>
         </ol>

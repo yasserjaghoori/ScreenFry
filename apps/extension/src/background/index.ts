@@ -124,7 +124,7 @@ async function syncNetworkRules(state: AppState) {
     });
     lastNetworkRules = signature;
   } catch (error) {
-    console.warn("Screentime: using tab/content enforcement", String(error));
+    console.warn("ScreenFry: using tab/content enforcement", String(error));
   }
 }
 let memorySessions: TrackingSession[] = [];
@@ -251,7 +251,7 @@ function reevaluate(): Promise<void> {
     await scheduleNextBoundary(state);
   });
   chain = run.catch((error) =>
-    console.warn("Screentime: reevaluation failed", String(error)),
+    console.warn("ScreenFry: reevaluation failed", String(error)),
   );
   return chain as Promise<void>;
 }
@@ -438,4 +438,4 @@ async function start() {
   await reevaluate();
 }
 void start();
-console.info(`Screentime ready (${browser})`);
+console.info(`ScreenFry ready (${browser})`);

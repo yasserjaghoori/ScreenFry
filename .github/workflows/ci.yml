@@ -54,4 +54,4 @@ jobs:
           -scheme Screentime -configuration Debug -derivedDataPath dist/safari
           CODE_SIGNING_ALLOWED=NO build
       - name: Verify Safari package and generated entitlements
-        run: node scripts/verify-safari.mjs dist/safari/Build/Products/Debug/Screentime.app
+        run: node scripts/verify-safari.mjs dist/safari/Build/Products/Debug/ScreenFry.app

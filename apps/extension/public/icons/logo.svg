@@ -1,7 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="1" y="1" width="62" height="62" rx="16" fill="#225ec4"/>
-  <g fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="32" cy="32" r="19"/>
-    <path d="M32 20v13l9 5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="ember" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9a3c"/>
+      <stop offset=".55" stop-color="#f4621f"/>
+      <stop offset="1" stop-color="#d63a16"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".28"/>
+      <stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity=".28"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#ember)"/>
   </g>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#gloss)"/>
+  <g transform="translate(512 512) scale(.86) translate(-512 -512)">
+  <circle cx="512" cy="512" r="236" fill="#fff" fill-opacity=".12"/>
+  <circle cx="512" cy="512" r="236" fill="none" stroke="#fff" stroke-width="58"/>
+  <g fill="#fff">
+    <circle cx="512" cy="338" r="15"/><circle cx="686" cy="512" r="15"/>
+    <circle cx="512" cy="686" r="15"/><circle cx="338" cy="512" r="15"/>
+  </g>
+  <path d="M512 382V512l104 62" fill="none" stroke="#fff" stroke-width="54"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="512" cy="512" r="34" fill="#fff"/></g>
 </svg>
