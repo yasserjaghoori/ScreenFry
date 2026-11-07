@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chrome:
+    name: Unit tests and Chrome integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: Chrome smoke test (uses the verified build)
+        run: node tests/e2e/chrome-smoke.mjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+  safari:
+    name: Unsigned Safari build
+    runs-on: macos-latest
+    timeout-minutes: 20
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: brew install xcodegen
+      - run: npm run build:safari
+      - run: xcodegen generate --spec safari/Screentime/project.yml
+      - name: Compile app and extension without signing
+        run: >-
+          xcodebuild -project safari/Screentime/Screentime.xcodeproj
+          -scheme Screentime -configuration Debug -derivedDataPath dist/safari
+          CODE_SIGNING_ALLOWED=NO build

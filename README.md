@@ -6,8 +6,10 @@ A privacy-first Chrome and Safari extension for commitment-based website limits,
 
 ## Run
 
+Use the Node version in `.nvmrc`. Full environment and browser installation instructions are in [Development setup](docs/SETUP.md).
+
 ```bash
-npm install
+npm ci
 npm test            # unit tests
 npm run build       # → dist/chrome
 npm run test:e2e    # real headless Chrome smoke test
@@ -28,7 +30,7 @@ Chrome: open `chrome://extensions`, turn on Developer mode, choose **Load unpack
 
 ## Docs
 
-[Architecture](docs/ARCHITECTURE.md) · [Threat model](docs/THREAT_MODEL.md) · [Privacy](docs/PRIVACY.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Phase 1 audit](docs/PHASE1_AUDIT.md)
+[Setup](docs/SETUP.md) · [Project brief](docs/PROJECT_BRIEF.md) · [Architecture](docs/ARCHITECTURE.md) · [Threat model](docs/THREAT_MODEL.md) · [Privacy](docs/PRIVACY.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Phase 1 audit](docs/PHASE1_AUDIT.md)
 
 ## Honest limitation
 
