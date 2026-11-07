@@ -24,12 +24,15 @@ The generated extension `Resources/` directory is not versioned. Always run `npm
 
 ## Packaging details
 
-- Safari reads `manifest.json` from the root of the appex `Contents/Resources`. The top-level files are added individually and only `assets/` is a folder reference, because Vite's hashed file names change every build.
+- Safari reads `manifest.json` from the root of the appex `Contents/Resources`. The top-level files are added individually; `assets/` and `icons/` are folder references so manifest paths remain intact.
+- The extension declares transparent monochrome toolbar PNGs and colored extension PNGs. The containing app uses a native AppIcon asset catalog. Regenerate all PNGs on macOS with `swift scripts/generate-icons.swift`; generated images are committed so CI needs no graphics tools.
 - Both targets have the App Sandbox entitlement. The handler implements `NSExtensionRequestHandling`. Native messaging is unused in Phase 1.
 - Sandbox properties must be declared in `project.yml`, as well as the generated entitlement files. XcodeGen otherwise rewrites those files as empty dictionaries. CI runs `scripts/verify-safari.mjs` after the build to catch this.
 - Bundle IDs are `com.screentime.Screentime` and `com.screentime.Screentime.Extension`. Change them in `project.yml` to match your team.
 
 For a local signed development build, select your Apple development team in Xcode or pass signing options to `xcodebuild`. Keep signing identities out of version control. Build outside iCloud-synced directories when Finder metadata interferes with signature validation, and verify the resulting bundle with `codesign --verify --deep --strict` before installation. Keep one installed containing app to avoid duplicate Safari extension registrations.
+
+For local updates, quit the containing app and update the installed bundle in place rather than repeatedly launching copies from DerivedData. Safari may temporarily drop the toolbar item while registrations change. Reopen the installed containing app and check its enabled status, then verify the toolbar on a normal website. Development updates still require checking that existing choices survived.
 
 ## Behaviour differences from Chrome
 

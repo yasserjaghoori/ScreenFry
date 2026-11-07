@@ -28,8 +28,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime
-        MARKETING_VERSION: "0.3.0"
-        CURRENT_PROJECT_VERSION: "3"
+        MARKETING_VERSION: "0.3.1"
+        CURRENT_PROJECT_VERSION: "4"
     dependencies:
       - target: Screentime Extension
         embed: true
@@ -49,7 +49,12 @@ targets:
         excludes:
           - assets
           - "assets/**"
+          - icons
+          - "icons/**"
       - path: Screentime Extension/Resources/assets
+        type: folder
+        buildPhase: resources
+      - path: Screentime Extension/Resources/icons
         type: folder
         buildPhase: resources
     info:
@@ -68,5 +73,5 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime.Extension
-        MARKETING_VERSION: "0.3.0"
-        CURRENT_PROJECT_VERSION: "3"
+        MARKETING_VERSION: "0.3.1"
+        CURRENT_PROJECT_VERSION: "4"

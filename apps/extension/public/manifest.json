@@ -1,14 +1,31 @@
 {
   "manifest_version": 3,
   "name": "Screentime",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Hide distracting feeds and buttons, set daily website limits, and choose allowed time windows.",
-  "permissions": ["storage", "tabs", "idle", "alarms", "declarativeNetRequest"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "storage",
+    "tabs",
+    "idle",
+    "alarms",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "incognito": "spanning",
   "action": {
     "default_title": "Screentime",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/toolbar-16.png",
+      "19": "icons/toolbar-19.png",
+      "24": "icons/toolbar-24.png",
+      "32": "icons/toolbar-32.png",
+      "38": "icons/toolbar-38.png",
+      "48": "icons/toolbar-48.png",
+      "64": "icons/toolbar-64.png"
+    }
   },
   "background": {
     "service_worker": "assets/background.js",
@@ -16,21 +33,40 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["assets/content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "assets/content.js"
+      ],
       "run_at": "document_start",
       "all_frames": true
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["blocked.html", "assets/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "blocked.html",
+        "assets/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "minimum_chrome_version": "116",
   "options_ui": {
     "page": "dashboard.html",
     "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "64": "icons/icon-64.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png",
+    "256": "icons/icon-256.png",
+    "512": "icons/icon-512.png"
   }
 }

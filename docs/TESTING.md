@@ -35,4 +35,8 @@ Chrome loaded version 0.3.0 and displayed its welcome and website controls. Safa
 
 This check found and fixed XcodeGen clearing the sandbox entitlement dictionaries. The corrected bundle passes strict recursive signature verification and the packaging verifier. A single persistent Safari installation remains registered.
 
-Live enabled-control acceptance is still pending: browser automation rejected access to extension-internal settings pages. Normal-site baseline loading was observed, but feed toggles, live time-limit exhaustion, Windows and short-form blocking have not yet been verified in these everyday browser profiles. The isolated Chrome integration checks above are separate evidence.
+After the user enabled YouTube controls, Chrome's real signed-in homepage reported `display: none` for both the home feed and Notifications renderer. A direct `/shorts/` navigation redirected to Screentime's blocked URL (URL metadata only; extension contents were not inspected).
+
+Safari was updated to a locally signed 0.3.1 with a native app icon and monochrome toolbar clock. The installed app passed strict signature and packaging checks, reported enabled, and the toolbar exposed a visible button named Screentime. On the public YouTube homepage, the home feed and Notifications button were absent after the update. A subsequent direct Shorts test reached a blank loading tab without a verifiable destination, so Safari's live short-form redirect remains unverified.
+
+The automation tool rejected access to extension-internal settings pages, so settings were enabled manually by the user. Live time-limit exhaustion, Windows and the remaining site controls still need manual acceptance. The isolated Chrome integration checks above are separate evidence. The toolbar icon does not change the tool's extension-page access restriction.

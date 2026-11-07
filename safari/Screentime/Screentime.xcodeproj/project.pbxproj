@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2E391DA7FAE2CCA0F5551138 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = C1BC319F402E00CEAC7F664D /* icons */; };
 		2E70403298BBC20E3EE25069 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 0D89A121EE5FD88CA71D661C /* manifest.json */; };
+		47E411FC8650DD759BFCE70D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 83C05A74B71C689BCF2CD8B7 /* Assets.xcassets */; };
 		4F79517F89A5C628479D58C8 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = FADDCB8CA04FA91FA363D0D6 /* assets */; };
 		50A10FB3889A819AA8ABBB2F /* Screentime Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4F804E7E0B925B31E9AB1DBD /* Screentime Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		8088F7EDABABFE35B2DA58A3 /* dashboard.html in Resources */ = {isa = PBXBuildFile; fileRef = 71716388FEB746F7C094205F /* dashboard.html */; };
@@ -53,7 +55,9 @@
 		686D63802E82DA1C473E64E9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		71716388FEB746F7C094205F /* dashboard.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = dashboard.html; sourceTree = "<group>"; };
 		7D74C02722B563F3FACD85AC /* Screentime.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Screentime.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		83C05A74B71C689BCF2CD8B7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		944A8504504762AFCD6C73CC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		C1BC319F402E00CEAC7F664D /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = "Screentime Extension/Resources/icons"; sourceTree = SOURCE_ROOT; };
 		CEFA4E5C7D60F66970944743 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
 		EA1F24D3A61FF056A4C6C310 /* onboarding.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = onboarding.html; sourceTree = "<group>"; };
 		FADDCB8CA04FA91FA363D0D6 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = "Screentime Extension/Resources/assets"; sourceTree = SOURCE_ROOT; };
@@ -73,6 +77,7 @@
 			isa = PBXGroup;
 			children = (
 				944A8504504762AFCD6C73CC /* AppDelegate.swift */,
+				83C05A74B71C689BCF2CD8B7 /* Assets.xcassets */,
 				61B16774DE9B5D634AED0020 /* Info.plist */,
 			);
 			path = Screentime;
@@ -82,6 +87,7 @@
 			isa = PBXGroup;
 			children = (
 				FADDCB8CA04FA91FA363D0D6 /* assets */,
+				C1BC319F402E00CEAC7F664D /* icons */,
 				EB6FB3B4AD1683410276F355 /* Resources */,
 				28BA74E6205703D2DA9001E2 /* Screentime */,
 				03B04857A2B78711AD0A3F2D /* Screentime Extension */,
@@ -120,6 +126,7 @@
 			buildConfigurationList = 2C06D98EC1ECD180661FEE13 /* Build configuration list for PBXNativeTarget "Screentime" */;
 			buildPhases = (
 				68B05FD2AEAE5ADC85A7A5AE /* Sources */,
+				E328DDFE16ACEF34459C73EF /* Resources */,
 				7C7ED23D5B6E15924FD47B00 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -184,6 +191,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		E328DDFE16ACEF34459C73EF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				47E411FC8650DD759BFCE70D /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		FEE3E1E3CCE39FA6381F0FB1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -192,6 +207,7 @@
 				4F79517F89A5C628479D58C8 /* assets in Resources */,
 				CDDCB14A1AD7A624340D3852 /* blocked.html in Resources */,
 				8088F7EDABABFE35B2DA58A3 /* dashboard.html in Resources */,
+				2E391DA7FAE2CCA0F5551138 /* icons in Resources */,
 				2E70403298BBC20E3EE25069 /* manifest.json in Resources */,
 				8CCC4ACA3EE5AB729CB5EE64 /* onboarding.html in Resources */,
 				FF9930CF31BA2244172C335A /* popup.html in Resources */,
@@ -296,14 +312,14 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = "Screentime Extension/Screentime Extension.entitlements";
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				INFOPLIST_FILE = "Screentime Extension/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screentime.Screentime.Extension;
 				SDKROOT = macosx;
 			};
@@ -371,13 +387,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Screentime/Screentime.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				INFOPLIST_FILE = Screentime/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screentime.Screentime;
 				SDKROOT = macosx;
 			};
@@ -389,13 +405,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Screentime/Screentime.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				INFOPLIST_FILE = Screentime/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screentime.Screentime;
 				SDKROOT = macosx;
 			};
@@ -406,14 +422,14 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = "Screentime Extension/Screentime Extension.entitlements";
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				INFOPLIST_FILE = "Screentime Extension/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screentime.Screentime.Extension;
 				SDKROOT = macosx;
 			};

@@ -6,6 +6,28 @@ const read = (path) => readFileSync(new URL(path, dist), "utf8");
 const errors = [];
 
 const manifest = JSON.parse(read("manifest.json"));
+for (const [purpose, icons] of Object.entries({
+  extension: manifest.icons,
+  toolbar: manifest.action.default_icon,
+})) {
+  if (!icons?.["16"] || !icons?.["32"])
+    errors.push(`missing ${purpose} icon declarations`);
+  for (const [size, path] of Object.entries(icons ?? {})) {
+    const file = new URL(path, dist);
+    if (!existsSync(file)) {
+      errors.push(`missing ${purpose} icon ${path}`);
+      continue;
+    }
+    const png = readFileSync(file);
+    if (
+      png.length < 24 ||
+      png.subarray(1, 4).toString() !== "PNG" ||
+      png.readUInt32BE(16) !== Number(size) ||
+      png.readUInt32BE(20) !== Number(size)
+    )
+      errors.push(`incorrect PNG dimensions for ${path}`);
+  }
+}
 for (const file of [
   manifest.background.service_worker,
   ...manifest.content_scripts.flatMap((entry) => entry.js),

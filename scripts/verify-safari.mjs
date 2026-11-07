@@ -49,6 +49,26 @@ if (!errors.length) {
   const manifest = JSON.parse(
     readFileSync(join(resources, "manifest.json"), "utf8"),
   );
+  for (const iconMap of [manifest.icons, manifest.action.default_icon]) {
+    if (!iconMap?.["16"] || !iconMap?.["32"])
+      errors.push("missing embedded icon declarations");
+    for (const [size, path] of Object.entries(iconMap ?? {})) {
+      if (!existsSync(join(resources, path))) {
+        errors.push(`missing embedded icon ${path}`);
+        continue;
+      }
+      const png = readFileSync(join(resources, path));
+      if (
+        png.length < 24 ||
+        png.subarray(1, 4).toString() !== "PNG" ||
+        png.readUInt32BE(16) !== Number(size) ||
+        png.readUInt32BE(20) !== Number(size)
+      )
+        errors.push(`incorrect embedded PNG ${path}`);
+    }
+  }
+  if (!existsSync(join(app, "Contents/Resources/AppIcon.icns")))
+    errors.push("missing native app icon");
   const packageVersion = JSON.parse(
     readFileSync(join(projectRoot, "package.json"), "utf8"),
   ).version;
