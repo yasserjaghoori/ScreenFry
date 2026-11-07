@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["chrome", "node", "vitest/globals"],
+    "paths": {
+      "@shared/*": ["./packages/shared-types/src/*"],
+      "@core/*": ["./packages/core/src/*"],
+      "@policy/*": ["./packages/policy-engine/src/*"],
+      "@browser/*": ["./packages/browser-adapters/src/*"],
+      "@feeds/*": ["./packages/feed-blockers/src/*"]
+    }
+  },
+  "include": ["apps", "packages", "tests", "vite.config.ts"]
+}
