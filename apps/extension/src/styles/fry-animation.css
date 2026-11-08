@@ -1,0 +1,92 @@
+.fry-mark {
+  position: relative;
+  display: block;
+  width: 144px;
+  height: 172px;
+  margin: 0 auto 12px;
+  isolation: isolate;
+}
+.fry-mark img {
+  position: relative;
+  width: 144px;
+  height: 144px;
+  object-fit: contain;
+  z-index: 2;
+  animation: fry-glimmer 4s ease-in-out infinite;
+}
+.fry-mark:before {
+  content: "";
+  position: absolute;
+  inset: 15px 0 18px;
+  border-radius: 50%;
+  background: #ff763a33;
+  filter: blur(22px);
+  animation: fry-glow 4s ease-in-out infinite;
+}
+.fry-mark i {
+  position: absolute;
+  top: 108px;
+  left: 47px;
+  width: 7px;
+  height: 14px;
+  border-radius: 40% 40% 55% 55%;
+  background: linear-gradient(#ffc46c, #f76b36);
+  animation: fry-drip 2.8s cubic-bezier(0.45, 0, 0.8, 0.6) infinite;
+  z-index: 1;
+  transform-origin: top;
+}
+.fry-mark i:nth-of-type(2) {
+  left: 72px;
+  width: 9px;
+  animation-delay: -1.1s;
+}
+.fry-mark i:nth-of-type(3) {
+  left: 96px;
+  width: 5px;
+  animation-delay: -2s;
+}
+@keyframes fry-drip {
+  0%,
+  15% {
+    transform: translateY(0) scaleY(0.2);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(43px) scaleY(1.3);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(58px) scaleY(0.4);
+    opacity: 0;
+  }
+}
+@keyframes fry-glimmer {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 7px #ff873533);
+    transform: translateY(0);
+  }
+  50% {
+    filter: brightness(1.2) drop-shadow(0 0 18px #ff873577);
+    transform: translateY(-3px);
+  }
+}
+@keyframes fry-glow {
+  50% {
+    opacity: 0.45;
+    transform: scale(1.15);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fry-mark img,
+  .fry-mark:before,
+  .fry-mark i {
+    animation: none;
+  }
+  .fry-mark i {
+    display: none;
+  }
+}

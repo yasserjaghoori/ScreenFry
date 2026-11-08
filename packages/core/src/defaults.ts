@@ -104,9 +104,8 @@ export function migrateState(
         }))
       : [];
   state.rules = Array.isArray(raw.rules)
-    ? (raw.rules as Record<string, unknown>[])
-        .filter(object)
-        .map((r): WebsiteRule => ({
+    ? (raw.rules as Record<string, unknown>[]).filter(object).map(
+        (r): WebsiteRule => ({
           id: String(r.id),
           label: String(r.label ?? "Website"),
           domains: Array.isArray(r.domains) ? (r.domains as string[]) : [],
@@ -118,7 +117,8 @@ export function migrateState(
           showTimer: r.showTimer === true,
           createdAt: Number(r.createdAt) || 0,
           updatedAt: Number(r.updatedAt) || 0,
-        }))
+        }),
+      )
     : defaultRules();
   if (legacy && Array.isArray(raw.rules)) {
     (raw.rules as Record<string, unknown>[]).forEach((r, i) => {
@@ -167,6 +167,17 @@ export function migrateState(
     ? (raw.feedSettings as unknown as FeedSettings)
     : undefined;
   state.feedSettings.globalEnabled = feeds?.globalEnabled !== false;
+  // Retire the redundant TikTok video blocker without silently removing an active block.
+  // The old key is dropped below, making this a one-time migration when saved.
+  if (feeds?.globalEnabled !== false && feeds?.sites?.tiktok?.videos === true) {
+    const rule = state.rules.find((r) => r.domains.includes("tiktok.com"));
+    if (rule) {
+      rule.blocked = true;
+      rule.enabled = true;
+    }
+    state.migrationNotice =
+      "TikTok’s old Block videos control is now Block TikTok in Essentials. You can change it there.";
+  }
   for (const site of Object.keys(feedDefaults.sites) as FeedSite[]) {
     for (const key of Object.keys(feedDefaults.sites[site]))
       state.feedSettings.sites[site][key] =

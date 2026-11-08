@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { send } from "@browser/messages";
+import { STATE_KEY } from "@browser/storage";
+import { migrateState } from "@core/defaults";
+import { evaluatePolicy } from "@policy/index";
 import { parseWebUrl } from "@core/domains";
 import { shortFormLabels } from "@feeds/index";
 import type { PolicyDecision } from "@shared/index";
 import { formatWhen } from "../ui/format";
 import "../styles/global.css";
 import "../styles/focus.css";
+import "../styles/fry-animation.css";
 const params = new URLSearchParams(location.search);
 const rawUrl =
   params.get("source") === "network"
@@ -17,15 +20,42 @@ function Blocked() {
   const [decision, setDecision] = useState<PolicyDecision>(),
     [error, setError] = useState("");
   useEffect(() => {
-    const check = async () => {
-      if (!url) return;
-      const r = await send<PolicyDecision>({ type: "GET_POLICY", url });
-      if (r.ok) setDecision(r.data);
-      else setError(r.error);
+    let mounted = true;
+    let state: ReturnType<typeof migrateState> | undefined;
+    const check = () => {
+      if (mounted && url && state) {
+        const next = evaluatePolicy(state, url, Date.now());
+        setDecision((current) =>
+          JSON.stringify(current) === JSON.stringify(next) ? current : next,
+        );
+      }
     };
-    void check();
+    const changed = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string,
+    ) => {
+      if (area === "local" && changes[STATE_KEY]) {
+        state = migrateState(changes[STATE_KEY].newValue);
+        check();
+      }
+    };
+    chrome.storage.onChanged.addListener(changed);
+    void chrome.storage.local
+      .get(STATE_KEY)
+      .then((saved) => {
+        state ??= migrateState(saved[STATE_KEY]);
+        check();
+      })
+      .catch(() => {
+        if (mounted)
+          setError("Open ScreenFry in the toolbar to check settings.");
+      });
     const timer = setInterval(check, 1000);
-    return () => clearInterval(timer);
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+      chrome.storage.onChanged.removeListener(changed);
+    };
   }, []);
   const requested = params.get("label") ?? "";
   // A short-form player found inside an ordinary page: the page itself is allowed, but the
@@ -41,10 +71,19 @@ function Blocked() {
       <section
         className={`card focus-card ${showContinue ? "" : "is-blocked"}`}
       >
-        <img className="focus-logo" src="icons/icon-128.png" alt="" />
+        <span className="fry-mark" aria-hidden="true">
+          <img src="icons/icon-256.png" alt="" />
+          <i />
+          <i />
+          <i />
+        </span>
         <span className="eyebrow">ScreenFry</span>
         <h1>
-          {showContinue ? "You can continue." : `${label} is off for now.`}
+          {showContinue
+            ? "You can continue."
+            : decision?.reasons.includes("daily-limit")
+              ? "Time is up!"
+              : `${label} is off for now.`}
         </h1>
         {(decision?.reasons.includes("short-form") ||
           (allowed && shortForm)) && (
@@ -61,7 +100,8 @@ function Blocked() {
         )}
         {decision?.reasons.includes("daily-limit") && (
           <p className="muted">
-            You’ve used your daily allowance. It resets at midnight.
+            You’ve used your daily allowance for {label}. Your timer resets at
+            midnight, every day, in your local time zone.
           </p>
         )}
         {decision?.reasons.includes("site-blocked") && (

@@ -227,6 +227,13 @@ export function SiteControls({
               in-site navigation.
             </p>
           )}
+          {site === "tiktok" && group === "Video page" && (
+            <p className="control-note">
+              Only play the linked video stops the next-video scroll on direct
+              video links. Comments still scroll normally. Use Block TikTok
+              above to block the entire website.
+            </p>
+          )}
         </section>
       ))}
       {!state.feedSettings.globalEnabled && (

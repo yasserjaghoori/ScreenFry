@@ -15,46 +15,79 @@ import { siteStatus } from "../ui/siteStatus";
 import "../styles/global.css";
 import "../styles/dashboard.css";
 import "../styles/popup.css";
+const SAFARI_ACCESS_NOTICE_DISMISSED = "safariSiteAccessNoticeDismissed";
 function Popup() {
   const [state, setState] = useState<AppState>(),
     [site, setSite] = useState<FeedSite>(launchSites[0].id),
     [error, setError] = useState(""),
     [unlocked, setUnlocked] = useState(false),
-    [siteAccess, setSiteAccess] = useState(true);
+    [siteAccess, setSiteAccess] = useState(true),
+    [accessNoticeDismissed, setAccessNoticeDismissed] = useState(false);
+  const isSafari = detectBrowser() === "safari";
   useEffect(() => {
     // Opening controls must not wake a full background sweep through every tab.
     // Enforcement and usage checkpoints run independently; edits still go through send().
     let mounted = true;
     void chrome.storage.local
-      .get(STATE_KEY)
+      .get([STATE_KEY, SAFARI_ACCESS_NOTICE_DISMISSED])
       .then((saved) => {
-        if (mounted)
+        if (mounted) {
+          setAccessNoticeDismissed(
+            saved[SAFARI_ACCESS_NOTICE_DISMISSED] === true,
+          );
           setState(
             (current) =>
               current ?? migrateState(saved[STATE_KEY], detectBrowser()),
           );
+        }
       })
       .catch(() => {
         if (mounted)
           setError("Saved controls couldn't load. Close and reopen ScreenFry.");
       });
-    // Host access is not required to draw settings. Only read the current URL when
-    // access is already granted; otherwise Safari may wait for a website permission.
+    let activeTabId: number | undefined;
+    let activeUrl: string | undefined;
+    const updated = (id: number, change: chrome.tabs.OnUpdatedInfo) => {
+      if (
+        id === activeTabId &&
+        (change.status === "loading" ||
+          (change.url && change.url !== activeUrl))
+      )
+        window.close();
+    };
+    const activated = (info: chrome.tabs.OnActivatedInfo) => {
+      if (activeTabId !== undefined && info.tabId !== activeTabId)
+        window.close();
+    };
+    chrome.tabs.onUpdated.addListener(updated);
+    chrome.tabs.onActivated.addListener(activated);
+    // The tabs permission allows URL metadata without requesting website access.
+    // Safari's broad host-permission answer must not gate current-site selection.
+    void chrome.permissions
+      ?.contains({ origins: ["<all_urls>"] })
+      .then((granted) => {
+        if (mounted) setSiteAccess(granted !== false);
+      })
+      .catch(() => undefined);
     void (async () => {
       try {
-        const granted = await chrome.permissions?.contains({
-          origins: ["<all_urls>"],
-        });
-        if (!mounted) return;
-        setSiteAccess(granted !== false);
-        if (granted !== true) return;
         const [tab] = await chrome.tabs.query({
           active: true,
           currentWindow: true,
         });
         if (!mounted) return;
+        activeTabId = tab?.id;
+        activeUrl = tab?.url;
         try {
-          const found = siteFor(new URL(tab?.url ?? "").hostname);
+          let current = new URL(tab?.url ?? "");
+          if (current.href.startsWith(chrome.runtime.getURL("blocked.html"))) {
+            const original =
+              current.searchParams.get("source") === "network"
+                ? current.search.slice(current.search.indexOf("&url=") + 5)
+                : current.searchParams.get("url");
+            if (original) current = new URL(original);
+          }
+          const found = siteFor(current.hostname);
           if (found) setSite(found.site);
         } catch {
           /* not a website */
@@ -74,6 +107,8 @@ function Popup() {
     return () => {
       mounted = false;
       chrome.storage.onChanged.removeListener(listener);
+      chrome.tabs.onUpdated.removeListener(updated);
+      chrome.tabs.onActivated.removeListener(activated);
     };
   }, []);
   const open = (page: string) =>
@@ -95,13 +130,20 @@ function Popup() {
           Settings ↗
         </button>
       </header>
-      {!siteAccess && (
+      {!siteAccess && !(isSafari && accessNoticeDismissed) && (
         <div className="notice warn popup-access" role="status">
-          <strong>ScreenFry may not have access to some websites.</strong>
-          {detectBrowser() === "safari" ? (
+          <strong>
+            {isSafari
+              ? "Safari hasn’t confirmed access to all websites."
+              : "ScreenFry may not have access to some websites."}
+          </strong>
+          {isSafari ? (
             <span>
               In Safari, open Settings → Extensions → ScreenFry, then set{" "}
-              <em>Edit Websites → Other Websites</em> to <em>Allow</em>.
+              <em>Edit Websites → Other Websites</em> to <em>Allow</em>. If
+              prompted, check <em>Remember for other websites</em> and choose{" "}
+              <em>Always Allow</em>. Already done? You can dismiss this
+              reminder; Safari may still report access as unconfirmed.
             </span>
           ) : (
             <span>
@@ -109,6 +151,23 @@ function Popup() {
               <em>This can read and change site data</em> →{" "}
               <em>On all sites</em>.
             </span>
+          )}
+          {isSafari && (
+            <button
+              className="button secondary"
+              onClick={() => {
+                setAccessNoticeDismissed(true);
+                void chrome.storage.local
+                  .set({ [SAFARI_ACCESS_NOTICE_DISMISSED]: true })
+                  .catch(() => {
+                    setError(
+                      "The reminder is hidden for now, but its dismissal couldn’t be saved.",
+                    );
+                  });
+              }}
+            >
+              Dismiss reminder
+            </button>
           )}
         </div>
       )}

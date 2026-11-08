@@ -1,6 +1,5 @@
 import AppKit
 import SafariServices
-import Security
 #if canImport(Sparkle)
 import Sparkle
 #endif
@@ -28,6 +27,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let safariStatus = NSTextField(labelWithString: "Checking Safari…")
     private let chromeDot = NSView()
     private let chromeStatus = NSTextField(labelWithString: "")
+    private var chromeDropAccepted = false
+    private var chromePreparationError: String?
+    private lazy var chromeConfirmation = NSButton(checkboxWithTitle: "ScreenFry appears in Chrome’s Extensions page", target: self, action: #selector(confirmChromeSetup(_:)))
+    private static let chromeConfirmedKey = "chromeSetupConfirmedByUser"
+    /// Set to false in project.yml when the public Safari distribution is ready.
+    private static var showsSafariDeveloperSetup: Bool {
+        Bundle.main.object(forInfoDictionaryKey: "ScreenFryShowSafariDeveloperSetup") as? Bool ?? true
+    }
     private let notice = NSTextField(wrappingLabelWithString: "")
     private lazy var ejectButton = button("Eject Installer", #selector(ejectInstaller(_:)), primary: false)
     private var installerVolume: URL?
@@ -123,7 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             try ChromeInstaller.sync()
         } catch {
-            chromeStatus.stringValue = "Couldn’t prepare the Chrome extension: \(error.localizedDescription)"
+            chromePreparationError = error.localizedDescription
         }
     }
 
@@ -160,9 +167,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         titles.spacing = 2
         let updateButton = NSButton(title: "Check for Updates…", target: self, action: #selector(checkForUpdates(_:)))
         updateButton.bezelStyle = .rounded
-        updateButton.isEnabled = Self.updatesConfigured
         if !Self.updatesConfigured {
-            updateButton.toolTip = "Automatic updates turn on once this build is published with an update signing key."
+            updateButton.toolTip = "Open ScreenFry releases to check for a newer download."
         }
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -176,38 +182,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notice.isHidden = true
         notice.preferredMaxLayoutWidth = 360
 
-        let safari = card(
-            title: "Safari", dot: safariDot, status: safariStatus,
-            steps: [
-                "Click Open Safari Settings, then turn on ScreenFry.",
-                "Click Edit Websites and set Other Websites to Allow.",
-                "Optional: turn on Allow in Private Browsing.",
-            ] + (Self.isDeveloperIDSigned ? [] : [
-                "Not in Safari’s list? This test build isn’t signed by Apple yet, and Safari hides unsigned extensions. In Safari → Settings → Advanced, turn on “Show features for web developers”. Then open the new Developer tab and turn on “Allow unsigned extensions”. Safari turns this off when it quits, so repeat it after restarting Safari.",
-            ]),
-            actions: [button("Open Safari Settings", #selector(openSafariSettings(_:)), primary: true)])
+        var safariRows: [NSView] = [
+            stepRow(1, "Open Safari’s settings."),
+            button("Open Safari Settings", #selector(openSafariSettings(_:)), primary: true),
+        ]
+        if Self.showsSafariDeveloperSetup {
+            safariRows.append(stepRow(2, "In Advanced, turn on “Show features for web developers”. Open the Developer tab, then turn on “Allow unsigned extensions”. Repeat after restarting Safari.", bold: "Show features for web developers"))
+        }
+        let enableStep = Self.showsSafariDeveloperSetup ? 3 : 2
+        safariRows += [
+            stepRow(enableStep, "Go to Extensions and check the box beside ScreenFry."),
+            stepRow(enableStep + 1, "When the website-access popup appears, check “Remember for other websites”, then press “Always Allow”.", bold: "Remember for other websites"),
+            helperLabel("Already enabled? In Edit Websites, set Other Websites to Allow. Optional: turn on Allow in Private Browsing."),
+        ]
+        let safari = card(title: "Safari", dot: safariDot, status: safariStatus, rows: safariRows)
 
         let chromeInstalled = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.chromeBundleID) != nil
-        let chromeSteps = chromeInstalled ? [
-            "Click Open Chrome Extensions.",
-            "Turn on Developer mode (top-right switch on that page).",
-            "Drag the ScreenFry tile below onto that page. Pin ScreenFry from the puzzle-piece menu.",
-        ] : ["Google Chrome isn’t installed. Install it, then reopen ScreenFry to set it up."]
-        var chromeActions: [NSView] = []
+        var chromeRows: [NSView] = []
         if chromeInstalled {
-            chromeActions.append(button("Open Chrome Extensions", #selector(openChromeExtensions(_:)), primary: true))
-            chromeActions.append(button("Show Folder", #selector(revealChromeFolder(_:)), primary: false))
-        }
-        let chrome = card(title: "Chrome", dot: chromeDot, status: chromeStatus, steps: chromeSteps, actions: chromeActions)
-        if chromeInstalled, let stack = chrome.subviews.first as? NSStackView {
             let tile = DragTile(folder: ChromeInstaller.folder)
-            stack.addArrangedSubview(tile)
-            tile.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-            let foot = NSTextField(wrappingLabelWithString: "Set up once. When ScreenFry updates, the Chrome extension updates and reloads itself.")
-            foot.font = .systemFont(ofSize: 11)
-            foot.textColor = .secondaryLabelColor
-            stack.addArrangedSubview(foot)
+            tile.onDropAccepted = { [weak self] in
+                self?.chromeDropAccepted = true
+                self?.refreshState()
+            }
+            chromeConfirmation.state = UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) ? .on : .off
+            chromeRows = [
+                stepRow(1, "Open the Extensions page.", action: button("Open Chrome Extensions", #selector(openChromeExtensions(_:)), primary: true)),
+                stepRow(2, "Turn on Developer mode (top-right switch on that page).", bold: "top-right switch"),
+                developerModeScreenshots(),
+                stepRow(3, "Drag this tile onto the Extensions page. Or click it to show the folder, then select that folder with Load unpacked."),
+                tile,
+                chromeConfirmation,
+                helperLabel("Pin ScreenFry from Chrome’s puzzle-piece menu. Setup confirmation is saved here; Chrome doesn’t report whether you later turn it off or remove it."),
+            ]
+        } else {
+            chromeRows = [helperLabel("Google Chrome isn’t installed. Install it, then reopen ScreenFry to set it up.")]
         }
+        let chrome = card(title: "Chrome", dot: chromeDot, status: chromeStatus, rows: chromeRows)
+
+        let request = NSButton(title: "Browser not listed here? Press here to request a new one.", target: self, action: #selector(requestBrowser(_:)))
+        request.isBordered = false
+        request.alignment = .left
+        let requestText = NSMutableAttributedString(string: request.title, attributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.secondaryLabelColor])
+        requestText.addAttributes([.underlineStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: NSColor.linkColor], range: (request.title as NSString).range(of: "Press here"))
+        request.attributedTitle = requestText
+        request.toolTip = "Open a browser request on GitHub (you review and submit it)."
+        let browsers = NSStackView(views: [safari, chrome, request])
+        browsers.orientation = .vertical
+        browsers.alignment = .leading
+        browsers.spacing = 14
+        browsers.edgeInsets = NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14)
+        browsers.wantsLayer = true
+        browsers.layer?.cornerRadius = 16
+        browsers.layer?.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.08).cgColor
+        safari.widthAnchor.constraint(equalTo: browsers.widthAnchor, constant: -28).isActive = true
+        chrome.widthAnchor.constraint(equalTo: safari.widthAnchor).isActive = true
 
         ejectButton.isHidden = true
         let noticeRow = NSStackView(views: [notice, ejectButton])
@@ -216,30 +245,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         noticeRow.spacing = 10
         let uninstallButton = NSButton(title: "Uninstall…", target: self, action: #selector(uninstall(_:)))
         uninstallButton.bezelStyle = .inline
-        let stack = NSStackView(views: [header, noticeRow, safari, chrome, uninstallButton])
+        let stack = NSStackView(views: [header, noticeRow, browsers, uninstallButton])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
         let content = window.contentView!
-        content.addSubview(stack)
+        let scroll = NSScrollView()
+        scroll.hasVerticalScroller = true
+        scroll.drawsBackground = false
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        let document = FlippedSetupView()
+        document.translatesAutoresizingMaskIntoConstraints = false
+        scroll.documentView = document
+        content.addSubview(scroll)
+        document.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 40),
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 28),
-            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -28),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -24),
+            scroll.topAnchor.constraint(equalTo: content.topAnchor, constant: 32),
+            scroll.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
+            stack.topAnchor.constraint(equalTo: document.topAnchor, constant: 12),
+            stack.leadingAnchor.constraint(equalTo: document.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: document.trailingAnchor, constant: -24),
+            stack.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -24),
             header.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            safari.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            chrome.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            browsers.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
-        window.setContentSize(content.fittingSize)
+        let availableHeight = (NSScreen.main?.visibleFrame.height ?? 900) - 60
+        window.setContentSize(NSSize(width: 660, height: min(900, availableHeight)))
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
     /// A rounded section with a title, status dot, numbered steps and buttons.
-    private func card(title: String, dot: NSView, status: NSTextField, steps: [String], actions: [NSView]) -> NSView {
+    private func card(title: String, dot: NSView, status: NSTextField, rows: [NSView]) -> NSView {
         let box = NSView()
         box.wantsLayer = true
         box.layer?.cornerRadius = 14
@@ -263,14 +305,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         top.alignment = .firstBaseline
         top.spacing = 12
 
-        let stack = NSStackView(views: [top] + steps.enumerated().map { stepRow($0.offset + 1, $0.element) })
+        let stack = NSStackView(views: [top] + rows)
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
-        if !actions.isEmpty {
-            let row = NSStackView(views: actions)
-            row.spacing = 8
-            stack.addArrangedSubview(row)
+        rows.forEach { row in
+            if row is NSStackView || row is DragTile || row is NSTextField {
+                row.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+            }
         }
         stack.translatesAutoresizingMaskIntoConstraints = false
         box.addSubview(stack)
@@ -291,7 +333,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return b
     }
 
-    private func stepRow(_ number: Int, _ text: String) -> NSView {
+    private func helperLabel(_ text: String) -> NSTextField {
+        let label = NSTextField(wrappingLabelWithString: text)
+        label.font = .systemFont(ofSize: 11)
+        label.textColor = .secondaryLabelColor
+        label.preferredMaxLayoutWidth = 540
+        return label
+    }
+
+    private func developerModeScreenshots() -> NSView {
+        func screenshot(_ name: String, caption: String) -> NSView {
+            let image = NSImageView()
+            image.image = NSImage(named: name)
+            image.imageScaling = .scaleProportionallyUpOrDown
+            image.setAccessibilityLabel("Chrome Extensions: Developer mode \(caption.lowercased())")
+            image.widthAnchor.constraint(equalToConstant: 220).isActive = true
+            image.heightAnchor.constraint(equalToConstant: 56).isActive = true
+            let stack = NSStackView(views: [image, helperLabel(caption)])
+            stack.orientation = .vertical
+            stack.spacing = 3
+            return stack
+        }
+        let arrow = NSTextField(labelWithString: "→")
+        arrow.font = .systemFont(ofSize: 24, weight: .medium)
+        arrow.textColor = Self.ember
+        let row = NSStackView(views: [screenshot("ChromeDeveloperModeOff", caption: "Before: off"), arrow, screenshot("ChromeDeveloperModeOn", caption: "After: on")])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.spacing = 12
+        return row
+    }
+
+    private func stepRow(_ number: Int, _ text: String, bold: String? = nil, action: NSView? = nil) -> NSView {
         let badge = NSTextField(labelWithString: "\(number)")
         badge.font = .systemFont(ofSize: 11, weight: .bold)
         badge.textColor = .white
@@ -312,7 +385,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let label = NSTextField(wrappingLabelWithString: text)
         label.font = .systemFont(ofSize: 13)
         label.preferredMaxLayoutWidth = 440
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        if let bold {
+            let styled = NSMutableAttributedString(string: text, attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.labelColor])
+            styled.addAttribute(.font, value: NSFont.systemFont(ofSize: 13, weight: .bold), range: (text as NSString).range(of: bold))
+            label.attributedStringValue = styled
+        }
         let row = NSStackView(views: [circle, label])
+        if let action { row.addArrangedSubview(action) }
         row.orientation = .horizontal
         row.alignment = .top
         row.spacing = 10
@@ -321,12 +401,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: State
 
-    /// Safari reports whether the extension is enabled. Chrome offers no way for an app to
-    /// check, so the Chrome status reports the prepared folder instead.
+    /// A successful file drop is not proof of installation. Keep user confirmation explicit.
     private func refreshState() {
-        if let installed = ChromeInstaller.installedVersion {
-            chromeStatus.stringValue = "Extension folder ready (v\(installed))"
+        if let error = chromePreparationError {
+            chromeStatus.stringValue = "Couldn’t prepare Chrome: \(error)"
+            chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
+        } else if UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) {
+            chromeStatus.stringValue = "Setup confirmed by you"
             chromeDot.layer?.backgroundColor = NSColor.systemGreen.cgColor
+        } else if chromeDropAccepted {
+            chromeStatus.stringValue = "Folder dropped — confirm below"
+            chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
+        } else if ChromeInstaller.installedVersion != nil {
+            chromeStatus.stringValue = "Ready to add to Chrome"
+            chromeDot.layer?.backgroundColor = Self.ember.cgColor
         }
         SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: extensionIdentifier) { [weak self] state, error in
             DispatchQueue.main.async {
@@ -334,28 +422,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if let state {
                     self.safariStatus.stringValue = state.isEnabled
                         ? "On in Safari"
-                        : (Self.isDeveloperIDSigned ? "Installed, turned off" : "Turned off, or hidden until unsigned extensions are allowed")
+                        : "Turned off — follow the steps below"
                     self.safariDot.layer?.backgroundColor = (state.isEnabled ? NSColor.systemGreen : Self.ember).cgColor
                 } else {
-                    self.safariStatus.stringValue = "Not visible to Safari yet\(error.map { " (\($0.localizedDescription))" } ?? "")"
+                    self.safariStatus.stringValue = "Finish setup in Safari"
                     self.safariDot.layer?.backgroundColor = NSColor.tertiaryLabelColor.cgColor
+                    if let error { NSLog("ScreenFry: Safari status unavailable: \(error.localizedDescription)") }
                 }
             }
         }
-    }
-
-    /// Developer ID–signed builds work in Safari without developer settings.
-    private static var isDeveloperIDSigned: Bool {
-        var code: SecStaticCode?
-        guard SecStaticCodeCreateWithPath(Bundle.main.bundleURL as CFURL, [], &code) == errSecSuccess, let code else { return false }
-        var info: CFDictionary?
-        guard SecCodeCopySigningInformation(code, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
-              let dict = info as? [String: Any],
-              let certificates = dict[kSecCodeInfoCertificates as String] as? [SecCertificate],
-              let leaf = certificates.first,
-              let name = SecCertificateCopySubjectSummary(leaf) as String?
-        else { return false }
-        return name.hasPrefix("Developer ID Application")
     }
 
     // MARK: Actions
@@ -377,11 +452,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func revealChromeFolder(_ sender: Any?) {
-        NSWorkspace.shared.activateFileViewerSelecting([ChromeInstaller.folder])
+    @objc private func confirmChromeSetup(_ sender: NSButton) {
+        UserDefaults.standard.set(sender.state == .on, forKey: Self.chromeConfirmedKey)
+        refreshState()
+    }
+
+    @objc private func requestBrowser(_ sender: Any?) {
+        var url = URLComponents(string: "https://github.com/yasserjaghoori/ScreenFry/issues/new")!
+        url.queryItems = [URLQueryItem(name: "title", value: "Browser request: "), URLQueryItem(name: "body", value: "Which browser would you like ScreenFry to support?\n\nBrowser:\nOperating system:\n")]
+        if let url = url.url { NSWorkspace.shared.open(url) }
     }
 
     @objc private func checkForUpdates(_ sender: Any?) {
+        guard Self.updatesConfigured else {
+            NSWorkspace.shared.open(URL(string: "https://github.com/yasserjaghoori/ScreenFry/releases")!)
+            return
+        }
         #if canImport(Sparkle)
         updater.checkForUpdates(sender)
         #endif
@@ -464,7 +550,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(withTitle: "About ScreenFry", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         let update = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates(_:)), keyEquivalent: "")
         update.target = self
-        update.isEnabled = Self.updatesConfigured
         appMenu.addItem(update)
         appMenu.addItem(.separator())
         let uninstallItem = NSMenuItem(title: "Uninstall ScreenFry…", action: #selector(uninstall(_:)), keyEquivalent: "")
@@ -480,4 +565,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editItem.submenu = edit
         NSApp.mainMenu = main
     }
+}
+
+private final class FlippedSetupView: NSView {
+    override var isFlipped: Bool { true }
 }

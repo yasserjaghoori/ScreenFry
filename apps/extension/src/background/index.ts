@@ -1,4 +1,6 @@
 import * as actions from "@core/actions";
+import { withTimeout } from "@browser/scheduling";
+import { siteFor } from "@feeds/index";
 import { parseWebUrl } from "@core/domains";
 import {
   creditSessions,
@@ -57,13 +59,26 @@ async function enforceTab(
   const decision = evaluatePolicy(state, url, now);
   if (decision.status === "blocked")
     try {
-      await chrome.tabs.update(id, { url: blockedPageUrl(url, decision) });
+      // Safari renders a local isolated notice; cross-scheme tab updates can hang.
+      if (browser === "safari") {
+        await withTimeout(
+          chrome.tabs.sendMessage(
+            id,
+            { type: "SCREENFRY_APPLY_SETTINGS" } satisfies TabMessage,
+            { frameId: 0 },
+          ),
+        );
+      } else {
+        await withTimeout(
+          chrome.tabs.update(id, { url: blockedPageUrl(url, decision) }),
+        );
+      }
     } catch {
       /* closed tab */
     }
 }
 async function enforceAllTabs(state: AppState) {
-  const tabs = await chrome.tabs.query({}),
+  const tabs = await withTimeout(chrome.tabs.query({})),
     now = Date.now();
   await Promise.all(
     tabs.map((t) =>
@@ -159,7 +174,8 @@ async function loadSessions(): Promise<TrackingSession[]> {
   try {
     return (
       ((await sessionArea()?.get(SESSION_KEY))?.[SESSION_KEY] as
-        TrackingSession[] | undefined) ?? memorySessions
+        | TrackingSession[]
+        | undefined) ?? memorySessions
     );
   } catch {
     return memorySessions;
@@ -176,7 +192,7 @@ async function saveSessions(sessions: TrackingSession[]) {
 async function currentIdleState(): Promise<IdleState> {
   try {
     return hasIdleApi()
-      ? ((await chrome.idle.queryState(60)) as IdleState)
+      ? ((await withTimeout(chrome.idle.queryState(60))) as IdleState)
       : "active";
   } catch {
     return "active";
@@ -185,8 +201,8 @@ async function currentIdleState(): Promise<IdleState> {
 /** Only tabs on websites with a rule are tracked; nothing is recorded about other browsing. */
 async function findTrackableTabs(state: AppState) {
   const [tabs, window, idle] = await Promise.all([
-    chrome.tabs.query({}),
-    chrome.windows.getLastFocused(),
+    withTimeout(chrome.tabs.query({})),
+    withTimeout(chrome.windows.getLastFocused()),
     currentIdleState(),
   ]);
   const now = Date.now();
@@ -240,11 +256,13 @@ async function checkpointTracking(force: boolean) {
       const ids = new Set(sessions.map((s) => s.tabId));
       for (const id of ids)
         try {
-          await chrome.tabs.sendMessage(id, {
-            type: "SCREENFRY_WARNING",
-            label: warning.label,
-            minutesRemaining: warning.minutesRemaining,
-          } satisfies TabMessage);
+          await withTimeout(
+            chrome.tabs.sendMessage(id, {
+              type: "SCREENFRY_WARNING",
+              label: warning.label,
+              minutesRemaining: warning.minutesRemaining,
+            } satisfies TabMessage),
+          );
         } catch {
           /* no content script */
         }
@@ -302,9 +320,10 @@ function reevaluate(force = false): Promise<void> {
       queued = undefined;
       await checkpointTracking(entry.force);
       const state = await actions.maintain(ctx);
-      await syncNetworkRules(state);
-      await enforceAllTabs(state);
       await scheduleNextBoundary(state);
+      // Network rule compilation must not stall usage accounting or settings messages.
+      void requestNetworkSync();
+      await enforceAllTabs(state);
     })
     .catch((error) =>
       console.warn("ScreenFry: reevaluation failed", String(error)),
@@ -314,6 +333,63 @@ function reevaluate(force = false): Promise<void> {
   return entry.promise;
 }
 let observedPrivate = false;
+let networkSyncPromise: Promise<void> | undefined;
+let networkSyncPending = false;
+function requestNetworkSync(): Promise<void> {
+  networkSyncPending = true;
+  if (networkSyncPromise) return networkSyncPromise;
+  networkSyncPromise = (async () => {
+    try {
+      while (networkSyncPending) {
+        networkSyncPending = false;
+        await syncNetworkRules(await chromeStateStore.get());
+      }
+    } finally {
+      networkSyncPromise = undefined;
+    }
+  })();
+  return networkSyncPromise;
+}
+async function settingsChanged() {
+  void reevaluate(true);
+  // Normally finish rule removal before an immediate revisit. A stalled Safari compiler
+  // must still release the controls; the in-flight sync keeps only the newest pending state.
+  await withTimeout(requestNetworkSync()).catch(() => undefined);
+}
+/** Apply to the active website live; a missing/stale content script gets one reload. */
+async function refreshActiveSite(state: AppState, changedSites: string[]) {
+  try {
+    const [tab] = await withTimeout(
+      chrome.tabs.query({ active: true, currentWindow: true }),
+    );
+    if (tab?.id === undefined || !tab.url) return;
+    const host = parseWebUrl(tab.url)?.hostname;
+    const site = host && siteFor(host)?.site;
+    if (!site || !changedSites.includes(site)) return;
+    try {
+      const response = await withTimeout(
+        chrome.tabs.sendMessage(
+          tab.id,
+          { type: "SCREENFRY_APPLY_SETTINGS" } satisfies TabMessage,
+          { frameId: 0 },
+        ),
+      );
+      if (response?.applied && response.url === tab.url) return;
+    } catch {
+      /* a reload injects the current script */
+    }
+    const current = await withTimeout(chrome.tabs.get(tab.id));
+    if (
+      current.url === tab.url &&
+      current.status !== "loading" &&
+      (browser === "safari" ||
+        evaluatePolicy(state, tab.url, Date.now()).status === "allowed")
+    )
+      await withTimeout(chrome.tabs.reload(tab.id));
+  } catch {
+    /* closed/inaccessible tab; saved settings still apply on next visit */
+  }
+}
 async function noteObservedPrivateTab() {
   if (observedPrivate) return;
   observedPrivate = true;
@@ -352,7 +428,6 @@ async function handle(
   const auth = { ...ctx, password: request.password };
   switch (request.type) {
     case "GET_STATE":
-      await reevaluate(true);
       return { ok: true, data: await chromeStateStore.get() };
     case "GET_POLICY":
       return {
@@ -384,7 +459,7 @@ async function handle(
       }
       // Only a change in playback matters. Repeated "still playing" reports refresh the
       // timestamp above; reevaluating on each one made video pages churn every frame.
-      if (previous?.playing !== request.playing) await reevaluate(true);
+      if (previous?.playing !== request.playing) void reevaluate(true);
       return { ok: true, data: null };
     }
     case "SHOW_BLOCKED_PAGE": {
@@ -406,9 +481,12 @@ async function handle(
           ? (decision.ruleLabel ?? "This website")
           : shortFormLabelAllowed(state, url, request.label);
       if (!label) return { ok: false, error: "Not blocked." };
-      await chrome.tabs.update(tabId, {
-        url: extensionPageUrl("blocked.html", { url, label }),
-      });
+      if (browser === "safari") return { ok: true, data: null };
+      await withTimeout(
+        chrome.tabs.update(tabId, {
+          url: extensionPageUrl("blocked.html", { url, label }),
+        }),
+      );
       return { ok: true, data: null };
     }
     case "UNLOCK_SETTINGS":
@@ -416,30 +494,51 @@ async function handle(
     case "SET_SETTINGS_PASSWORD":
       return actions.setSettingsPassword(auth, request.newPassword);
     case "SAVE_RULE": {
-      await reevaluate(true);
       const r = await actions.saveRule(auth, request.rule);
-      await reevaluate(true);
+      if (r.ok) await settingsChanged();
+      if (r.ok)
+        void refreshActiveSite(
+          r.data,
+          siteDefinitions
+            .filter((s) =>
+              request.rule.domains.some((d) => s.domains.includes(d)),
+            )
+            .map((s) => s.site),
+        );
       return r;
     }
     case "DELETE_RULE": {
       const r = await actions.deleteRule(auth, request.ruleId);
-      await reevaluate(true);
+      if (r.ok) await settingsChanged();
       return r;
     }
     case "SAVE_WINDOW": {
-      await reevaluate(true);
       const r = await actions.saveWindow(auth, request.window);
-      await reevaluate(true);
+      if (r.ok) await settingsChanged();
       return r;
     }
     case "DELETE_WINDOW": {
       const r = await actions.deleteWindow(auth, request.windowId);
-      await reevaluate(true);
+      if (r.ok) await settingsChanged();
       return r;
     }
     case "SET_FEEDS": {
+      const before = await chromeStateStore.get();
       const r = await actions.setFeeds(auth, request.feedSettings);
-      await reevaluate(true);
+      if (r.ok) await settingsChanged();
+      if (r.ok)
+        void refreshActiveSite(
+          r.data,
+          siteDefinitions
+            .filter(
+              (s) =>
+                before.feedSettings.globalEnabled !==
+                  r.data.feedSettings.globalEnabled ||
+                JSON.stringify(before.feedSettings.sites[s.site]) !==
+                  JSON.stringify(r.data.feedSettings.sites[s.site]),
+            )
+            .map((s) => s.site),
+        );
       return r;
     }
     case "SET_PREFERENCES":
@@ -450,7 +549,7 @@ async function handle(
       return { ok: true, data: await refreshProtection() };
     case "RESET_ALL": {
       const r = await actions.resetAll(auth);
-      await reevaluate(true);
+      if (r.ok) await settingsChanged();
       return r;
     }
     default:
@@ -544,7 +643,8 @@ async function start() {
   try {
     media =
       ((await sessionArea()?.get(MEDIA_KEY))?.[MEDIA_KEY] as
-        MediaFrames | undefined) ?? {};
+        | MediaFrames
+        | undefined) ?? {};
   } catch {
     /* memory fallback */
   }

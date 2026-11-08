@@ -4,9 +4,11 @@ import AppKit
 /// which loads the folder as an unpacked extension. Clicking it reveals the folder in Finder.
 final class DragTile: NSView, NSDraggingSource {
     var folder: URL
+    var onDropAccepted: (() -> Void)?
+    private var didDrag = false
     private let icon = NSImageView()
     private let title = NSTextField(labelWithString: "ScreenFry for Chrome")
-    private let hint = NSTextField(labelWithString: "Drag me onto the Extensions page")
+    private let hint = NSTextField(labelWithString: "Drag me to Chrome · Click to show folder")
 
     init(folder: URL) {
         self.folder = folder
@@ -16,6 +18,9 @@ final class DragTile: NSView, NSDraggingSource {
         layer?.borderWidth = 1.5
         translatesAutoresizingMaskIntoConstraints = false
         toolTip = folder.path
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel("ScreenFry for Chrome. Drag to Chrome’s Extensions page or click to show the folder.")
 
         icon.image = NSApp.applicationIconImage
         icon.imageScaling = .scaleProportionallyUpOrDown
@@ -61,13 +66,24 @@ final class DragTile: NSView, NSDraggingSource {
     // The window can be dragged by its background; without these, pressing on the tile moved
     // the whole window instead of starting a file drag.
     override var mouseDownCanMoveWindow: Bool { false }
-    override func mouseDown(with event: NSEvent) {}
+    override func mouseDown(with event: NSEvent) { didDrag = false }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        super.hitTest(point) == nil ? nil : self
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        NSWorkspace.shared.activateFileViewerSelecting([folder])
+        return true
+    }
 
     override func resetCursorRects() {
         addCursorRect(bounds, cursor: .openHand)
     }
 
     override func mouseDragged(with event: NSEvent) {
+        guard !didDrag else { return }
+        didDrag = true
         let item = NSDraggingItem(pasteboardWriter: folder as NSURL)
         let image = NSWorkspace.shared.icon(forFile: folder.path)
         image.size = NSSize(width: 64, height: 64)
@@ -77,7 +93,7 @@ final class DragTile: NSView, NSDraggingSource {
     }
 
     override func mouseUp(with event: NSEvent) {
-        if event.clickCount == 1 { NSWorkspace.shared.activateFileViewerSelecting([folder]) }
+        if !didDrag && event.clickCount == 1 { NSWorkspace.shared.activateFileViewerSelecting([folder]) }
     }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
@@ -91,5 +107,6 @@ final class DragTile: NSView, NSDraggingSource {
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
         window?.animator().alphaValue = 1
+        if !operation.isEmpty { onDropAccepted?() }
     }
 }

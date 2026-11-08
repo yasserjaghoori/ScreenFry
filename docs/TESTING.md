@@ -16,6 +16,23 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## 0.6.2 responsive blocking and TikTok — November 8, 2026
+
+- Node 24.14.0: `npm ci` reported no vulnerabilities; `npm run check` passed **93 unit tests**, typecheck and verified build. `npm run test:e2e` passed **61 checks** in a disposable Chrome profile.
+- Added runtime checks for live TikTok settings without reload, fallback reload when the content responder fails, player scroll prevention with comment scrolling preserved, second-video SPA playback suppression, restoration when disabled, current-site popup selection despite broad-host denial, popup closure on navigation/tab selection, and responsive settings while tab navigation/network compilation are deliberately stalled.
+- A separate injected runtime fixture shows the inline time-up notice while background messages never resolve, checks bounded message traffic/responsiveness, and advances local time over midnight to verify recovery without reloading. Existing unit tests cover local midnight, 23/25-hour DST days, and usage splitting across midnight. The fixture is Chromium, not live Safari.
+- Visually checked `dist/screenshots/time-up-inline.png` and `tiktok-linked-video.png`: existing logo, glimmer/drips, readable notice, and linked-video return action. Animation includes `prefers-reduced-motion`; the React/listener review also scopes nonpassive scroll guards to active TikTok linked-video mode and avoids unchanged blocked-page rerenders.
+- Development-signed **0.6.2/build 24** macOS Release app and `dist/ScreenFry-0.6.2.dmg` built successfully. Safari package and matching-team hardened-signature verification passed. Xcode's unrelated obsolete iOS Simulator warning remains. No installed app, everyday-browser settings, or GitHub branch was changed by these checks.
+- Still required: live Safari acceptance of exhaustion, toolbar responsiveness, new-site navigation, permission-limited injection and midnight recovery; real signed-in TikTok recommendation/next-video selectors. Fixtures establish the changed logic, not every website's current markup or a full diagnosis of the reported Safari hang. The hidden Safari document may still fetch resources; this change does not establish that a data leak occurred.
+
+## 0.6.1 setup-window improvements — November 8, 2026
+
+- Node 24.14.0: `npm ci`, `npm run check` passed (89 unit tests, typecheck, verified extension build). Isolated Chrome integration passed 49 checks, including persistent Safari-reminder dismissal and preservation of Chrome's host-access warning. The Safari cases simulate Safari's browser identity/permission response in the isolated Chrome fixture; they do not establish live Safari permission behavior.
+- Development-signed Release app and disk image build passed Safari packaging and matching-team hardened-signature verification. Xcode reported an unrelated out-of-date iOS Simulator runtime; the macOS build succeeded.
+- Launched the native setup window and visually checked the Safari/Chrome order, inline Chrome button, bold text, before/after switch captures and arrow, drag tile placement, and underlined browser-request footer in the shared gray panel. The panel scrolls on shorter displays.
+- Clicking the tile revealed the app-managed Chrome folder in Finder. Checking/unchecking the Chrome confirmation updated the status and reset correctly. Check for Updates opened the repository's Releases page. The browser-request link opened GitHub's sign-in flow targeting the prefilled issue; no request was submitted.
+- A live drop into Chrome, the actual Safari website-access prompt, and a signed Sparkle-feed update remain manual acceptance items. Drag success reports only an accepted drop, not a verified Chrome installation. No update signing key or public release was created.
+
 ## 0.6.0 identifier rename — November 8, 2026
 
 The repository is now `yasserjaghoori/ScreenFry`. Bundle identifiers are `com.screenfry.ScreenFry` and `com.screenfry.ScreenFry.Extension`, and storage, export, message and page markers use `screenfry`, so earlier installs start with fresh settings. `npm run check` (**89 unit tests**, typecheck, verified build) and `npm run test:e2e` (**46 checks**) pass. `npm run dmg:local` built a signed 0.6.0 disk image that passes strict signature and package verification, and the built app contains no old identifiers. Before the rename, on the user's Mac, the signed 0.5.1 install passed checks 1 and 2 of the handoff list and the Erase Everything uninstall. 0.6.0 hasn't been installed and checked on the Mac yet.

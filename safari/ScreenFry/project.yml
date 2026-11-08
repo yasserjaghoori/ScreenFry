@@ -34,6 +34,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
+        # Turn off once public Safari distribution no longer needs developer setup.
+        ScreenFryShowSafariDeveloperSetup: true
         # Sparkle: checks this feed daily and offers updates. SUPublicEDKey stays empty
         # (updates off) until a release signing key is generated; see docs/DISTRIBUTION.md.
         SUFeedURL: https://github.com/yasserjaghoori/ScreenFry/releases/latest/download/appcast.xml
@@ -54,8 +56,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry
         # Required for notarization once the app is Developer ID signed.
         ENABLE_HARDENED_RUNTIME: YES
-        MARKETING_VERSION: "0.6.0"
-        CURRENT_PROJECT_VERSION: "22"
+        MARKETING_VERSION: "0.6.2"
+        CURRENT_PROJECT_VERSION: "24"
     dependencies:
       - target: ScreenFry Extension
         embed: true
@@ -101,5 +103,5 @@ targets:
       base:
         PRODUCT_NAME: ScreenFry Extension
         PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry.Extension
-        MARKETING_VERSION: "0.6.0"
-        CURRENT_PROJECT_VERSION: "22"
+        MARKETING_VERSION: "0.6.2"
+        CURRENT_PROJECT_VERSION: "24"

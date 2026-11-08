@@ -1,9 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createBatchedTask } from "@browser/scheduling";
+import { createBatchedTask, withTimeout } from "@browser/scheduling";
 
 afterEach(() => vi.useRealTimers());
 
 describe("content update scheduling", () => {
+  it("bounds a stalled browser response without leaving timers on success", async () => {
+    vi.useFakeTimers();
+    await expect(withTimeout(Promise.resolve("ready"))).resolves.toBe("ready");
+    expect(vi.getTimerCount()).toBe(0);
+    const stalled = withTimeout(new Promise(() => {}), 50);
+    const assertion = expect(stalled).rejects.toThrow("timed out");
+    await vi.advanceTimersByTimeAsync(50);
+    await assertion;
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it("coalesces a mutation burst and yields before running expensive work", () => {
     vi.useFakeTimers();
     const run = vi.fn();
