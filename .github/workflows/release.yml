@@ -77,7 +77,9 @@ jobs:
             SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=Developer ID Application" DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" OTHER_CODE_SIGN_FLAGS=--timestamp)
           else
             # Ad-hoc: runs after "Open Anyway", and Safari needs Allow Unsigned Extensions.
-            SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=)
+            # The hardened runtime (needed only for notarization) refuses to load the ad-hoc
+            # signed Sparkle framework, so test builds leave it off.
+            SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= ENABLE_HARDENED_RUNTIME=NO)
           fi
           xcodebuild -project safari/Screentime/Screentime.xcodeproj -scheme Screentime \
             -configuration Release -derivedDataPath dist/safari "${SIGNING[@]}" build

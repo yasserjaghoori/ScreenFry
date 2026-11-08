@@ -77,9 +77,23 @@ jobs:
         run: >-
           xcodebuild -project safari/Screentime/Screentime.xcodeproj
           -scheme Screentime -configuration Release -derivedDataPath dist/safari
-          CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= build
+          CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=
+          build
       - run: node scripts/verify-safari.mjs dist/safari/Build/Products/Release/ScreenFry.app
       - run: codesign --verify --deep --strict dist/safari/Build/Products/Release/ScreenFry.app
+      - name: Launch the app and make sure it keeps running
+        run: |
+          APP=dist/safari/Build/Products/Release/ScreenFry.app
+          "$APP/Contents/MacOS/ScreenFry" > launch.log 2>&1 &
+          PID=$!
+          sleep 8
+          if ! kill -0 "$PID" 2>/dev/null; then
+            echo "ScreenFry exited during launch:"; cat launch.log
+            ls -t ~/Library/Logs/DiagnosticReports/ScreenFry* 2>/dev/null | head -1 | xargs -I{} head -60 {}
+            exit 1
+          fi
+          kill "$PID"
+          cat launch.log
       - run: npm run dmg -- dist/safari/Build/Products/Release/ScreenFry.app
       - name: Check the disk image layout
         run: |
