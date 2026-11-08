@@ -4,14 +4,14 @@
 
 **Less feed. More day.** ScreenFry is a Chrome and Safari extension that strips the distracting parts out of social websites and limits how long you spend on them, without taking away the useful parts.
 
-> **Status:** development build, version 0.4.7. Chrome is covered by automated browser tests. Safari builds, installs and passes packaging checks, but its live behavior is still being verified. See [Testing](docs/TESTING.md).
+> **Status:** development build, version 0.4.9. Chrome is covered by automated browser tests. Safari builds, installs and passes packaging checks, but its live behavior is still being verified. See [Testing](docs/TESTING.md).
 
 ## What it does
 
 | | |
 | --- | --- |
 | **Hide distractions** | Turn off feeds, recommendations, comments and navigation buttons, site by site. Search, direct links, profiles and messages keep working. |
-| **Block Shorts and Reels** | Blocks them completely, not just the button: direct links, notifications and in-page players are all caught. |
+| **Block Shorts, Reels and TikToks** | Blocks them completely, not just the button: direct links, notifications and in-page players are all caught. |
 | **Daily limits** | Give each website its own daily allowance, or none. When it runs out, the whole site is blocked, including tabs already open. Resets at midnight. |
 | **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
 | **Optional password** | Protect your settings from impulsive changes. It never grants extra time. |
@@ -21,11 +21,12 @@
 
 | Website | Controls |
 | --- | --- |
-| **YouTube** | Home and subscriptions feeds · recommendations, comments and end screens · **block Shorts entirely** · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
+| **YouTube** | Home and subscriptions feeds · recommended videos beside the player, comments and end screens · **block Shorts entirely** · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
 | **Instagram** | Home feed and Stories · Explore feed · **block Reels entirely** · Home, Search, Explore, Reels, Messages, Notifications and Create buttons · suggested accounts |
 | **X** | For You and Following feeds (separately) · Create Post box · trends, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback |
 | **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
 | **Substack** | Home and Notes feeds · Home, Notes, Explore, Notifications and Chat buttons · video playback |
+| **TikTok** | For You, Following and Explore feeds · **block videos entirely** · comments · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons · suggested accounts |
 
 Every control starts **off**: a fresh install changes nothing until you choose. More websites can be added with one entry each; see [Adding a website](docs/ADDING_A_SITE.md).
 

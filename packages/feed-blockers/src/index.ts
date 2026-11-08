@@ -88,11 +88,23 @@ export const siteDefinitions: SiteDefinition[] = [
         at("/feed/subscriptions"),
         true,
       ),
-      recommendations: element("Hide video recommendations", "Video page", [
-        "#secondary #related",
-        "ytd-watch-next-secondary-results-renderer",
-        'ytm-item-section-renderer[section-identifier="related-items"]',
-      ]),
+      // While watching: the "Up next" column beside the player, which YouTube moves below
+      // the video in narrow windows. Live chat and playlist panels stay visible.
+      recommendations: element(
+        "Hide recommended videos beside the player",
+        "Video page",
+        [
+          "ytd-watch-flexy #related",
+          "#secondary #related",
+          "ytd-watch-next-secondary-results-renderer",
+          "ytd-watch-flexy yt-related-chip-cloud-renderer",
+          "#secondary yt-lockup-view-model",
+          "#secondary ytd-compact-video-renderer",
+          "#secondary ytd-compact-radio-renderer",
+          "#secondary ytd-compact-playlist-renderer",
+          'ytm-item-section-renderer[section-identifier="related-items"]',
+        ],
+      ),
       comments: element("Hide comments", "Video page", [
         "ytd-comments#comments",
         "ytm-comment-section-renderer",
@@ -418,6 +430,98 @@ export const siteDefinitions: SiteDefinition[] = [
       ),
     },
   },
+  {
+    // Selectors use TikTok's data-e2e test attributes, which change less often than class
+    // names. Not yet verified against live signed-in TikTok.
+    site: "tiktok",
+    color: "#fe2c55",
+    symbol: "♪",
+    name: "TikTok",
+    domains: ["tiktok.com"],
+    shortForm: {
+      setting: "videos",
+      label: "TikTok videos",
+      pathSegment: "@[^/]+/video",
+      examplePath: "/@someone/video/123",
+      playerSelectors: [
+        '[data-e2e="feed-video"] video',
+        '[data-e2e="browse-video"] video',
+      ],
+    },
+    elements: {
+      forYou: element(
+        "Hide For You feed",
+        "Feeds",
+        [
+          "#main-content-homepage_hot",
+          '[data-e2e="recommend-list-item-container"]',
+        ],
+        at("/", "/foryou", "/en"),
+        true,
+      ),
+      following: element(
+        "Hide Following feed",
+        "Feeds",
+        [
+          '[data-e2e="recommend-list-item-container"]',
+          "#main-content-following",
+        ],
+        at("/following"),
+        true,
+      ),
+      explore: element(
+        "Hide Explore feed",
+        "Feeds",
+        ['[data-e2e="explore-item-list"]', "#main-content-explore_page"],
+        at("/explore"),
+        true,
+      ),
+      videos: element(
+        "Block videos entirely",
+        "Short-form video",
+        ["video", '[data-e2e="feed-video"]'],
+        undefined,
+        true,
+      ),
+      comments: element("Hide comments", "Video page", [
+        '[data-e2e="comment-list"]',
+        '[data-e2e="search-comment-container"]',
+        '[data-e2e="browse-comment"]',
+      ]),
+      forYouButton: element("Hide For You button", "Navigation", [
+        '[data-e2e="nav-foryou"]',
+      ]),
+      exploreButton: element("Hide Explore button", "Navigation", [
+        '[data-e2e="nav-explore"]',
+        'a[href="/explore"]',
+      ]),
+      followingButton: element("Hide Following button", "Navigation", [
+        '[data-e2e="nav-following"]',
+        'a[href="/following"]',
+      ]),
+      liveButton: element("Hide LIVE button", "Navigation", [
+        '[data-e2e="nav-live"]',
+        'a[href="/live"]',
+      ]),
+      messagesButton: element("Hide Messages button", "Navigation", [
+        '[data-e2e="nav-messages"]',
+        'a[href^="/messages"]',
+      ]),
+      activityButton: element("Hide Activity button", "Navigation", [
+        '[data-e2e="nav-activity"]',
+        '[data-e2e="inbox-icon"]',
+      ]),
+      uploadButton: element("Hide Upload button", "Navigation", [
+        '[data-e2e="nav-upload"]',
+        '[data-e2e="upload-icon"]',
+        'a[href*="/upload"]',
+      ]),
+      suggestedAccounts: element("Hide suggested accounts", "Sidebar", [
+        '[data-e2e="recommend-user"]',
+        '[data-e2e="suggest-accounts"]',
+      ]),
+    },
+  },
 ];
 export function siteFor(host: string): SiteDefinition | undefined {
   return siteDefinitions.find((site) =>
@@ -458,7 +562,9 @@ export function activeShortForm(
   if (!settings.globalEnabled) return;
   const site = siteFor(host);
   const short = site?.shortForm;
-  return short && settings.sites[site.site]?.[short.setting] ? short : undefined;
+  return short && settings.sites[site.site]?.[short.setting]
+    ? short
+    : undefined;
 }
 /** Matches a short-form URL path such as /shorts/abc or /reel/abc. */
 export const shortFormPath = (short: ShortFormDefinition) =>

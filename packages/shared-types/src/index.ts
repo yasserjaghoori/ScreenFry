@@ -1,7 +1,13 @@
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export const ALL_DAYS: DayOfWeek[] = [0, 1, 2, 3, 4, 5, 6];
 export type BrowserKind = "chrome" | "safari";
-export type FeedSite = "youtube" | "instagram" | "x" | "reddit" | "substack";
+export type FeedSite =
+  | "youtube"
+  | "instagram"
+  | "x"
+  | "reddit"
+  | "substack"
+  | "tiktok";
 export interface DailyAllowance {
   defaultMinutes: number;
   byWeekday?: Partial<Record<DayOfWeek, number>>;

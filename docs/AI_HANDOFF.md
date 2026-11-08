@@ -67,6 +67,14 @@ Evidence (isolated headless Chrome, 1 YouTube fixture + 6 pages with 8 iframes e
 - **Safari popup:** it now draws immediately from `storage.local`, then refreshes from the background, at a fixed 380x580 size. Previously it waited for the background to wake, so the popover opened tiny and then jumped. When `<all_urls>` access isn't granted, it shows how to grant it. Safari otherwise shows its own permission prompt on every toolbar click, which matches the user's "permissions window" report. Not yet verified in live Safari.
 - **README** rewritten for readability, with accurate controls (taken from the registry), allow/block windows, and the Safari "Other Websites → Allow" step.
 
+## 0.4.9 TikTok, popup dropdown, YouTube sidebar (built on pushed 0.4.7)
+
+**Merge note:** Codex's 0.4.8 Safari popup startup work was made on the user's Mac and had not been pushed when this was written. 0.4.9 is built on the pushed 0.4.7. When merging, keep both sides of `apps/extension/src/popup/index.tsx`: Codex's startup changes, and the `SitePicker` swap (the site row became `<SitePicker …/>`).
+
+- **TikTok (user request):** added as the sixth registry site. Feeds (For You, Following, Explore), "Block videos entirely" with a short-form block for `/@user/video/…` links and players, comments, seven navigation buttons and suggested accounts. Selectors use `data-e2e` attributes and are **not verified on live TikTok**.
+- **Popup dropdown (user request):** `ui/SitePicker.tsx` is an accessible listbox. It shows each site's logo and today's time, supports arrow/Enter/Escape, and has no limit on how many sites it lists. It replaced the chip row.
+- **YouTube sidebar (user request):** "Hide recommended videos beside the player" already existed. Its selectors now also cover current `ytd-watch-flexy #related`, lockup items and the chip bar, while leaving live chat and playlist panels visible. Not verified on live YouTube.
+
 ## Historical requirements and assessment record
 
 The retained snapshot below describes earlier 0.3.x work. Its requirements and reference-extension assessment remain useful; its version/path/test-status statements are superseded by the current section, README and Testing document.

@@ -127,7 +127,7 @@ describe("storage and schema migration", () => {
     expect(state.rules[0].blocked).toBe(true);
     expect(state.windows).toEqual([]);
   });
-  it("uses the five launch sites and no restrictions for a fresh install", () => {
+  it("uses the launch sites and no restrictions for a fresh install", () => {
     const state = createDefaultState();
     expect(state.rules.map((r) => r.id)).toEqual([
       "youtube",
@@ -135,6 +135,7 @@ describe("storage and schema migration", () => {
       "x",
       "reddit",
       "substack",
+      "tiktok",
     ]);
     expect(state.settingsPassword).toBeUndefined();
     expect(state.windows).toEqual([]);

@@ -210,9 +210,9 @@ try {
       !/Create.*PIN|sealproof|commitment/i.test(await body()),
   );
   check(
-    "five requested launch sites",
+    "every registry launch site has a rule",
     (await getState()).rules.map((r) => r.id).join() ===
-      "youtube,instagram,x,reddit,substack",
+      "youtube,instagram,x,reddit,substack,tiktok",
   );
   check(
     "onboarding can complete without a password",
@@ -249,7 +249,7 @@ try {
     "window form has day/time and website whitelist controls",
     await evaluate(
       controller.session,
-      `!!document.querySelector('#window-start')&&document.querySelectorAll('.whitelist input').length===5`,
+      `!!document.querySelector('#window-start')&&document.querySelectorAll('.whitelist input').length===6`,
     ),
   );
   await screenshot(controller, "window-editor.png");
@@ -566,7 +566,7 @@ try {
     "popup offers the same five website controls",
     await evaluate(
       popup.session,
-      `document.querySelectorAll('#site-picker [role=radio]').length===5`,
+      `document.querySelectorAll('#site-picker [role=option]').length===6`,
     ),
   );
   const x = await send({

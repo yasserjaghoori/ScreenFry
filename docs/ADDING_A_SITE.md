@@ -4,25 +4,25 @@ Every supported website is one entry in the site registry, `siteDefinitions` in 
 
 ## Steps
 
-1. Add the site's id to `FeedSite` in `packages/shared-types/src/index.ts`, e.g. `| "tiktok"`.
-2. Add one entry to `siteDefinitions`:
+1. Add the site's id to `FeedSite` in `packages/shared-types/src/index.ts`, e.g. `| "pinterest"`.
+2. Add one entry to `siteDefinitions` (the TikTok entry is a complete real example):
 
    ```ts
    {
-     site: "tiktok",
-     name: "TikTok",
-     color: "#111111",      // avatar background
-     symbol: "♪",           // one character shown in the avatar
-     domains: ["tiktok.com"], // main domain first; aliases and embed domains after. Subdomains always match.
+     site: "pinterest",
+     name: "Pinterest",
+     color: "#e60023",      // avatar background
+     symbol: "P",           // one character shown in the avatar
+     domains: ["pinterest.com"], // main domain first; aliases and embed domains after. Subdomains always match.
      shortForm: {           // optional: "Block … entirely"
        setting: "videos",   // must be a key in `elements`
-       label: "TikTok videos",
-       pathSegment: "@[^/]+/video",   // regex fragment for the first path segment(s)
-       examplePath: "/@someone/video/123",
-       playerSelectors: ['[data-e2e="feed-video"] video'], // players found without a matching URL
+       label: "Pinterest videos",
+       pathSegment: "pin",   // regex fragment for the first path segment(s)
+       examplePath: "/pin/123",
+       playerSelectors: ['[data-test-id="closeup-video"] video'], // players found without a matching URL
      },
      elements: {
-       forYou: element("Hide For You feed", "Feeds", ['[data-e2e="recommend-list-item-container"]'], at("/", "/foryou"), true),
+       forYou: element("Hide home feed", "Feeds", ['[data-test-id="homefeed-feed"]'], at("/"), true),
        videos: element("Block videos entirely", "Short-form video", ["video"], undefined, true),
      },
    },
@@ -30,7 +30,7 @@ Every supported website is one entry in the site registry, `siteDefinitions` in 
 
    `element(label, group, selectors, when?, pauseMedia?)`: `group` becomes the section heading, `when` limits it to certain pages (`at("/")`), and `pauseMedia` also pauses matching players.
 3. If the site has alias domains, also add them to `DOMAIN_ALIAS_GROUPS` in `packages/core/src/domains.ts`, so typed domains expand to all of them.
-4. Update the test that asserts the launch-site list (`tests/storage.test.ts`, "uses the five launch sites…").
+4. Update the test that asserts the launch-site list (`tests/storage.test.ts`, "uses the launch sites…").
 5. Run `npm run check` and `npm run test:e2e`. `tests/site-registry.test.ts` fails if an entry is incomplete.
 
 Existing installs pick the new site up on their next load: a default, unrestricted rule is added and all its controls start off.
