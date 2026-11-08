@@ -160,42 +160,51 @@ export const deleteRule = (ctx: ActionContext, id: string) =>
     ...s,
     rules: s.rules.filter((r) => r.id !== id),
   }));
-export async function saveWindow(
-  ctx: ActionContext,
-  input: AccessWindow,
-): Promise<ActionResult<AppState>> {
+export function sanitizeWindow(input: AccessWindow): {
+  window?: AccessWindow;
+  error?: string;
+} {
   if (
     !input ||
     !Array.isArray(input.domains) ||
     !input.domains.every((d) => typeof d === "string") ||
     !Array.isArray(input.days)
   )
-    return fail("Choose websites and days for this window.");
+    return { error: "Choose websites and days for this window." };
   const domains = cleanDomains(input.domains),
     days = [...new Set(input.days)];
   if (!domains.length || !domains.every(isValidDomain))
-    return fail("Whitelist at least one valid website.");
+    return { error: "Whitelist at least one valid website." };
   if (
     !days.length ||
     !days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)
   )
-    return fail("Choose at least one valid day.");
+    return { error: "Choose at least one valid day." };
   if (
     !minutes(input.startMinute) ||
     input.startMinute === 1440 ||
     !minutes(input.endMinute)
   )
-    return fail("Choose valid start and end times.");
-  const window: AccessWindow = {
-    id: String(input.id || crypto.randomUUID()),
-    label: String(input.label || "Access window").slice(0, 60),
-    enabled: input.enabled !== false,
-    domains,
-    days,
-    startMinute: input.startMinute,
-    endMinute: input.endMinute,
-    mode: input.mode === "block" ? "block" : "allow",
+    return { error: "Choose valid start and end times." };
+  return {
+    window: {
+      id: String(input.id || crypto.randomUUID()),
+      label: String(input.label || "Access window").slice(0, 60),
+      enabled: input.enabled !== false,
+      domains,
+      days,
+      startMinute: input.startMinute,
+      endMinute: input.endMinute,
+      mode: input.mode === "block" ? "block" : "allow",
+    },
   };
+}
+export async function saveWindow(
+  ctx: ActionContext,
+  input: AccessWindow,
+): Promise<ActionResult<AppState>> {
+  const { window, error } = sanitizeWindow(input);
+  if (!window) return fail(error!);
   return protectedUpdate(ctx, (s) => ({
     ...s,
     windows: [...s.windows.filter((w) => w.id !== window.id), window],
@@ -206,17 +215,15 @@ export const deleteWindow = (ctx: ActionContext, id: string) =>
     ...s,
     windows: s.windows.filter((w) => w.id !== id),
   }));
+function sanitizeFeeds(input: FeedSettings): FeedSettings {
+  const sites = structuredClone(feedDefaults.sites);
+  for (const site of Object.keys(sites) as FeedSite[])
+    for (const key of Object.keys(sites[site]))
+      sites[site][key] = input?.sites?.[site]?.[key] === true;
+  return { globalEnabled: input?.globalEnabled === true, sites };
+}
 export const setFeeds = (ctx: ActionContext, input: FeedSettings) =>
-  protectedUpdate(ctx, (s) => {
-    const sites = structuredClone(feedDefaults.sites);
-    for (const site of Object.keys(sites) as FeedSite[])
-      for (const key of Object.keys(sites[site]))
-        sites[site][key] = input?.sites?.[site]?.[key] === true;
-    return {
-      ...s,
-      feedSettings: { globalEnabled: input?.globalEnabled === true, sites },
-    };
-  });
+  protectedUpdate(ctx, (s) => ({ ...s, feedSettings: sanitizeFeeds(input) }));
 export const setPreferences = (
   ctx: ActionContext,
   input: { warningsEnabled?: boolean },
@@ -267,6 +274,75 @@ export function exportData(state: AppState): Record<string, unknown> {
     format: "screenfry-export-v3",
     ...rest,
   };
+}
+/**
+ * Website settings only (rules, windows, feed blocking, warnings): no usage history and no
+ * password, so the file is safe to move between browsers and Macs.
+ */
+export const SETTINGS_FORMAT = "screenfry-settings-v1";
+export interface SettingsExport {
+  format: typeof SETTINGS_FORMAT;
+  exportedAt: string;
+  rules: WebsiteRule[];
+  windows: AccessWindow[];
+  feedSettings: FeedSettings;
+  warningsEnabled: boolean;
+}
+export function exportSettings(state: AppState, now: number): SettingsExport {
+  return {
+    format: SETTINGS_FORMAT,
+    exportedAt: new Date(now).toISOString(),
+    rules: state.rules,
+    windows: state.windows,
+    feedSettings: state.feedSettings,
+    warningsEnabled: state.warningsEnabled,
+  };
+}
+/** Validated like individual edits; a settings password must already be entered to import. */
+export async function importSettings(
+  ctx: ActionContext,
+  input: unknown,
+): Promise<ActionResult<AppState>> {
+  const data = input as Partial<SettingsExport> | null;
+  if (
+    !data ||
+    typeof data !== "object" ||
+    (data.format !== SETTINGS_FORMAT && data.format !== "screenfry-export-v3")
+  )
+    return fail("This isn’t a ScreenFry settings file.");
+  if (!Array.isArray(data.rules) || !Array.isArray(data.windows))
+    return fail("The settings file is missing websites or windows.");
+  const now = ctx.now(),
+    rules: WebsiteRule[] = [],
+    windows: AccessWindow[] = [];
+  for (const input of data.rules) {
+    const { rule, error } = sanitizeRule(input, now);
+    if (!rule) return fail(`Website settings: ${error}`);
+    if (rules.some((r) => r.domains.some((d) => rule.domains.includes(d))))
+      return fail(`${rule.label} appears more than once.`);
+    rules.push(rule);
+  }
+  for (const input of data.windows) {
+    const { window, error } = sanitizeWindow(input);
+    if (!window) return fail(`Windows: ${error}`);
+    windows.push(window);
+  }
+  return protectedUpdate(ctx, (s) => {
+    for (const rule of rules) {
+      const existing = s.rules.find((r) => r.id === rule.id);
+      if (existing) rule.createdAt = existing.createdAt;
+    }
+    return {
+      ...s,
+      rules,
+      windows,
+      feedSettings: sanitizeFeeds(data.feedSettings as FeedSettings),
+      warningsEnabled:
+        typeof data.warningsEnabled === "boolean"
+          ? data.warningsEnabled
+          : s.warningsEnabled,
+    };
+  });
 }
 export const maintain = (ctx: ActionContext) =>
   ctx.store.update((s) => pruneUsage(s, ctx.now()));

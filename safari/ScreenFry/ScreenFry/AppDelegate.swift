@@ -1,5 +1,6 @@
 import AppKit
 import SafariServices
+import UniformTypeIdentifiers
 #if canImport(Sparkle)
 import Sparkle
 #endif
@@ -10,6 +11,12 @@ import Sparkle
 @main
 enum ScreenFryApp {
     static func main() {
+        // Chrome launches this binary as ScreenFry's native messaging host (settings export
+        // and import); answer its one message and exit without starting the app.
+        if ChromeNativeHost.isLaunchedByChrome(CommandLine.arguments) {
+            ChromeNativeHost.run()
+            return
+        }
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
@@ -38,6 +45,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let notice = NSTextField(wrappingLabelWithString: "")
     private lazy var ejectButton = button("Eject Installer", #selector(ejectInstaller(_:)), primary: false)
     private var installerVolume: URL?
+    private var transferStatus: [SettingsBrowser: NSTextField] = [:]
+    private var transferTimer: Timer?
     private var extensionIdentifier: String { (Bundle.main.bundleIdentifier ?? "com.screenfry.ScreenFry") + ".Extension" }
     private var version: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
 
@@ -71,6 +80,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installChromeExtension()
         warnAboutOtherCopies()
         refreshState()
+        // Browsers check in about once a minute; keep import/export status current.
+        transferTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+            self?.refreshTransferStatus()
+        }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) { refreshState() }
@@ -132,6 +145,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             chromePreparationError = error.localizedDescription
         }
+        guard chromeIsInstalled else { return }
+        do {
+            try ChromeNativeHost.register()
+        } catch {
+            NSLog("ScreenFry: couldn’t register Chrome settings transfer: \(error.localizedDescription)")
+        }
+    }
+
+    private var chromeIsInstalled: Bool {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.chromeBundleID) != nil
+    }
+
+    /// Browsers that can have ScreenFry settings on this Mac.
+    private var transferBrowsers: [SettingsBrowser] {
+        SettingsBrowser.allCases.filter { $0 != .chrome || chromeIsInstalled }
     }
 
     // MARK: Window
@@ -195,9 +223,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             stepRow(enableStep + 1, "When the website-access popup appears, check “Remember for other websites”, then press “Always Allow”.", bold: "Remember for other websites"),
             helperLabel("Already enabled? In Edit Websites, set Other Websites to Allow. Optional: turn on Allow in Private Browsing."),
         ]
+        safariRows += transferRows(.safari)
         let safari = card(title: "Safari", dot: safariDot, status: safariStatus, rows: safariRows)
 
-        let chromeInstalled = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.chromeBundleID) != nil
+        let chromeInstalled = chromeIsInstalled
         var chromeRows: [NSView] = []
         if chromeInstalled {
             let tile = DragTile(folder: ChromeInstaller.folder)
@@ -214,7 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 tile,
                 chromeConfirmation,
                 helperLabel("Pin ScreenFry from Chrome’s puzzle-piece menu. Setup confirmation is saved here; Chrome doesn’t report whether you later turn it off or remove it."),
-            ]
+            ] + transferRows(.chrome)
         } else {
             chromeRows = [helperLabel("Google Chrome isn’t installed. Install it, then reopen ScreenFry to set it up.")]
         }
@@ -245,7 +274,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         noticeRow.spacing = 10
         let uninstallButton = NSButton(title: "Uninstall…", target: self, action: #selector(uninstall(_:)))
         uninstallButton.bezelStyle = .inline
-        let stack = NSStackView(views: [header, noticeRow, browsers, uninstallButton])
+        let exportAll = NSButton(title: "Export All Settings…", target: self, action: #selector(exportAllSettings(_:)))
+        exportAll.bezelStyle = .inline
+        exportAll.toolTip = "Save every browser’s website settings in one file."
+        let importAll = NSButton(title: "Import All Settings…", target: self, action: #selector(importAllSettings(_:)))
+        importAll.bezelStyle = .inline
+        importAll.toolTip = "Apply a settings file to ScreenFry in every browser."
+        let footer = NSStackView(views: [uninstallButton, exportAll, importAll])
+        footer.orientation = .horizontal
+        footer.spacing = 10
+        let stack = NSStackView(views: [header, noticeRow, browsers, footer])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 16
@@ -310,7 +348,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         stack.alignment = .leading
         stack.spacing = 10
         rows.forEach { row in
-            if row is NSStackView || row is DragTile || row is NSTextField {
+            if row is NSStackView || row is DragTile || row is NSTextField || row is NSBox {
                 row.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
             }
         }
@@ -403,6 +441,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// A successful file drop is not proof of installation. Keep user confirmation explicit.
     private func refreshState() {
+        refreshTransferStatus()
         if let error = chromePreparationError {
             chromeStatus.stringValue = "Couldn’t prepare Chrome: \(error)"
             chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
@@ -473,6 +512,148 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
 
+    // MARK: Settings export and import
+
+    /// The bottom rows of a browser card: Export / Import buttons and their status.
+    private func transferRows(_ browser: SettingsBrowser) -> [NSView] {
+        let title = NSTextField(labelWithString: "Website settings")
+        title.font = .systemFont(ofSize: 13, weight: .semibold)
+        let export = NSButton(title: "Export…", target: self, action: #selector(exportBrowserSettings(_:)))
+        export.bezelStyle = .rounded
+        export.identifier = NSUserInterfaceItemIdentifier(browser.rawValue)
+        export.toolTip = "Save ScreenFry’s websites, limits, windows and feed blocking from \(browser.name) to a file."
+        let importButton = NSButton(title: "Import…", target: self, action: #selector(importBrowserSettings(_:)))
+        importButton.bezelStyle = .rounded
+        importButton.identifier = NSUserInterfaceItemIdentifier(browser.rawValue)
+        importButton.toolTip = "Replace ScreenFry’s website settings in \(browser.name) with a saved file."
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let row = NSStackView(views: [title, spacer, export, importButton])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.spacing = 8
+        let separator = NSBox()
+        separator.boxType = .separator
+        let status = helperLabel("")
+        transferStatus[browser] = status
+        return [separator, row, status]
+    }
+
+    private func refreshTransferStatus() {
+        let relative = RelativeDateTimeFormatter()
+        relative.unitsStyle = .full
+        func ago(_ date: Date) -> String {
+            Date().timeIntervalSince(date) < 60 ? "just now" : relative.localizedString(for: date, relativeTo: Date())
+        }
+        for (browser, label) in transferStatus {
+            var lines: [String] = []
+            if let snapshot = SettingsTransfer.snapshot(browser) {
+                lines.append("Settings last received from \(browser.name) \(ago(snapshot.receivedAt)).")
+            } else {
+                lines.append("\(browser.name) hasn’t sent its settings yet. Open \(browser.name) with ScreenFry turned on; it checks in about once a minute.")
+            }
+            if SettingsTransfer.pendingImport(browser) {
+                lines.append("Import waiting: ScreenFry in \(browser.name) applies it the next time it checks in.")
+            } else if let result = SettingsTransfer.lastResult(browser), let at = result.at,
+                      Date().timeIntervalSince(at) < 3600 {
+                lines.append(result.ok
+                    ? "Imported \(ago(at))."
+                    : "\(browser.name) didn’t import the file: \(result.error ?? "unknown error")")
+            }
+            label.stringValue = lines.joined(separator: " ")
+        }
+    }
+
+    private func browser(of sender: Any?) -> SettingsBrowser? {
+        ((sender as? NSView)?.identifier?.rawValue).flatMap(SettingsBrowser.init(rawValue:))
+    }
+
+    @objc private func exportBrowserSettings(_ sender: Any?) {
+        guard let browser = browser(of: sender) else { return }
+        saveSettings([browser], suggestedName: "ScreenFry \(browser.name) Settings.json")
+    }
+
+    @objc private func exportAllSettings(_ sender: Any?) {
+        saveSettings(transferBrowsers, suggestedName: "ScreenFry Settings.json")
+    }
+
+    private func saveSettings(_ browsers: [SettingsBrowser], suggestedName: String) {
+        guard let data = SettingsTransfer.exportData(browsers) else {
+            let names = browsers.map(\.name).joined(separator: " or ")
+            showAlert("No settings to export yet", "ScreenFry hasn’t received settings from \(names). Open the browser with ScreenFry turned on, wait a minute, then try again.")
+            return
+        }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = suggestedName
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try data.write(to: url, options: .atomic)
+            } catch {
+                self?.showAlert("Couldn’t save the settings", error.localizedDescription)
+            }
+        }
+    }
+
+    @objc private func importBrowserSettings(_ sender: Any?) {
+        guard let browser = browser(of: sender) else { return }
+        chooseAndImport(into: [browser])
+    }
+
+    @objc private func importAllSettings(_ sender: Any?) {
+        chooseAndImport(into: transferBrowsers)
+    }
+
+    private func chooseAndImport(into browsers: [SettingsBrowser]) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose a ScreenFry settings file."
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            DispatchQueue.main.async { self?.importSettings(from: url, into: browsers) }
+        }
+    }
+
+    private func importSettings(from url: URL, into browsers: [SettingsBrowser]) {
+        let parsed: (single: [String: Any]?, byBrowser: [SettingsBrowser: [String: Any]])
+        do {
+            parsed = try SettingsTransfer.parse(try Data(contentsOf: url))
+        } catch {
+            showAlert("Couldn’t import “\(url.lastPathComponent)”", error.localizedDescription)
+            return
+        }
+        let names = browsers.map(\.name).joined(separator: " and ")
+        let confirm = NSAlert()
+        confirm.messageText = "Replace ScreenFry’s website settings in \(names)?"
+        confirm.informativeText = "Websites, limits, windows and feed blocking will match “\(url.lastPathComponent)”. Usage history and any settings password stay as they are. If a settings password is on, turn it off first."
+        confirm.addButton(withTitle: "Import")
+        confirm.addButton(withTitle: "Cancel")
+        guard confirm.runModal() == .alertFirstButtonReturn else { return }
+        var failures: [String] = []
+        for browser in browsers {
+            guard let settings = SettingsTransfer.settings(for: browser, in: parsed) else { continue }
+            do {
+                try SettingsTransfer.queueImport(settings, into: browser)
+            } catch {
+                failures.append("\(browser.name): \(error.localizedDescription)")
+            }
+        }
+        refreshTransferStatus()
+        if !failures.isEmpty {
+            showAlert("Couldn’t queue the import", failures.joined(separator: "\n"))
+        }
+    }
+
+    private func showAlert(_ title: String, _ message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.runModal()
+    }
+
     // MARK: Uninstall
 
     @objc private func uninstall(_ sender: Any?) {
@@ -508,12 +689,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? task.run()
             task.waitUntilExit()
         }
-        var paths = [ChromeInstaller.folder.deletingLastPathComponent()] // Application Support/ScreenFry
+        var paths = [
+            ChromeInstaller.folder.deletingLastPathComponent(), // Application Support/ScreenFry
+            ChromeNativeHost.manifestURL,
+        ]
         if erase {
             paths += [
                 home.appendingPathComponent("Library/Caches/\(id)"),
                 home.appendingPathComponent("Library/HTTPStorages/\(id)"),
                 home.appendingPathComponent("Library/Saved Application State/\(id).savedState"),
+                SettingsBrowser.safari.bridge.directory.deletingLastPathComponent(), // Safari's settings handoff
             ]
             UserDefaults.standard.removePersistentDomain(forName: id)
         }

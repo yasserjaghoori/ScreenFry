@@ -352,6 +352,7 @@ function requestNetworkSync(): Promise<void> {
 }
 async function settingsChanged() {
   void reevaluate(true);
+  void syncWithApp();
   // Normally finish rule removal before an immediate revisit. A stalled Safari compiler
   // must still release the controls; the in-flight sync keeps only the newest pending state.
   await withTimeout(requestNetworkSync()).catch(() => undefined);
@@ -603,7 +604,10 @@ if (hasIdleApi()) {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === HEARTBEAT || alarm.name === BOUNDARY)
     void reevaluate(true);
-  if (alarm.name === HEARTBEAT) void reloadIfUpdatedOnDisk();
+  if (alarm.name === HEARTBEAT) {
+    void reloadIfUpdatedOnDisk();
+    void syncWithApp();
+  }
 });
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await ensureAlarms();
@@ -639,6 +643,72 @@ async function reloadIfUpdatedOnDisk() {
     /* management unavailable or manifest mid-update; try again next heartbeat */
   }
 }
+/**
+ * Settings export/import from the ScreenFry Mac app. The app can't read browser storage, so
+ * this side sends its website settings (never usage or the password) to the app's native
+ * host and picks up an import the user chose there. Safari routes this to the extension's
+ * own native handler; Chrome to the host the app registers. Without the app it's a no-op.
+ */
+const APP_HOST = "com.screenfry.host";
+interface AppReply {
+  import?: { id?: unknown; settings?: unknown };
+}
+let appSync: Promise<void> | undefined;
+function syncWithApp(): Promise<void> {
+  appSync ??= exchangeWithApp().finally(() => {
+    appSync = undefined;
+  });
+  return appSync;
+}
+async function sendToApp(importResult?: {
+  id: string;
+  ok: boolean;
+  error?: string;
+}): Promise<AppReply | undefined> {
+  const settings = actions.exportSettings(
+    await chromeStateStore.get(),
+    Date.now(),
+  );
+  return (await withTimeout(
+    chrome.runtime.sendNativeMessage(APP_HOST, {
+      type: "screenfry-sync",
+      browser,
+      settings,
+      ...(importResult ? { importResult } : {}),
+    }),
+    5000,
+  )) as AppReply | undefined;
+}
+async function exchangeWithApp() {
+  if (typeof chrome.runtime.sendNativeMessage !== "function") return;
+  try {
+    const pending = (await sendToApp())?.import;
+    if (!pending || typeof pending.id !== "string") return;
+    const hadPassword = Boolean((await chromeStateStore.get()).settingsPassword);
+    const r = await actions.importSettings(ctx, pending.settings);
+    if (r.ok) {
+      void reevaluate(true);
+      await withTimeout(requestNetworkSync()).catch(() => undefined);
+      void refreshActiveSite(
+        r.data,
+        siteDefinitions.map((s) => s.site),
+      );
+    }
+    await sendToApp({
+      id: pending.id,
+      ok: r.ok,
+      ...(r.ok
+        ? {}
+        : {
+            error: hadPassword
+              ? "ScreenFry’s settings password is on. Turn it off in ScreenFry’s Settings, import again, then turn it back on."
+              : r.error,
+          }),
+    });
+  } catch {
+    /* The Mac app (or its native host) isn't installed; nothing to sync. */
+  }
+}
 async function start() {
   try {
     media =
@@ -651,6 +721,7 @@ async function start() {
   await ensureAlarms();
   await reevaluate();
   await reloadIfUpdatedOnDisk();
+  await syncWithApp();
 }
 void start();
 console.info(`ScreenFry ready (${browser})`);

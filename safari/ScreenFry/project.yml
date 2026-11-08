@@ -27,6 +27,8 @@ targets:
       - path: ScreenFry/ChromeExtension
         type: folder
         buildPhase: resources
+      # Settings export/import handoff, shared with the Safari extension handler.
+      - path: Shared
     info:
       path: ScreenFry/Info.plist
       properties:
@@ -70,6 +72,7 @@ targets:
         excludes:
           - Resources
           - "*.entitlements"
+      - path: Shared
       # Safari reads manifest.json from the root of the appex Resources directory, so the
       # top-level files are added individually; assets/ and icons/ retain their folder paths.
       - path: ScreenFry Extension/Resources
