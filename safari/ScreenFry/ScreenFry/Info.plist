@@ -30,5 +30,7 @@
 	<string></string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<key>ScreenFryShowSafariDeveloperSetup</key>
+	<true/>
 </dict>
 </plist>

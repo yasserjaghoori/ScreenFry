@@ -623,6 +623,32 @@ try {
     ),
   );
   await cdp("Target.closeTarget", { targetId: coldPopup.id });
+  // Safari can return false for broad host access even after its website prompt was
+  // accepted. Dismissing that reminder must persist without granting permissions.
+  const safariPopupOptions = {
+    initScript: `
+      const originalURL=chrome.runtime.getURL.bind(chrome.runtime);
+      chrome.runtime.getURL=(path)=>path===''?'safari-web-extension://test/':originalURL(path);
+      chrome.permissions.contains=async()=>false;
+    `,
+  };
+  const safariPopup = await open(`chrome-extension://${extId}/popup.html`, safariPopupOptions);
+  check("Safari permission reminder explains uncertainty and can be dismissed", await evaluate(safariPopup.session, `
+    document.querySelector('.popup-access')?.textContent.includes('Safari hasn’t confirmed') &&
+    [...document.querySelectorAll('button')].some(b=>b.textContent==='Dismiss reminder')
+  `));
+  await evaluate(safariPopup.session, `[...document.querySelectorAll('button')].find(b=>b.textContent==='Dismiss reminder').click()`);
+  await waitFor(async () => await evaluate(safariPopup.session, `chrome.storage.local.get('safariSiteAccessNoticeDismissed').then(saved=>saved.safariSiteAccessNoticeDismissed===true)`), "saved Safari reminder dismissal");
+  await cdp("Target.closeTarget", { targetId: safariPopup.id });
+  const reopenedSafari = await open(`chrome-extension://${extId}/popup.html`, safariPopupOptions);
+  check("Safari reminder stays dismissed on reopening without changing host access", await evaluate(reopenedSafari.session, `
+    (async()=>!!document.querySelector('#daily-limit') && !document.querySelector('.popup-access') &&
+    await chrome.permissions.contains({origins:['<all_urls>']})===false)()
+  `));
+  await cdp("Target.closeTarget", { targetId: reopenedSafari.id });
+  const chromeAfterDismissal = await open(`chrome-extension://${extId}/popup.html`, {initScript: `chrome.permissions.contains=async()=>false;`});
+  check("Safari dismissal does not hide Chrome's missing-access warning", await evaluate(chromeAfterDismissal.session, `!!document.querySelector('.popup-access')`));
+  await cdp("Target.closeTarget", { targetId: chromeAfterDismissal.id });
   const x = await send({
     type: "SAVE_RULE",
     rule: rule("youtube", "youtube.com", 0),

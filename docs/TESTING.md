@@ -16,6 +16,14 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## 0.6.1 setup-window improvements — November 8, 2026
+
+- Node 24.14.0: `npm ci`, `npm run check` passed (89 unit tests, typecheck, verified extension build). Isolated Chrome integration passed 49 checks, including persistent Safari-reminder dismissal and preservation of Chrome's host-access warning. The Safari cases simulate Safari's browser identity/permission response in the isolated Chrome fixture; they do not establish live Safari permission behavior.
+- Development-signed Release app and disk image build passed Safari packaging and matching-team hardened-signature verification. Xcode reported an unrelated out-of-date iOS Simulator runtime; the macOS build succeeded.
+- Launched the native setup window and visually checked the Safari/Chrome order, inline Chrome button, bold text, before/after switch captures and arrow, drag tile placement, and underlined browser-request footer in the shared gray panel. The panel scrolls on shorter displays.
+- Clicking the tile revealed the app-managed Chrome folder in Finder. Checking/unchecking the Chrome confirmation updated the status and reset correctly. Check for Updates opened the repository's Releases page. The browser-request link opened GitHub's sign-in flow targeting the prefilled issue; no request was submitted.
+- A live drop into Chrome, the actual Safari website-access prompt, and a signed Sparkle-feed update remain manual acceptance items. Drag success reports only an accepted drop, not a verified Chrome installation. No update signing key or public release was created.
+
 ## 0.6.0 identifier rename — November 8, 2026
 
 The repository is now `yasserjaghoori/ScreenFry`. Bundle identifiers are `com.screenfry.ScreenFry` and `com.screenfry.ScreenFry.Extension`, and storage, export, message and page markers use `screenfry`, so earlier installs start with fresh settings. `npm run check` (**89 unit tests**, typecheck, verified build) and `npm run test:e2e` (**46 checks**) pass. `npm run dmg:local` built a signed 0.6.0 disk image that passes strict signature and package verification, and the built app contains no old identifiers. Before the rename, on the user's Mac, the signed 0.5.1 install passed checks 1 and 2 of the handoff list and the Erase Everything uninstall. 0.6.0 hasn't been installed and checked on the Mac yet.

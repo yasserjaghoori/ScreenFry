@@ -15,24 +15,29 @@ import { siteStatus } from "../ui/siteStatus";
 import "../styles/global.css";
 import "../styles/dashboard.css";
 import "../styles/popup.css";
+const SAFARI_ACCESS_NOTICE_DISMISSED = "safariSiteAccessNoticeDismissed";
 function Popup() {
   const [state, setState] = useState<AppState>(),
     [site, setSite] = useState<FeedSite>(launchSites[0].id),
     [error, setError] = useState(""),
     [unlocked, setUnlocked] = useState(false),
-    [siteAccess, setSiteAccess] = useState(true);
+    [siteAccess, setSiteAccess] = useState(true),
+    [accessNoticeDismissed, setAccessNoticeDismissed] = useState(false);
+  const isSafari = detectBrowser() === "safari";
   useEffect(() => {
     // Opening controls must not wake a full background sweep through every tab.
     // Enforcement and usage checkpoints run independently; edits still go through send().
     let mounted = true;
     void chrome.storage.local
-      .get(STATE_KEY)
+      .get([STATE_KEY, SAFARI_ACCESS_NOTICE_DISMISSED])
       .then((saved) => {
-        if (mounted)
+        if (mounted) {
+          setAccessNoticeDismissed(saved[SAFARI_ACCESS_NOTICE_DISMISSED] === true);
           setState(
             (current) =>
               current ?? migrateState(saved[STATE_KEY], detectBrowser()),
           );
+        }
       })
       .catch(() => {
         if (mounted)
@@ -95,13 +100,20 @@ function Popup() {
           Settings ↗
         </button>
       </header>
-      {!siteAccess && (
+      {!siteAccess && !(isSafari && accessNoticeDismissed) && (
         <div className="notice warn popup-access" role="status">
-          <strong>ScreenFry may not have access to some websites.</strong>
-          {detectBrowser() === "safari" ? (
+          <strong>
+            {isSafari
+              ? "Safari hasn’t confirmed access to all websites."
+              : "ScreenFry may not have access to some websites."}
+          </strong>
+          {isSafari ? (
             <span>
               In Safari, open Settings → Extensions → ScreenFry, then set{" "}
               <em>Edit Websites → Other Websites</em> to <em>Allow</em>.
+              {" "}If prompted, check <em>Remember for other websites</em> and
+              choose <em>Always Allow</em>. Already done? You can dismiss this
+              reminder; Safari may still report access as unconfirmed.
             </span>
           ) : (
             <span>
@@ -109,6 +121,21 @@ function Popup() {
               <em>This can read and change site data</em> →{" "}
               <em>On all sites</em>.
             </span>
+          )}
+          {isSafari && (
+            <button
+              className="button secondary"
+              onClick={() => {
+                setAccessNoticeDismissed(true);
+                void chrome.storage.local
+                  .set({ [SAFARI_ACCESS_NOTICE_DISMISSED]: true })
+                  .catch(() => {
+                    setError("The reminder is hidden for now, but its dismissal couldn’t be saved.");
+                  });
+              }}
+            >
+              Dismiss reminder
+            </button>
           )}
         </div>
       )}

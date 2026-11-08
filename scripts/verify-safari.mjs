@@ -39,6 +39,12 @@ else {
 if (!existsSync(join(app, "Contents/Frameworks/Sparkle.framework")))
   errors.push("Sparkle updater framework is not embedded");
 const appInfo = plist(join(app, "Contents/Info.plist"));
+if (typeof appInfo.ScreenFryShowSafariDeveloperSetup !== "boolean")
+  errors.push("Safari developer-setup switch is missing");
+for (const image of ["ChromeDeveloperModeOff.png", "ChromeDeveloperModeOn.png"]) {
+  if (!existsSync(join(app, "Contents/Resources", image)))
+    errors.push(`missing Chrome setup screenshot ${image}`);
+}
 if (!/^https:\/\/github\.com\/.+\/appcast\.xml$/.test(appInfo.SUFeedURL ?? ""))
   errors.push("update feed URL is missing");
 const info = plist(join(extension, "Contents/Info.plist"));

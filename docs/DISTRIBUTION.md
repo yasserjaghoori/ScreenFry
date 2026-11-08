@@ -26,7 +26,7 @@ Both are one-time steps. Apple requires the user to turn a Safari extension on t
 Until releases are signed with a Developer ID and notarized, they're test builds:
 
 - **First open:** macOS says the app can't be verified. Open **System Settings → Privacy & Security** and click **Open Anyway** (once).
-- **Safari:** if ScreenFry isn't in the Extensions list, turn on **Settings → Advanced → Show features for web developers**, then the new **Developer** tab → **Allow unsigned extensions**. Safari turns this off when it quits, so it's needed again after each Safari restart. The app shows this hint only on unsigned builds.
+- **Safari:** the setup window currently always includes **Settings → Advanced → Show features for web developers**, then the **Developer** tab → **Allow unsigned extensions**. Safari turns unsigned-extension access off when it quits. After enabling ScreenFry, check **Remember for other websites** and choose **Always Allow** when prompted. Builds signed for local development may not need the unsigned-extension setting. When public distribution is ready, set `ScreenFryShowSafariDeveloperSetup` to `false` in `project.yml` and regenerate the Xcode project to remove the development step and renumber the remaining steps.
 
 ## How updates reach everything
 
@@ -50,7 +50,7 @@ To build a disk image locally on a Mac: `npm run build:safari`, `xcodegen genera
 
 ## Turning on in-app updates (one time)
 
-Sparkle only installs updates signed with your private key; the app is built with the matching public key. Until then, updates are off and the menu item is disabled.
+Sparkle only installs updates signed with your private key; the app is built with the matching public key. Until then, **Check for Updates…** opens the GitHub Releases page for manual downloads. Once the key is configured it uses Sparkle instead.
 
 1. On a Mac, after one Xcode build, run Sparkle's `generate_keys` from `dist/safari/SourcePackages/artifacts/sparkle/Sparkle/bin/`. It stores the private key in your login Keychain and prints the public key.
 2. Export the private key: `generate_keys -x sparkle-private-key.txt`. Add its contents as the repository **secret** `SPARKLE_PRIVATE_KEY`, then delete the file. Never commit it.
@@ -73,3 +73,11 @@ After a signed build, run `node scripts/verify-macos-signing.mjs <path/to/Screen
 For local hardened development builds, sign with Apple Development rather than an ad-hoc identity. Public releases need Developer ID signing and notarization; the workflow's non-hardened ad-hoc branch is a test-download configuration.
 
 Moving an existing unpacked Chrome install from `dist/chrome` to the app-managed folder is a one-time installation change with a different path-derived ID. Settings transfer from that older developer install is not automatic. The stable folder preserves settings for subsequent app-managed updates.
+
+## Setup feedback and illustrations
+
+Chrome's drag tile also reveals the extension folder when clicked. An accepted file drop changes the status to **Folder dropped — confirm below**; it does not prove Chrome installed the extension (Finder can also accept the folder). The checkbox records the user's confirmation that ScreenFry appears in Chrome, and can be unchecked to reset that confirmation. The app does not read Chrome profiles or claim to detect later removal.
+
+The Developer mode before/after images are actual Chrome screenshots, captured in a disposable profile with `node scripts/capture-chrome-setup.mjs`. The script touches no everyday browser profiles. They are packaged as native app resources in `SetupImages`.
+
+The browser-request link opens a prefilled GitHub issue for the user to review and submit. Safari's popup permission reminder can be dismissed persistently without altering website permissions or policy settings.
