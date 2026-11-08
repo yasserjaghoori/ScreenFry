@@ -55,3 +55,42 @@ jobs:
           CODE_SIGNING_ALLOWED=NO build
       - name: Verify Safari package and generated entitlements
         run: node scripts/verify-safari.mjs dist/safari/Build/Products/Debug/ScreenFry.app
+
+  dmg:
+    name: Test download (disk image)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: brew install xcodegen
+      - run: npm run build:safari
+      - run: xcodegen generate --spec safari/Screentime/project.yml
+      - name: Build an ad-hoc signed Release app (what a test download contains)
+        run: >-
+          xcodebuild -project safari/Screentime/Screentime.xcodeproj
+          -scheme Screentime -configuration Release -derivedDataPath dist/safari
+          CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= build
+      - run: node scripts/verify-safari.mjs dist/safari/Build/Products/Release/ScreenFry.app
+      - run: codesign --verify --deep --strict dist/safari/Build/Products/Release/ScreenFry.app
+      - run: npm run dmg -- dist/safari/Build/Products/Release/ScreenFry.app
+      - name: Check the disk image layout
+        run: |
+          DMG=$(ls dist/ScreenFry-*.dmg)
+          hdiutil attach -nobrowse -readonly -mountpoint /tmp/screenfry-dmg "$DMG"
+          ls -la /tmp/screenfry-dmg
+          test -d /tmp/screenfry-dmg/ScreenFry.app
+          test -L /tmp/screenfry-dmg/Applications
+          hdiutil detach /tmp/screenfry-dmg
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ScreenFry-test-download
+          path: dist/ScreenFry-*.dmg
+          retention-days: 14
