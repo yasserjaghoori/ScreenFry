@@ -1,19 +1,21 @@
-# Phase 1 audit (2026-11-07)
+# Historical audit of version 0.2 (2026-11-07)
+
+> Historical record only. The current approved scope removes mandatory PINs, temporary visits and commitments. See `PROJECT_BRIEF.md` and `README.md` for the current product.
 
 The original commit implemented the outline of Phase 1, but several Sealproof guarantees could be bypassed through ordinary extension interactions, the Safari package could not load, and many spec items were missing. This document lists what was found and what changed. Each fix has an automated test unless noted.
 
 ## Sealproof bypasses (fixed)
 
-| # | Problem in the original code | Fix |
-|---|---|---|
-| 1 | `CREATE_PIN` could be sent at any time, replacing the PIN without knowing the old one, which also cleared the wrong-PIN cooldown. | A PIN can only be created during onboarding. Changing it needs the current PIN and shares the cooldown (`actions.createPin`, `actions.changePin`). |
-| 2 | Saving a committed rule with `commitmentEndsAt` removed was treated as non-weakening, so the commitment disappeared and the next edit could loosen anything. | Ending or shortening a commitment counts as weakening and is queued (`weakeningReasons`). |
-| 3 | Changing a committed rule's domains (e.g. `youtube.com` → `example.com`) was applied immediately. | Removing any covered domain is weakening. |
-| 4 | Turning off "tracking" stopped counting time on limited sites, so limits never ran out. | Limit tracking is always on. The setting now only controls general per-site history. |
-| 5 | Any web page's content script could send `SAVE_RULE`, `DELETE_RULE`, `CREATE_PIN`, etc. | The background accepts privileged messages only from extension pages. Content scripts may only ask for a policy decision. |
-| 6 | The blocked page sent a `ruleId` taken from its own URL, so a crafted link could unlock an arbitrary rule. A second PIN entry during an active override started a fresh 10 minutes. | The background works out the rule from the URL. If a visit is already running, its existing expiry is returned and no new time is granted. |
-| 7 | A failed storage update left the update queue permanently rejected, so every later change failed silently. | The queue recovers after an error (tested with the memory store). |
-| 8 | Moving the clock backwards could stretch an override, or leave a PIN cooldown lasting days. | Overrides count only inside their original window (`startedAt ≤ now < expiresAt`, at most 10 minutes). Rollback is detected and over-long cooldowns are capped. |
+| #   | Problem in the original code                                                                                                                                                        | Fix                                                                                                                                                             |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `CREATE_PIN` could be sent at any time, replacing the PIN without knowing the old one, which also cleared the wrong-PIN cooldown.                                                   | A PIN can only be created during onboarding. Changing it needs the current PIN and shares the cooldown (`actions.createPin`, `actions.changePin`).              |
+| 2   | Saving a committed rule with `commitmentEndsAt` removed was treated as non-weakening, so the commitment disappeared and the next edit could loosen anything.                        | Ending or shortening a commitment counts as weakening and is queued (`weakeningReasons`).                                                                       |
+| 3   | Changing a committed rule's domains (e.g. `youtube.com` → `example.com`) was applied immediately.                                                                                   | Removing any covered domain is weakening.                                                                                                                       |
+| 4   | Turning off "tracking" stopped counting time on limited sites, so limits never ran out.                                                                                             | Limit tracking is always on. The setting now only controls general per-site history.                                                                            |
+| 5   | Any web page's content script could send `SAVE_RULE`, `DELETE_RULE`, `CREATE_PIN`, etc.                                                                                             | The background accepts privileged messages only from extension pages. Content scripts may only ask for a policy decision.                                       |
+| 6   | The blocked page sent a `ruleId` taken from its own URL, so a crafted link could unlock an arbitrary rule. A second PIN entry during an active override started a fresh 10 minutes. | The background works out the rule from the URL. If a visit is already running, its existing expiry is returned and no new time is granted.                      |
+| 7   | A failed storage update left the update queue permanently rejected, so every later change failed silently.                                                                          | The queue recovers after an error (tested with the memory store).                                                                                               |
+| 8   | Moving the clock backwards could stretch an override, or leave a PIN cooldown lasting days.                                                                                         | Overrides count only inside their original window (`startedAt ≤ now < expiresAt`, at most 10 minutes). Rollback is detected and over-long cooldowns are capped. |
 
 ## Broken behaviour (fixed)
 

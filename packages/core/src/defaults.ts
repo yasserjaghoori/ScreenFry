@@ -1,76 +1,188 @@
-import type { AppState, BrowserKind, FeedSettings, FeedSite, UsageDay } from '@shared/index';
-
-export const OVERRIDE_MS = 10 * 60_000;
+import type {
+  AccessWindow,
+  AppState,
+  BrowserKind,
+  DayOfWeek,
+  FeedSettings,
+  FeedSite,
+  UsageDay,
+  WebsiteRule,
+  WeeklySchedule,
+} from "@shared/index";
+import { defaultRules } from "./sites";
+import { siteDefinitions } from "@feeds/index";
 export const USAGE_RETENTION_DAYS = 120;
-export const OVERRIDE_HISTORY_LIMIT = 500;
-
 export const feedDefaults: FeedSettings = {
   globalEnabled: true,
-  sites: {
-    youtube: { home: true, shorts: true, recommendations: true, comments: false },
-    x: { forYou: true, following: false, trending: true },
-    instagram: { home: true, reels: true, explore: true },
-    reddit: { home: true, popular: true, recommendations: true },
-    facebook: { main: true, suggested: true },
-    linkedin: { main: true, recommended: true }
-  }
+  sites: Object.fromEntries(
+    siteDefinitions.map((site) => [
+      site.site,
+      Object.fromEntries(Object.keys(site.elements).map((key) => [key, false])),
+    ]),
+  ) as FeedSettings["sites"],
 };
-
-export function createDefaultState(browser: BrowserKind = 'chrome'): AppState {
+export function createDefaultState(browser: BrowserKind = "chrome"): AppState {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     onboardingComplete: false,
-    pinAttempts: { failedAttempts: 0 },
-    rules: [],
+    passwordAttempts: { failedAttempts: 0 },
+    rules: defaultRules(),
+    windows: [],
     usage: {},
-    overrides: {},
-    overrideHistory: [],
     feedSettings: structuredClone(feedDefaults),
-    protection: { browser, privateAccess: 'unverified' },
-    trackingEnabled: true,
-    warningsEnabled: true
+    protection: { browser, privateAccess: "unverified" },
+    warningsEnabled: true,
   };
 }
-
 export function emptyUsageDay(dateKey: string): UsageDay {
-  return { dateKey, millisecondsByRule: {}, overrideMillisecondsByRule: {}, millisecondsByHost: {}, warningsSent: {} };
+  return {
+    dateKey,
+    millisecondsByRule: {},
+    warningsSent: {},
+  };
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-
-/**
- * Accepts anything read from storage (older schema, partially written, or hand-edited) and
- * returns a complete AppState. Unknown values fall back to safe defaults; nothing is loosened:
- * rules and commitments are preserved as stored.
- */
-export function migrateState(raw: unknown, browser: BrowserKind = 'chrome'): AppState {
-  const base = createDefaultState(browser);
-  if (!isObject(raw)) return base;
-  const state = { ...base, ...raw } as AppState;
-  state.schemaVersion = 2;
-  state.pinAttempts = isObject(raw.pinAttempts) ? { failedAttempts: Number(raw.pinAttempts.failedAttempts) || 0, cooldownUntil: raw.pinAttempts.cooldownUntil as number | undefined } : base.pinAttempts;
-  state.rules = Array.isArray(raw.rules) ? (raw.rules as AppState['rules']).map((rule) => ({ ...rule, schedules: rule.schedules ?? [], domains: rule.domains ?? [], enforcementMode: rule.enforcementMode ?? 'pin' })) : [];
-  state.usage = {};
-  if (isObject(raw.usage)) {
-    for (const [key, day] of Object.entries(raw.usage)) {
-      if (!isObject(day)) continue;
-      state.usage[key] = { ...emptyUsageDay(key), ...(day as Partial<UsageDay>), dateKey: key };
+const object = (x: unknown): x is Record<string, unknown> =>
+  typeof x === "object" && x !== null && !Array.isArray(x);
+/** Convert the old per-site blocked schedules to the complement (allowed windows), never invert their meaning. */
+function convertSchedules(
+  rule: WebsiteRule,
+  schedules: WeeklySchedule[],
+): AccessWindow[] {
+  const result: AccessWindow[] = [];
+  for (let day = 0; day < 7; day++) {
+    const blocked = (minute: number) =>
+      schedules.some((s) => {
+        if (s.startMinute === s.endMinute)
+          return s.days.includes(day as DayOfWeek);
+        if (s.startMinute < s.endMinute)
+          return (
+            s.days.includes(day as DayOfWeek) &&
+            minute >= s.startMinute &&
+            minute < s.endMinute
+          );
+        return (
+          (s.days.includes(day as DayOfWeek) && minute >= s.startMinute) ||
+          (s.days.includes(((day + 6) % 7) as DayOfWeek) &&
+            minute < s.endMinute)
+        );
+      });
+    let start: number | undefined;
+    for (let minute = 0; minute <= 1440; minute++) {
+      const allowed = minute < 1440 && !blocked(minute);
+      if (allowed && start === undefined) start = minute;
+      if (!allowed && start !== undefined) {
+        result.push({
+          id: `migrated-${rule.id}-${day}-${start}`,
+          label: `${rule.label} access`,
+          enabled: true,
+          domains: rule.domains,
+          days: [day as DayOfWeek],
+          startMinute: start,
+          endMinute: minute,
+        });
+        start = undefined;
+      }
     }
   }
-  state.overrides = isObject(raw.overrides) ? raw.overrides as AppState['overrides'] : {};
-  state.overrideHistory = Array.isArray(raw.overrideHistory) ? (raw.overrideHistory as AppState['overrideHistory']).map((entry) => ({ ...entry, label: entry.label ?? 'Website' })) : [];
-  const feeds = isObject(raw.feedSettings) ? raw.feedSettings as Partial<FeedSettings> : {};
-  state.feedSettings = { globalEnabled: feeds.globalEnabled ?? true, sites: structuredClone(feedDefaults.sites) };
+  return result;
+}
+export function migrateState(
+  raw: unknown,
+  browser: BrowserKind = "chrome",
+): AppState {
+  const state = createDefaultState(browser);
+  if (!object(raw)) return state;
+  const legacy = raw.schemaVersion !== 3;
+  state.onboardingComplete = raw.onboardingComplete === true;
+  state.warningsEnabled = raw.warningsEnabled !== false;
+  if (typeof raw.usageAsOf === "number") state.usageAsOf = raw.usageAsOf;
+  state.windows =
+    !legacy && Array.isArray(raw.windows)
+      ? (raw.windows as AccessWindow[]).map((w) => ({
+          ...w,
+          mode: w.mode === "block" ? "block" : "allow",
+        }))
+      : [];
+  state.rules = Array.isArray(raw.rules)
+    ? (raw.rules as Record<string, unknown>[])
+        .filter(object)
+        .map((r): WebsiteRule => ({
+          id: String(r.id),
+          label: String(r.label ?? "Website"),
+          domains: Array.isArray(r.domains) ? (r.domains as string[]) : [],
+          enabled: r.enabled !== false,
+          blocked: r.blocked === true,
+          dailyAllowance: object(r.dailyAllowance)
+            ? (r.dailyAllowance as unknown as WebsiteRule["dailyAllowance"])
+            : undefined,
+          showTimer: r.showTimer === true,
+          createdAt: Number(r.createdAt) || 0,
+          updatedAt: Number(r.updatedAt) || 0,
+        }))
+    : defaultRules();
+  if (legacy && Array.isArray(raw.rules)) {
+    (raw.rules as Record<string, unknown>[]).forEach((r, i) => {
+      if (!Array.isArray(r.schedules) || !r.schedules.length) return;
+      const windows = convertSchedules(
+        state.rules[i],
+        r.schedules as WeeklySchedule[],
+      );
+      if (windows.length) state.windows.push(...windows);
+      else state.rules[i].blocked = true;
+    });
+    state.migrationNotice =
+      "Mandatory PINs, temporary visits and commitments have been removed. Existing blocked schedules were converted into allowed windows; please review Windows.";
+  } else if (typeof raw.migrationNotice === "string")
+    state.migrationNotice = raw.migrationNotice;
+  // Websites added to the registry after this install get their default (unrestricted) rule.
+  for (const fresh of defaultRules())
+    if (
+      !state.rules.some(
+        (r) =>
+          r.id === fresh.id || r.domains.some((d) => fresh.domains.includes(d)),
+      )
+    )
+      state.rules.push(fresh);
+  // A legacy mandatory PIN is intentionally NOT turned into an optional settings password.
+  if (!legacy && object(raw.settingsPassword))
+    state.settingsPassword =
+      raw.settingsPassword as unknown as AppState["settingsPassword"];
+  if (!legacy && object(raw.passwordAttempts))
+    state.passwordAttempts =
+      raw.passwordAttempts as unknown as AppState["passwordAttempts"];
+  if (object(raw.usage))
+    for (const [key, value] of Object.entries(raw.usage)) {
+      if (!object(value)) continue;
+      state.usage[key] = {
+        dateKey: key,
+        millisecondsByRule: object(value.millisecondsByRule)
+          ? (value.millisecondsByRule as Record<string, number>)
+          : {},
+        warningsSent: object(value.warningsSent)
+          ? (value.warningsSent as Record<string, number[]>)
+          : {},
+      };
+    }
+  const feeds = object(raw.feedSettings)
+    ? (raw.feedSettings as unknown as FeedSettings)
+    : undefined;
+  state.feedSettings.globalEnabled = feeds?.globalEnabled !== false;
   for (const site of Object.keys(feedDefaults.sites) as FeedSite[]) {
-    state.feedSettings.sites[site] = { ...feedDefaults.sites[site], ...(feeds.sites?.[site] ?? {}) };
+    for (const key of Object.keys(feedDefaults.sites[site]))
+      state.feedSettings.sites[site][key] =
+        feeds?.sites?.[site]?.[key] === true;
   }
-  const protection = isObject(raw.protection) ? raw.protection as Partial<AppState['protection']> : {};
-  const status = protection.privateAccess;
-  state.protection = {
-    browser,
-    privateAccess: status === 'verified' || status === 'observed' ? status : 'unverified',
-    lastCheckedAt: protection.lastCheckedAt,
-    lastObservedAt: protection.lastObservedAt
-  };
+  if (object(raw.protection)) {
+    const p = raw.protection;
+    state.protection = {
+      browser,
+      privateAccess:
+        p.privateAccess === "verified" || p.privateAccess === "observed"
+          ? p.privateAccess
+          : "unverified",
+      lastCheckedAt: p.lastCheckedAt as number | undefined,
+      lastObservedAt: p.lastObservedAt as number | undefined,
+    };
+  }
   return state;
 }

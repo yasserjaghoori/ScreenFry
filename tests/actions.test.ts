@@ -1,232 +1,224 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import * as actions from '@core/actions';
-import { MemoryStateStore } from '@core/store';
-import { localDateKey } from '@core/date';
-import { evaluatePolicy } from '@policy/index';
-import type { WebsiteRule } from '@shared/index';
-import { Clock, MIN, at, rule, setUsage } from './helpers';
-
-const PIN = '482915';
-let clock: Clock;
-let store: MemoryStateStore;
-let ctx: actions.ActionContext;
-
-async function setup(rules: WebsiteRule[] = [], usageMs?: number) {
+import { beforeEach, describe, expect, it } from "vitest";
+import * as actions from "@core/actions";
+import { MemoryStateStore } from "@core/store";
+import { createDefaultState } from "@core/defaults";
+import { localDateKey } from "@core/date";
+import { verifyPassword } from "@core/password";
+import { Clock, MIN, at, rule, setUsage } from "./helpers";
+import type { AccessWindow } from "@shared/index";
+let clock: Clock, store: MemoryStateStore, ctx: actions.ActionContext;
+const secret = "a test password";
+const window = (): AccessWindow => ({
+  id: "lunch",
+  label: "Lunch",
+  enabled: true,
+  domains: ["youtube.com"],
+  days: [1, 2, 3],
+  startMinute: 720,
+  endMinute: 780,
+});
+beforeEach(() => {
   clock = new Clock(at(2026, 10, 3, 12));
   store = new MemoryStateStore();
   ctx = { store, now: clock.now };
-  expect((await actions.createPin(ctx, PIN)).ok).toBe(true);
-  await actions.completeOnboarding(ctx);
-  for (const item of rules) expect((await actions.saveRule(ctx, item)).ok).toBe(true);
-  if (usageMs !== undefined) await store.update((state) => setUsage(state, usageMs, rules[0].id, clock.value));
-}
-
-describe('PIN setup and changes', () => {
-  beforeEach(() => setup());
-
-  it('stores only a verifier and rejects malformed PINs', async () => {
-    const state = await store.get();
-    expect(JSON.stringify(state)).not.toContain(PIN);
-    expect((await actions.createPin({ store: new MemoryStateStore(), now: clock.now }, '12345')).ok).toBe(false);
-    expect((await actions.createPin({ store: new MemoryStateStore(), now: clock.now }, 'abcdef')).ok).toBe(false);
+});
+describe("no mandatory PIN or commitment", () => {
+  it("completes onboarding and saves restrictions without any password", async () => {
+    expect((await actions.completeOnboarding(ctx)).ok).toBe(true);
+    expect((await actions.saveRule(ctx, rule())).ok).toBe(true);
+    expect((await store.get()).settingsPassword).toBeUndefined();
   });
-
-  it('refuses to overwrite an existing PIN without the current one', async () => {
-    const result = await actions.createPin(ctx, '000000');
-    expect(result.ok).toBe(false);
-    expect((await actions.changePin(ctx, '111111', '000000')).ok).toBe(false);
-    expect((await actions.changePin(ctx, PIN, '000000')).ok).toBe(true);
-    expect((await actions.changePin(ctx, PIN, '222222')).ok).toBe(false);
-  });
-
-  it('requires a PIN before restrictions can be created', async () => {
-    const bare = { store: new MemoryStateStore(), now: clock.now };
-    expect((await actions.saveRule(bare, rule())).ok).toBe(false);
-    expect((await actions.completeOnboarding(bare)).ok).toBe(false);
+  it("applies changes immediately, never queues them behind old commitments", async () => {
+    await actions.saveRule(ctx, rule());
+    expect(
+      (
+        await actions.saveRule(
+          ctx,
+          rule({ dailyAllowance: { defaultMinutes: 90 } }),
+        )
+      ).ok,
+    ).toBe(true);
+    expect(
+      (await store.get()).rules.find((r) => r.id === "youtube")?.dailyAllowance
+        ?.defaultMinutes,
+    ).toBe(90);
+    expect((await actions.deleteRule(ctx, "youtube")).ok).toBe(true);
+    // A launch site always has a rule; removing its limits leaves it unrestricted.
+    const youtube = (await store.get()).rules.find((r) => r.id === "youtube");
+    expect(youtube?.dailyAllowance).toBeUndefined();
+    expect(youtube?.blocked).toBe(false);
   });
 });
-
-describe('PIN overrides', () => {
-  beforeEach(() => setup([rule()], 30 * MIN));
-
-  it('grants exactly 10 minutes, shared by every URL of the site', async () => {
-    const result = await actions.requestOverride(ctx, 'https://www.youtube.com/watch?v=1', PIN);
-    expect(result.ok && result.data.expiresAt - result.data.startedAt).toBe(10 * MIN);
-    const state = await store.get();
-    expect(evaluatePolicy(state, 'https://youtu.be/x', clock.advance(9 * MIN)).status).toBe('temporarily-unlocked');
-    expect(evaluatePolicy(state, 'https://m.youtube.com', clock.advance(MIN)).status).toBe('blocked');
+describe("optional settings password", () => {
+  beforeEach(async () => {
+    expect((await actions.setSettingsPassword(ctx, secret)).ok).toBe(true);
   });
-
-  it('does not create a second allowance from another tab', async () => {
-    const first = await actions.requestOverride(ctx, 'https://youtube.com/a', PIN);
-    clock.advance(4 * MIN);
-    const second = await actions.requestOverride(ctx, 'https://youtube.com/b', PIN);
-    expect(second.ok && second.data.alreadyActive).toBe(true);
-    expect(first.ok && second.ok && second.data.expiresAt).toBe(first.ok ? first.data.expiresAt : -1);
-    expect((await store.get()).overrideHistory).toHaveLength(1);
+  it("stores a salted verifier and excludes it from exported data", async () => {
+    const s = await store.get();
+    expect(JSON.stringify(s)).not.toContain(secret);
+    expect(s.settingsPassword?.algorithm).toBe("PBKDF2-SHA-256");
+    expect(await verifyPassword(secret, s.settingsPassword!)).toBe(true);
+    expect(actions.exportData(s)).not.toHaveProperty("settingsPassword");
   });
-
-  it('survives a browser restart without restarting the timer', async () => {
-    const result = await actions.requestOverride(ctx, 'https://youtube.com', PIN);
-    const reopened = store.reopen();
-    clock.advance(5 * MIN);
-    await actions.maintain({ store: reopened, now: clock.now });
-    const state = await reopened.get();
-    expect(state.overrides.youtube.expiresAt).toBe(result.ok ? result.data.expiresAt : 0);
-    expect(evaluatePolicy(state, 'https://youtube.com', clock.advance(5 * MIN)).status).toBe('blocked');
+  it.each([
+    "rule",
+    "delete-rule",
+    "window",
+    "delete-window",
+    "feeds",
+    "preferences",
+    "reset",
+    "password",
+  ] as const)(
+    "protects %s mutations in the core, independently of the UI",
+    async (kind) => {
+      const before = await store.get();
+      const calls = {
+        rule: () => actions.saveRule(ctx, rule()),
+        "delete-rule": () => actions.deleteRule(ctx, "youtube"),
+        window: () => actions.saveWindow(ctx, window()),
+        "delete-window": () => actions.deleteWindow(ctx, "lunch"),
+        feeds: () =>
+          actions.setFeeds(ctx, {
+            ...before.feedSettings,
+            globalEnabled: false,
+          }),
+        preferences: () =>
+          actions.setPreferences(ctx, { warningsEnabled: false }),
+        reset: () => actions.resetAll(ctx),
+        password: () => actions.setSettingsPassword(ctx, "replacement"),
+      };
+      expect((await calls[kind]()).ok).toBe(false);
+      expect(await store.get()).toEqual(before);
+      expect(
+        (await actions.unlockSettings({ ...ctx, password: secret })).ok,
+      ).toBe(true);
+    },
+  );
+  it("allows changes with the right password and cannot be overwritten with a wrong one", async () => {
+    expect(
+      (
+        await actions.setSettingsPassword(
+          { ...ctx, password: "wrong" },
+          "replacement",
+        )
+      ).ok,
+    ).toBe(false);
+    expect(
+      (
+        await actions.saveRule(
+          { ...ctx, password: secret },
+          rule({ blocked: true }),
+        )
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await actions.setSettingsPassword(
+          { ...ctx, password: secret },
+          "replacement",
+        )
+      ).ok,
+    ).toBe(true);
+    expect(
+      (await actions.unlockSettings({ ...ctx, password: secret })).ok,
+    ).toBe(false);
+    expect(
+      (await actions.unlockSettings({ ...ctx, password: "replacement" })).ok,
+    ).toBe(true);
   });
-
-  it('reapplies restrictions and requires the PIN again after expiry', async () => {
-    await actions.requestOverride(ctx, 'https://youtube.com', PIN);
-    clock.advance(10 * MIN);
-    await actions.maintain(ctx);
-    const state = await store.get();
-    expect(state.overrides.youtube).toBeUndefined();
-    expect(evaluatePolicy(state, 'https://youtube.com', clock.value).status).toBe('blocked');
-    expect((await actions.requestOverride(ctx, 'https://youtube.com', '000000')).ok).toBe(false);
-    expect((await actions.requestOverride(ctx, 'https://youtube.com', PIN)).ok).toBe(true);
+  it("can be removed after authentication, restoring freely editable settings", async () => {
+    expect(
+      (await actions.setSettingsPassword({ ...ctx, password: secret }, "")).ok,
+    ).toBe(true);
+    expect((await store.get()).settingsPassword).toBeUndefined();
+    expect((await actions.saveWindow(ctx, window())).ok).toBe(true);
   });
-
-  it('never changes the rule, today’s usage or the commitment', async () => {
-    await store.update((state) => { state.rules[0].commitmentEndsAt = clock.value + 7 * 24 * 60 * MIN; return state; });
-    const before = await store.get();
-    await actions.requestOverride(ctx, 'https://youtube.com', PIN);
-    const after = await store.get();
-    expect(after.rules).toEqual(before.rules);
-    expect(after.usage).toEqual(before.usage);
-  });
-
-  it('escalates cooldowns on wrong PINs and blocks attempts during them', async () => {
-    for (let attempt = 1; attempt <= 2; attempt += 1) expect((await actions.requestOverride(ctx, 'https://youtube.com', '000000') as { cooldownUntil?: number }).cooldownUntil).toBeUndefined();
-    const third = await actions.requestOverride(ctx, 'https://youtube.com', '000000');
-    expect(third.ok ? 0 : third.cooldownUntil).toBe(clock.value + 30_000);
-    const duringCooldown = await actions.requestOverride(ctx, 'https://youtube.com', PIN);
-    expect(duringCooldown.ok).toBe(false);
+  it("keeps protection after a restart, and rate-limits wrong passwords", async () => {
+    ctx = { store: store.reopen(), now: clock.now, password: "wrong" };
+    for (let i = 0; i < 3; i++)
+      expect((await actions.unlockSettings(ctx)).ok).toBe(false);
+    expect(
+      (await actions.unlockSettings({ ...ctx, password: secret })).ok,
+    ).toBe(false);
     clock.advance(30_000);
-    const fourth = await actions.requestOverride(ctx, 'https://youtube.com', '000000');
-    expect(fourth.ok ? 0 : fourth.cooldownUntil).toBe(clock.value + 60_000);
-    clock.advance(60_000);
-    expect((await actions.requestOverride(ctx, 'https://youtube.com', PIN)).ok).toBe(true);
-    expect((await store.get()).pinAttempts.failedAttempts).toBe(0);
-  });
-
-  it('refuses overrides for sites that are not blocked', async () => {
-    expect((await actions.requestOverride(ctx, 'https://example.com', PIN)).ok).toBe(false);
-  });
-
-  it('records override history', async () => {
-    await actions.requestOverride(ctx, 'https://youtube.com', PIN);
-    expect((await store.get()).overrideHistory[0]).toMatchObject({ ruleId: 'youtube', label: 'YouTube' });
+    expect(
+      (await actions.unlockSettings({ ...ctx, password: secret })).ok,
+    ).toBe(true);
+    expect((await ctx.store.get()).passwordAttempts.failedAttempts).toBe(0);
   });
 });
-
-describe('commitment enforcement through actions', () => {
-  const sealed = () => rule({ commitmentEndsAt: at(2026, 10, 10, 12) });
-  beforeEach(() => setup([sealed()]));
-
-  it('queues an allowance increase', async () => {
-    const result = await actions.saveRule(ctx, { ...sealed(), dailyAllowance: { defaultMinutes: 120 } });
-    expect(result.ok && result.data.outcome).toBe('pending');
-    expect((await store.get()).rules[0].dailyAllowance?.defaultMinutes).toBe(30);
+describe("validation and persistence", () => {
+  it("rejects invalid password lengths", async () => {
+    expect((await actions.setSettingsPassword(ctx, "abc")).ok).toBe(false);
+    expect((await actions.setSettingsPassword(ctx, "x".repeat(129))).ok).toBe(
+      false,
+    );
   });
-
-  it('queues swapping the website for another', async () => {
-    const result = await actions.saveRule(ctx, { ...sealed(), domains: ['example.com'] });
-    expect(result.ok && result.data.outcome).toBe('pending');
-    expect((await store.get()).rules[0].domains).toContain('youtube.com');
+  it("validates domains, minutes and weekday allowances", async () => {
+    for (const bad of [
+      rule({ domains: ["not a host"] }),
+      rule({ dailyAllowance: { defaultMinutes: -1 } }),
+      rule({ dailyAllowance: { defaultMinutes: 1.5 } }),
+    ])
+      expect((await actions.saveRule(ctx, bad)).ok).toBe(false);
+    expect(
+      (
+        await actions.saveRule(
+          ctx,
+          rule({ domains: ["https://www.youtube.com/watch?v=x"] }),
+        )
+      ).ok,
+    ).toBe(true);
+    expect(
+      (await store.get()).rules.find((r) => r.id === "youtube")?.domains,
+    ).toContain("youtu.be");
   });
-
-  it('queues removing the commitment date', async () => {
-    const result = await actions.saveRule(ctx, { ...sealed(), commitmentEndsAt: undefined });
-    expect(result.ok && result.data.outcome).toBe('pending');
-    expect((await store.get()).rules[0].commitmentEndsAt).toBe(at(2026, 10, 10, 12));
+  it("validates window days, website whitelist and clock times", async () => {
+    for (const patch of [
+      { domains: [] },
+      { days: [] },
+      { days: [7] },
+      { startMinute: -1 },
+      { startMinute: 1440 },
+      { endMinute: 1441 },
+    ])
+      expect(
+        (
+          await actions.saveWindow(ctx, {
+            ...window(),
+            ...patch,
+          } as AccessWindow)
+        ).ok,
+      ).toBe(false);
+    expect(
+      (
+        await actions.saveWindow(ctx, {
+          ...window(),
+          startMinute: 0,
+          endMinute: 1440,
+        })
+      ).ok,
+    ).toBe(true);
+    expect((await store.reopen().get()).windows[0].domains).toContain(
+      "youtu.be",
+    );
   });
-
-  it('queues deletion and applies it when the commitment ends', async () => {
-    const result = await actions.deleteRule(ctx, 'youtube');
-    expect(result.ok && result.data.outcome).toBe('pending');
-    expect((await store.get()).rules).toHaveLength(1);
-    clock.value = at(2026, 10, 10, 12);
-    await actions.maintain(ctx);
-    expect((await store.get()).rules).toHaveLength(0);
+  it("retains counted time after allowance edits", async () => {
+    await actions.saveRule(ctx, rule());
+    await store.update((s) => setUsage(s, 12 * MIN, "youtube", clock.value));
+    await actions.saveRule(
+      ctx,
+      rule({ dailyAllowance: { defaultMinutes: 15 } }),
+    );
+    expect(
+      (await store.get()).usage[localDateKey(new Date(clock.value))]
+        .millisecondsByRule.youtube,
+    ).toBe(12 * MIN);
   });
-
-  it('applies stricter edits and extensions immediately', async () => {
-    const result = await actions.saveRule(ctx, { ...sealed(), dailyAllowance: { defaultMinutes: 10 }, commitmentEndsAt: at(2026, 11, 3) });
-    expect(result.ok && result.data.outcome).toBe('applied');
-    const saved = (await store.get()).rules[0];
-    expect(saved.dailyAllowance?.defaultMinutes).toBe(10);
-    expect(saved.commitmentEndsAt).toBe(at(2026, 11, 3));
-  });
-
-  it('cannot enable strict mode or otherwise smuggle fields through saveRule', async () => {
-    await actions.saveRule(ctx, { ...sealed(), enforcementMode: 'strict' });
-    expect((await store.get()).rules[0].enforcementMode).toBe('pin');
-  });
-
-  it('keeps the rule enabled after the commitment expires', async () => {
-    clock.value = at(2026, 10, 10, 13);
-    await actions.maintain(ctx);
-    const saved = (await store.get()).rules[0];
-    expect(saved.enabled).toBe(true);
-    expect((await actions.saveRule(ctx, { ...saved, dailyAllowance: { defaultMinutes: 90 } })).ok && (await store.get()).rules[0].dailyAllowance?.defaultMinutes).toBe(90);
-  });
-
-  it('keeps today’s usage for committed limits when history is deleted', async () => {
-    await store.update((state) => setUsage(state, 12 * MIN, 'youtube', clock.value));
-    await actions.deleteHistory(ctx);
-    const state = await store.get();
-    expect(state.usage[localDateKey(new Date(clock.value))].millisecondsByRule.youtube).toBe(12 * MIN);
-  });
-
-  it('refuses a full reset while a commitment is active', async () => {
-    expect((await actions.resetAll(ctx, PIN)).ok).toBe(false);
-    clock.value = at(2026, 10, 11);
-    expect((await actions.resetAll(ctx, '000000')).ok).toBe(false);
-    expect((await actions.resetAll(ctx, PIN)).ok).toBe(true);
-    expect((await store.get()).pin).toBeUndefined();
-  });
-
-  it('cannot recreate the PIN to escape cooldowns once onboarding is complete', async () => {
-    expect((await actions.createPin(ctx, '000000')).ok).toBe(false);
-  });
-});
-
-describe('rule validation', () => {
-  beforeEach(() => setup());
-
-  it('normalizes domains and expands product aliases', async () => {
-    const result = await actions.saveRule(ctx, rule({ id: 'x', label: '', domains: ['https://www.X.com/home'] }));
-    const saved = (await store.get()).rules[0];
-    expect(result.ok).toBe(true);
-    expect(saved.domains).toEqual(['x.com', 'twitter.com']);
-    expect(saved.label).toBe('x.com');
-  });
-
-  it('rejects invalid input', async () => {
-    expect((await actions.saveRule(ctx, rule({ domains: ['not a domain'] }))).ok).toBe(false);
-    expect((await actions.saveRule(ctx, rule({ dailyAllowance: undefined, schedules: [] }))).ok).toBe(false);
-    expect((await actions.saveRule(ctx, rule({ dailyAllowance: { defaultMinutes: -5 } }))).ok).toBe(false);
-    expect((await actions.saveRule(ctx, rule({ schedules: [{ id: 's', days: [], startMinute: 0, endMinute: 60 }] }))).ok).toBe(false);
-    expect((await actions.saveRule(ctx, rule({ commitmentEndsAt: clock.value + 400 * 86_400_000 }))).ok).toBe(false);
-  });
-});
-
-describe('clock changes', () => {
-  beforeEach(() => setup([rule()], 30 * MIN));
-
-  it('flags a backwards clock and discards an override that now appears to start in the future', async () => {
-    await actions.requestOverride(ctx, 'https://youtube.com', PIN);
-    await actions.maintain(ctx);
-    clock.advance(-60 * MIN);
-    const state = await actions.maintain(ctx);
-    expect(state.possibleClockRollbackAt).toBe(clock.value);
-    expect(state.overrides.youtube).toBeUndefined();
-  });
-
-  it('caps a PIN cooldown that a rolled-back clock would stretch to days', async () => {
-    await store.update((state) => ({ ...state, pinAttempts: { failedAttempts: 9, cooldownUntil: clock.value + 5 * 24 * 60 * MIN } }));
-    const state = await actions.maintain(ctx);
-    expect(state.pinAttempts.cooldownUntil).toBe(clock.value + 60 * MIN);
+  it("resets without a password when optional protection is off", async () => {
+    await actions.saveWindow(ctx, window());
+    expect((await actions.resetAll(ctx)).ok).toBe(true);
+    expect((await store.get()).windows).toEqual(createDefaultState().windows);
   });
 });

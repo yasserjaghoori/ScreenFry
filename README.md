@@ -1,35 +1,141 @@
-# Screentime
+# ScreenFry
 
-A privacy-first Chrome and Safari extension for commitment-based website limits, recurring schedules, 10-minute PIN visits and selective feed blocking.
+<img src="apps/extension/public/icons/icon-128.png" width="96" height="96" alt="ScreenFry logo: a melting monitor with a clock face" />
 
-**Sealproof:** once you seal a restriction, you can make it stricter at any time, but anything looser waits until the commitment ends. Your PIN opens a site for 10 minutes and never changes the rule.
+**Less feed. More day.** ScreenFry is a Chrome and Safari extension that strips the distracting parts out of social websites and limits how long you spend on them, without taking away the useful parts.
 
-## Run
+> **Status:** development build, version 0.6.0. No public release has been published yet, so for now you install it by building it on a Mac (below). Chrome is covered by automated browser tests. The Mac app and Safari extension build, install and pass packaging checks, but live behavior on each website is still being verified. See [Testing](docs/TESTING.md).
+
+## What it does
+
+| | |
+| --- | --- |
+| **Hide distractions** | Turn off feeds, recommendations, comments and navigation buttons, site by site. Search, direct links, profiles and messages keep working. |
+| **Block Shorts, Reels and TikToks** | Blocks them completely, not just the button: direct links, notifications and in-page players are all caught. |
+| **Daily limits** | Give each website its own daily allowance, or none. When it runs out, the whole site is blocked, including tabs already open. Resets at midnight. |
+| **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
+| **Optional password** | Protect your settings from impulsive changes. It never grants extra time. |
+| **Private** | Everything stays on your device. No account, server or analytics, and no record of the sites you visit. |
+
+### Supported websites
+
+| Website | Controls |
+| --- | --- |
+| **YouTube** | Home and subscriptions feeds · recommended videos beside the player, comments and end screens · **block Shorts entirely** · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
+| **Instagram** | Home feed and Stories · Explore feed · **block Reels entirely** · Home, Search, Explore, Reels, Messages, Notifications and Create buttons · suggested accounts |
+| **X** | For You and Following feeds (separately) · Create Post box · trends, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback |
+| **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
+| **Substack** | Home and Notes feeds · Home, Notes, Explore, Notifications and Chat buttons · video playback |
+| **TikTok** | For You, Following and Explore feeds · **block videos entirely** · comments · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons · suggested accounts |
+
+Every control starts **off**: a fresh install changes nothing until you choose. More websites can be added with one entry each; see [Adding a website](docs/ADDING_A_SITE.md).
+
+## How time is counted
+
+- A website's time counts while it's the **active tab** in the focused window, and while its **audio or video is playing** in the background, even muted.
+- A background tab that isn't playing doesn't count.
+- Several tabs of the same website count once, not once each.
+- Chrome and Safari keep separate settings and separate time.
+
+## Windows
+
+The **Windows** page has two kinds of schedule. Each has a name, days, a start and end time (overnight works), and a list of websites, chosen from the supported sites or typed in.
+
+- **Allow window:** the listed websites work *only* during the window. Outside every allow window they're blocked, even with time left.
+- **Block window:** the listed websites are blocked *during* the window and work normally otherwise.
+
+If an allow window and a block window overlap, **blocking wins**. Daily limits always still apply.
+
+*Example:* YouTube has a 10-minute limit and allow windows at 12–1 pm and 6–8 pm. That's 10 minutes total for the day, usable in either window, and YouTube is blocked at 3 pm even if none of it was used. A block window from 9 am to 5 pm on weekdays would instead keep YouTube off during work hours.
+
+## Install
+
+### Install on a Mac
+
+No release is on the [Releases page](https://github.com/yasserjaghoori/ScreenFry/releases) yet. Until there is one, build the installer yourself. You'll need [Node.js](https://nodejs.org) (the version in `.nvmrc`), Xcode signed in to your Apple ID (Xcode → Settings → Accounts), and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```bash
-npm install
-npm test            # unit tests
-npm run build       # → dist/chrome
-npm run test:e2e    # real headless Chrome smoke test
+npm ci
+npm run dmg:local
 ```
 
-Chrome: open `chrome://extensions`, turn on Developer mode, choose **Load unpacked** and select `dist/chrome`. Onboarding opens automatically. Safari: see [docs/SAFARI.md](docs/SAFARI.md).
+This builds `dist/ScreenFry-<version>.dmg`, signed with your Mac's Apple Development identity, so Safari shows the extension without any developer settings.
 
-## Phase 1 features
+1. Open the disk image and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications.
+2. The app walks you through turning on **Safari** (one switch in Safari's settings, then allow it on websites) and **Chrome** (turn on Developer mode, then drag the ScreenFry tile onto Chrome's Extensions page).
 
-- Mandatory onboarding with a 6-digit PIN (salted PBKDF2 verifier, escalating cooldowns, no recovery shortcut).
-- Private-browsing coverage that is reported only once the browser proves it (Chrome API; Safari by observing a Private tab).
-- Daily limits with per-weekday allowances. Time counts only for the focused, active tab while you're present. Resets at local midnight. Warnings at 5 and 1 minute.
-- Weekly schedules: multiple per site, overnight, overlapping, live updates, correct across DST and time-zone changes.
-- Commitments (until end of today, 7 days, 30 days or a custom date) enforced in the core policy layer, with queued changes you can withdraw.
-- 10-minute PIN visits shared across tabs and restarts, with override time tracked separately.
-- Feed blocking for YouTube, X, Instagram, Reddit, Facebook and LinkedIn, limited to feed pages so search and direct links keep working.
-- Dashboard, popup and blocked page, with dark mode.
+**Updating:** drag a newer build over the old app. Both browsers update together and keep their settings. In-app updates (**Check for Updates…**) stay off until release signing is set up. Version 0.6.0 changed the app's identifiers, so settings from earlier builds don't carry over: uninstall the old version first and set ScreenFry up again.
 
-## Docs
+**Uninstalling:** **ScreenFry → Uninstall…** (also at the bottom of the window). **Keep Settings** removes the app and both extensions, but Chrome keeps your settings for a reinstall. **Erase Everything** also deletes ScreenFry's files on your Mac and opens Chrome's Extensions page so you can click **Remove**.
 
-[Architecture](docs/ARCHITECTURE.md) · [Threat model](docs/THREAT_MODEL.md) · [Privacy](docs/PRIVACY.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Phase 1 audit](docs/PHASE1_AUDIT.md)
+Once releases are published, downloads built by GitHub won't be signed by Apple at first. The first open then needs **Open Anyway** in System Settings → Privacy & Security, and Safari only lists the extension with **Allow unsigned extensions** turned on. Details are in [Distribution](docs/DISTRIBUTION.md).
 
-## Honest limitation
+### Build from source
 
-An extension can't make itself impossible to uninstall, stop you from disabling it in browser settings, or protect its local storage from someone who controls the device. "Sealproof" means Screentime itself offers no casual way to permanently loosen a commitment.
+To load the extensions without the Mac app (for development):
+
+```bash
+npm ci
+npm run build
+```
+
+#### Chrome
+
+1. Open `chrome://extensions` and turn on **Developer mode**.
+2. Click **Load unpacked** and choose the `dist/chrome` folder.
+3. Pin ScreenFry from the puzzle-piece menu.
+4. *Optional:* under **Details**, turn on **Allow in Incognito**.
+
+After rebuilding, click **Reload** on the ScreenFry card.
+
+#### Safari (macOS)
+
+You'll also need Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+
+1. Build and generate the project:
+   ```bash
+   npm run build:safari
+   xcodegen generate --spec safari/ScreenFry/project.yml
+   ```
+2. Open `safari/ScreenFry/ScreenFry.xcodeproj`, pick a signing team for both targets, and run the **ScreenFry** scheme. This builds **ScreenFry.app**.
+3. In Safari → **Settings → Extensions**, turn on **ScreenFry**.
+4. Still there, click **Edit Websites** and set **Other Websites** to **Allow**. Safari can otherwise request access separately on individual websites. Website permissions and ScreenFry's controls are separate: granting access does not enable any blocking choices.
+5. *Optional:* turn on **Allow in Private Browsing**.
+
+Keep a single copy of ScreenFry.app installed; two copies register two extensions. More detail is in [Safari setup](docs/SAFARI.md).
+
+## Development
+
+```bash
+npm run check       # unit tests, type check and a verified Chrome build
+npm run test:e2e    # Chrome integration tests in a throwaway profile
+npm run icons       # regenerate every icon from the source artwork
+```
+
+Run builds and integration tests one at a time, since both use `dist/chrome`.
+
+| Folder | What's in it |
+| --- | --- |
+| `apps/extension` | Dashboard, popup, blocked page, background and content scripts |
+| `packages/feed-blockers` | **The site registry:** every website's domains, controls and Shorts-style blocking |
+| `packages/policy-engine` | Decides whether a page is allowed right now |
+| `packages/core` | Settings, password checks, time tracking and data migration |
+| `packages/browser-adapters` | Messaging, storage and Chrome/Safari differences |
+| `safari/ScreenFry` | The Mac app that packages the Safari extension |
+
+> Everything uses the ScreenFry name: the repository, Xcode project and scheme, npm package (`screenfry`) and the app's bundle identifiers (`com.screenfry.ScreenFry` and `com.screenfry.ScreenFry.Extension`).
+
+## Limitations
+
+- Websites change their layouts, which can break individual controls until they're updated.
+- A regular video link with nothing marking it as a Short can't always be recognized as one.
+- The password protects settings inside ScreenFry. It can't stop someone from turning the extension off or removing it.
+- Chrome and Safari don't share settings, time or passwords.
+
+More in [Enforcement limits](docs/THREAT_MODEL.md) and [Privacy](docs/PRIVACY.md).
+
+## Credits
+
+The interface is inspired by [SocialFocus](https://socialfocus.app); none of its code or artwork is used. Some feed selectors are adapted from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia) under the MIT license, whose full notice ships with both builds.
+
+**Docs:** [Project brief](docs/PROJECT_BRIEF.md) · [Architecture](docs/ARCHITECTURE.md) · [Development setup](docs/SETUP.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Distribution](docs/DISTRIBUTION.md) · [Adding a website](docs/ADDING_A_SITE.md) · [Branding](assets/branding/README.md) · [AI handoff](docs/AI_HANDOFF.md)

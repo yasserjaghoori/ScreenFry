@@ -1,22 +1,31 @@
 {
   "manifest_version": 3,
-  "name": "Screentime",
-  "version": "0.2.0",
-  "description": "Commitment-based, privacy-first website limits and feed blocking.",
+  "name": "ScreenFry",
+  "version": "0.6.0",
+  "description": "Hide distracting feeds and buttons, set daily website limits, and choose allowed time windows.",
   "permissions": [
     "storage",
     "tabs",
     "idle",
     "alarms",
-    "declarativeNetRequest"
+    "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
   "incognito": "spanning",
   "action": {
-    "default_title": "Screentime",
-    "default_popup": "popup.html"
+    "default_title": "ScreenFry",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/toolbar-color-16.png",
+      "19": "icons/toolbar-color-19.png",
+      "24": "icons/toolbar-color-24.png",
+      "32": "icons/toolbar-color-32.png",
+      "38": "icons/toolbar-color-38.png",
+      "48": "icons/toolbar-color-48.png",
+      "64": "icons/toolbar-color-64.png"
+    }
   },
   "background": {
     "service_worker": "assets/background.js",
@@ -49,5 +58,15 @@
   "options_ui": {
     "page": "dashboard.html",
     "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "64": "icons/icon-64.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png",
+    "256": "icons/icon-256.png",
+    "512": "icons/icon-512.png"
   }
 }

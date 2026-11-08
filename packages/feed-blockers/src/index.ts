@@ -1,135 +1,598 @@
-import type { FeedSettings, FeedSite } from '@shared/index';
-
-/**
- * Site-specific feed blocking. Each element lists CSS selectors and, where the same component
- * appears on useful pages (channel pages, subreddits, profiles), a path predicate so only the
- * feed surface is hidden. Direct links and search stay usable.
- *
- * Selectors target third-party markup that changes without notice. Keep them here, in one
- * table, so a broken site is a one-line fix.
+/** Feed selectors adapted in part from Saner Social Media, MIT, Tobias Dalhof.
+ * See apps/extension/public/THIRD_PARTY_NOTICES.txt for attribution and the complete license.
+ * Button labels/grouping follow observed SocialFocus behavior; its source/assets are not used.
  */
+import type { FeedSettings, FeedSite } from "@shared/index";
+import { hostMatchesDomain } from "@core/domains";
 export interface FeedElement {
   label: string;
+  group: string;
   selectors: string[];
-  /** When present, selectors apply only on matching URLs. */
   when?: (url: URL) => boolean;
-  /** Optional rewrite to a non-feed equivalent of the same content (e.g. Shorts → normal player). */
-  redirect?: (url: URL) => string | undefined;
+  pauseMedia?: boolean;
 }
-
+/** Blocks a short-form video format (Shorts, Reels…) entirely when its setting is on. */
+export interface ShortFormDefinition {
+  /** Key in `elements` whose switch turns the block on, e.g. "shorts". */
+  setting: string;
+  /** Shown on the blocked page, e.g. "YouTube Shorts". */
+  label: string;
+  /** First path segment(s) of short-form URLs, as a regex fragment, e.g. "shorts" or "reels?". */
+  pathSegment: string;
+  /** Players that mean short-form is playing even without a short-form URL (modals, SPA). */
+  playerSelectors: string[];
+  /** A real short-form path, used by tests, e.g. "/shorts/abc". */
+  examplePath: string;
+}
+/**
+ * The single registry of supported websites. Adding a website means adding one entry here
+ * (plus its id in the FeedSite type); the dashboard, popup, windows picker, default rules,
+ * network rules and short-form blocking all read from this list. See docs/ADDING_A_SITE.md.
+ */
 export interface SiteDefinition {
   site: FeedSite;
   name: string;
+  /** Main domain first; the rest are aliases and embed domains. Subdomains always match. */
   domains: string[];
+  /** Brand color and a one-character mark for the site's avatar in the UI. */
+  color: string;
+  symbol: string;
   elements: Record<string, FeedElement>;
+  shortForm?: ShortFormDefinition;
 }
-
-const path = (url: URL) => url.pathname.replace(/\/+$/, '') || '/';
-const pathIs = (...paths: string[]) => (url: URL) => paths.includes(path(url));
-
+const path = (url: URL) => url.pathname.replace(/\/+$/, "") || "/";
+const at =
+  (...paths: string[]) =>
+  (url: URL) =>
+    paths.includes(path(url));
+const element = (
+  label: string,
+  group: string,
+  selectors: string[],
+  when?: (url: URL) => boolean,
+  pauseMedia = false,
+): FeedElement => ({ label, group, selectors, when, pauseMedia });
 export const siteDefinitions: SiteDefinition[] = [
   {
-    site: 'youtube', name: 'YouTube', domains: ['youtube.com'], elements: {
-      home: { label: 'Homepage feed', selectors: ['ytd-browse[page-subtype="home"] ytd-rich-grid-renderer', 'ytm-browse ytm-rich-grid-renderer'], when: pathIs('/') },
-      shorts: {
-        label: 'Shorts',
-        selectors: [
-          'ytd-reel-shelf-renderer', 'ytm-reel-shelf-renderer', 'ytd-rich-shelf-renderer[is-shorts]',
-          'ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts])',
-          'ytd-guide-entry-renderer:has(a[title="Shorts"])', 'ytd-mini-guide-entry-renderer[aria-label="Shorts"]',
-          'yt-chip-cloud-chip-renderer:has([title="Shorts"])'
+    site: "youtube",
+    color: "#e34436",
+    symbol: "▶",
+    name: "YouTube",
+    domains: ["youtube.com", "youtube-nocookie.com"],
+    shortForm: {
+      setting: "shorts",
+      label: "YouTube Shorts",
+      pathSegment: "shorts",
+      examplePath: "/shorts/abc",
+      playerSelectors: [
+        "ytd-reel-video-renderer[is-active] video",
+        "ytd-shorts:not([hidden]) ytd-reel-video-renderer[is-active]",
+        '[data-testid="shorts-player"] video',
+      ],
+    },
+    elements: {
+      home: element(
+        "Hide home feed",
+        "Feeds",
+        [
+          'ytd-browse[page-subtype="home"] #primary',
+          "ytm-browse ytm-rich-grid-renderer",
         ],
-        redirect: (url) => {
-          const match = /^\/shorts\/([\w-]{6,})/.exec(url.pathname);
-          return match ? `${url.origin}/watch?v=${match[1]}` : undefined;
-        }
-      },
-      recommendations: { label: 'Recommended videos', selectors: ['ytd-watch-flexy #related', 'ytd-watch-next-secondary-results-renderer', '.ytp-endscreen-content', '.ytp-ce-element', 'ytm-item-section-renderer[section-identifier="related-items"]'] },
-      comments: { label: 'Comments', selectors: ['ytd-comments#comments', 'ytm-comment-section-renderer', 'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-comments-section"]'] }
-    }
+        at("/"),
+        true,
+      ),
+      subscriptions: element(
+        "Hide subscriptions feed",
+        "Feeds",
+        ['ytd-browse[page-subtype="subscriptions"] #primary'],
+        at("/feed/subscriptions"),
+        true,
+      ),
+      // While watching: the "Up next" column beside the player, which YouTube moves below
+      // the video in narrow windows. Live chat and playlist panels stay visible.
+      recommendations: element(
+        "Hide recommended videos beside the player",
+        "Video page",
+        [
+          "ytd-watch-flexy #related",
+          "#secondary #related",
+          "ytd-watch-next-secondary-results-renderer",
+          "ytd-watch-flexy yt-related-chip-cloud-renderer",
+          "#secondary yt-lockup-view-model",
+          "#secondary ytd-compact-video-renderer",
+          "#secondary ytd-compact-radio-renderer",
+          "#secondary ytd-compact-playlist-renderer",
+          'ytm-item-section-renderer[section-identifier="related-items"]',
+        ],
+      ),
+      comments: element("Hide comments", "Video page", [
+        "ytd-comments#comments",
+        "ytm-comment-section-renderer",
+      ]),
+      endscreen: element("Hide endscreen recommendations", "Video page", [
+        ".ytp-endscreen-content",
+        ".ytp-ce-element",
+        ".ytp-fullscreen-grid-main-content",
+      ]),
+      shorts: element(
+        "Block Shorts entirely",
+        "Short-form video",
+        [
+          "ytd-reel-shelf-renderer",
+          "ytm-reel-shelf-renderer",
+          "ytd-rich-shelf-renderer[is-shorts]",
+          "ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts])",
+          'yt-lockup-view-model:has(a[href*="/shorts/"])',
+          'ytd-video-renderer:has(a[href*="/shorts/"])',
+          'grid-shelf-view-model:has(a[href*="/shorts/"])',
+          'a[href^="/shorts"]',
+          // Sidebar and mini-guide entries use a title/label rather than a /shorts/ href.
+          'ytd-guide-entry-renderer:has(a[href^="/shorts"])',
+          'ytd-guide-entry-renderer:has(a#endpoint[title="Shorts"])',
+          'ytd-mini-guide-entry-renderer[aria-label="Shorts"]',
+          'ytd-pivot-bar-item-renderer:has([title="Shorts"])',
+          "ytd-shorts",
+          "ytm-shorts-lockup-view-model",
+          "ytm-shorts",
+        ],
+        undefined,
+        true,
+      ),
+      exploreButton: element("Hide Explore button", "Navigation", [
+        'ytd-guide-entry-renderer:has(a[href="/feed/explore"])',
+        'a[href="/feed/explore"]',
+      ]),
+      subscriptionsButton: element("Hide Subscriptions button", "Navigation", [
+        'ytd-guide-entry-renderer:has(a[href="/feed/subscriptions"])',
+        'ytd-mini-guide-entry-renderer:has(a[href="/feed/subscriptions"])',
+      ]),
+      notificationsButton: element("Hide Notifications button", "Navigation", [
+        "ytd-notification-topbar-button-renderer",
+      ]),
+      thumbnails: element("Hide thumbnails", "Appearance", [
+        "ytd-thumbnail img",
+        "yt-thumbnail-view-model img",
+      ]),
+      ads: element("Hide banner ads", "Appearance", [
+        "ytd-ad-slot-renderer",
+        "ytd-banner-promo-renderer",
+        "ytd-display-ad-renderer",
+      ]),
+    },
   },
   {
-    site: 'x', name: 'X / Twitter', domains: ['x.com', 'twitter.com'], elements: {
-      // X renders both home tabs into the same timeline; the content script marks which tab is selected.
-      forYou: { label: 'For You feed', selectors: ['html[data-screentime-x-tab="0"] [data-testid="primaryColumn"] section[role="region"]'], when: pathIs('/home') },
-      following: { label: 'Following feed', selectors: ['html[data-screentime-x-tab="1"] [data-testid="primaryColumn"] section[role="region"]'], when: pathIs('/home') },
-      trending: { label: 'Trending', selectors: ['[aria-label="Timeline: Trending now"]', '[data-testid="sidebarColumn"] section:has([aria-label="Timeline: Trending now"])', '[data-testid="sidebarColumn"] div:has(> div > [data-testid="trend"])'] }
-    }
+    site: "instagram",
+    color: "#b84783",
+    symbol: "◎",
+    name: "Instagram",
+    domains: ["instagram.com", "instagr.am"],
+    shortForm: {
+      setting: "reels",
+      label: "Instagram Reels",
+      pathSegment: "reels?",
+      examplePath: "/reel/abc",
+      playerSelectors: ['[data-testid="reels-viewer"] video'],
+    },
+    elements: {
+      home: element(
+        "Hide home feed",
+        "Home page",
+        ['main[role="main"] > *', "main > article"],
+        at("/"),
+        true,
+      ),
+      stories: element(
+        "Hide Stories",
+        "Home page",
+        [
+          '[role="menu"]:has([role="menuitem"])',
+          '[data-testid="stories-tray"]',
+          'section:has(button[aria-label="Your story"])',
+        ],
+        at("/"),
+        true,
+      ),
+      explore: element(
+        "Hide Explore feed",
+        "Feeds",
+        ['main[role="main"] > *', "main > div"],
+        at("/explore"),
+        true,
+      ),
+      reels: element(
+        "Block Reels entirely",
+        "Short-form video",
+        [
+          'a[href^="/reel/"]',
+          'a[href="/reels/"]',
+          '[data-testid="reels-viewer"]',
+        ],
+        undefined,
+        true,
+      ),
+      homeButton: element("Hide Home button", "Navigation", [
+        'nav a[href="/"]',
+        'a:has(svg[aria-label="Home"])',
+      ]),
+      searchButton: element("Hide Search button", "Navigation", [
+        'a:has(svg[aria-label="Search"])',
+      ]),
+      exploreButton: element("Hide Explore button", "Navigation", [
+        'a[href="/explore/"]',
+      ]),
+      reelsButton: element("Hide Reels button", "Navigation", [
+        'a[href="/reels/"]',
+        'a:has(svg[aria-label="Reels"])',
+      ]),
+      messagesButton: element("Hide Messages button", "Navigation", [
+        'a[href^="/direct/"]',
+      ]),
+      notificationsButton: element("Hide Notifications button", "Navigation", [
+        'a:has(svg[aria-label="Notifications"])',
+      ]),
+      createButton: element("Hide Create button", "Navigation", [
+        'a:has(svg[aria-label="New post"])',
+      ]),
+      suggestions: element(
+        "Hide suggested accounts",
+        "Sidebar",
+        ["aside", '[data-testid="suggested-users"]'],
+        at("/"),
+      ),
+    },
   },
   {
-    site: 'instagram', name: 'Instagram', domains: ['instagram.com'], elements: {
-      home: { label: 'Home feed', selectors: ['main[role="main"]'], when: pathIs('/') },
-      // The Reels feed lives at /reels/; individual reels at /reel/<id> stay viewable from direct links.
-      reels: { label: 'Reels', selectors: ['a[href="/reels/"]'] },
-      reelsFeed: { label: 'Reels', selectors: ['main[role="main"]'], when: pathIs('/reels') },
-      explore: { label: 'Explore', selectors: ['main[role="main"]'], when: pathIs('/explore') }
-    }
+    site: "x",
+    color: "#333b46",
+    symbol: "𝕏",
+    name: "X",
+    domains: ["x.com", "twitter.com"],
+    elements: {
+      forYou: element(
+        "Hide For You feed",
+        "Home page",
+        [
+          'html[data-screenfry-x-tab="0"] [data-testid="primaryColumn"] section[role="region"]',
+        ],
+        at("/home"),
+        true,
+      ),
+      following: element(
+        "Hide Following feed",
+        "Home page",
+        [
+          'html[data-screenfry-x-tab="1"] [data-testid="primaryColumn"] section[role="region"]',
+        ],
+        at("/home"),
+        true,
+      ),
+      compose: element(
+        "Hide Create Post box",
+        "Home page",
+        [
+          '[data-testid="primaryColumn"] [data-testid="tweetTextarea_0_label"]',
+          '[data-testid="primaryColumn"] [data-testid="toolBar"]',
+        ],
+        at("/home"),
+      ),
+      trending: element("Hide trends", "Sidebar", [
+        '[data-testid="sidebarColumn"] section',
+      ]),
+      suggestions: element("Hide Who to follow", "Sidebar", [
+        '[data-testid="sidebarColumn"] aside',
+      ]),
+      premium: element("Hide Premium promotions", "Sidebar", [
+        '[data-testid="sidebarColumn"] a[href*="/i/premium_sign_up"]',
+      ]),
+      homeButton: element("Hide Home button", "Navigation", [
+        '[data-testid="AppTabBar_Home_Link"]',
+      ]),
+      exploreButton: element("Hide Explore button", "Navigation", [
+        '[data-testid="AppTabBar_Explore_Link"]',
+      ]),
+      notificationsButton: element("Hide Notifications button", "Navigation", [
+        '[data-testid="AppTabBar_Notifications_Link"]',
+      ]),
+      messagesButton: element("Hide Messages button", "Navigation", [
+        '[data-testid="AppTabBar_DirectMessage_Link"]',
+      ]),
+      grokButton: element("Hide Grok button", "Navigation", [
+        'a[href="/i/grok"]',
+      ]),
+      videos: element(
+        "Block video playback",
+        "Video",
+        ['[data-testid="videoPlayer"]', "video"],
+        undefined,
+        true,
+      ),
+    },
   },
   {
-    site: 'reddit', name: 'Reddit', domains: ['reddit.com'], elements: {
-      home: { label: 'Homepage feed', selectors: ['shreddit-feed', '#siteTable'], when: pathIs('/', '/best', '/hot', '/new', '/top', '/rising') },
-      popular: { label: 'Popular feed', selectors: ['shreddit-feed', '#siteTable'], when: pathIs('/r/popular', '/r/all') },
-      recommendations: { label: 'Recommendations', selectors: ['faceplate-tracker[source="recommendation"]', 'shreddit-recent-posts', 'pdp-right-rail community-recommendation'] }
-    }
+    site: "reddit",
+    color: "#db5827",
+    symbol: "r",
+    name: "Reddit",
+    domains: ["reddit.com"],
+    elements: {
+      home: element(
+        "Hide home feed",
+        "Feeds",
+        ["shreddit-feed", "#siteTable"],
+        at("/", "/best", "/hot", "/new", "/top", "/rising"),
+        true,
+      ),
+      popular: element(
+        "Hide Popular and All feeds",
+        "Feeds",
+        ["shreddit-feed", "#siteTable"],
+        at("/r/popular", "/r/all"),
+        true,
+      ),
+      subreddits: element(
+        "Hide subreddit feeds",
+        "Feeds",
+        ["shreddit-feed", "#siteTable"],
+        (u) => /^\/r\/[^/]+(?:\/(?:hot|new|top|rising))?\/?$/.test(u.pathname),
+        true,
+      ),
+      recommendations: element("Hide recommended posts", "Sidebar", [
+        'faceplate-tracker[source="recommendation"]',
+        "shreddit-recent-posts",
+        "pdp-right-rail community-recommendation",
+      ]),
+      sidebar: element("Hide left sidebar", "Navigation", [
+        "#left-sidebar-container",
+      ]),
+      chatButton: element("Hide Chat button", "Navigation", [
+        'a[href^="https://chat.reddit.com"]',
+        'button[aria-label="Open chat"]',
+      ]),
+      notificationsButton: element("Hide Notifications button", "Navigation", [
+        'a[href="/notifications"]',
+        'a[href="/notifications/"]',
+        'a[href="/message/inbox/"]',
+      ]),
+      createButton: element("Hide Create Post button", "Navigation", [
+        'a[href="/submit"]',
+        'a[href$="/submit/"]',
+      ]),
+      comments: element("Hide comments", "Posts", [
+        "shreddit-comment-tree",
+        ".commentarea",
+      ]),
+      votes: element("Hide voting controls", "Posts", [
+        '[slot="vote-button"]',
+        ".midcol",
+      ]),
+      videos: element(
+        "Block video playback",
+        "Video",
+        ["shreddit-player", "video"],
+        undefined,
+        true,
+      ),
+    },
   },
   {
-    site: 'facebook', name: 'Facebook', domains: ['facebook.com'], elements: {
-      main: { label: 'Main feed', selectors: ['[role="main"] [role="feed"]'], when: pathIs('/', '/home.php') },
-      suggested: { label: 'Suggested posts', selectors: ['[role="feed"] [role="article"]:has(a[href*="/ads/"])', '[role="feed"] > div:has([aria-label="Suggested for you"])'] }
-    }
+    site: "substack",
+    color: "#e57c34",
+    symbol: "≡",
+    name: "Substack",
+    domains: ["substack.com"],
+    elements: {
+      home: element(
+        "Hide Home feed",
+        "Feeds",
+        [
+          'main [role="feed"]',
+          '[data-testid="home-feed"]',
+          '[class*="reader2-home"] [class*="feed"]',
+          '[class*="reader2-home"] [class*="timeline"]',
+          "main > div",
+        ],
+        at("/", "/home"),
+        true,
+      ),
+      notes: element(
+        "Hide Notes feed",
+        "Feeds",
+        ['main [role="feed"]', '[data-testid="notes-feed"]', "main > div"],
+        at("/notes"),
+        true,
+      ),
+      homeButton: element("Hide Home button", "Navigation", [
+        'nav a[href="/home"]',
+        'nav a[href="/"]',
+      ]),
+      notesButton: element("Hide Notes button", "Navigation", [
+        'nav a[href="/notes"]',
+        'a[aria-label="Notes"]',
+      ]),
+      exploreButton: element("Hide Explore button", "Navigation", [
+        'nav a[href="/discover"]',
+        'nav a[href="/explore"]',
+      ]),
+      notificationsButton: element("Hide Notifications button", "Navigation", [
+        'nav a[href="/activity"]',
+        'a[aria-label="Notifications"]',
+      ]),
+      chatButton: element("Hide Chat button", "Navigation", [
+        'nav a[href="/chat"]',
+        'a[aria-label="Chat"]',
+      ]),
+      videos: element(
+        "Block video playback",
+        "Video",
+        ["video", '[data-testid="video-player"]'],
+        undefined,
+        true,
+      ),
+    },
   },
   {
-    site: 'linkedin', name: 'LinkedIn', domains: ['linkedin.com'], elements: {
-      main: { label: 'Main feed', selectors: ['.scaffold-finite-scroll__content', 'main [data-finite-scroll-hotkey-context="FEED"]'], when: pathIs('/feed') },
-      recommended: { label: 'Recommended posts', selectors: ['.feed-shared-update-v2:has([data-test-icon="lightbulb-medium"])', 'aside .feed-follows-module'] }
-    }
-  }
+    // Selectors use TikTok's data-e2e test attributes, which change less often than class
+    // names. Not yet verified against live signed-in TikTok.
+    site: "tiktok",
+    color: "#fe2c55",
+    symbol: "♪",
+    name: "TikTok",
+    domains: ["tiktok.com"],
+    shortForm: {
+      setting: "videos",
+      label: "TikTok videos",
+      pathSegment: "@[^/]+/video",
+      examplePath: "/@someone/video/123",
+      playerSelectors: [
+        '[data-e2e="feed-video"] video',
+        '[data-e2e="browse-video"] video',
+      ],
+    },
+    elements: {
+      forYou: element(
+        "Hide For You feed",
+        "Feeds",
+        [
+          "#main-content-homepage_hot",
+          '[data-e2e="recommend-list-item-container"]',
+        ],
+        at("/", "/foryou", "/en"),
+        true,
+      ),
+      following: element(
+        "Hide Following feed",
+        "Feeds",
+        [
+          '[data-e2e="recommend-list-item-container"]',
+          "#main-content-following",
+        ],
+        at("/following"),
+        true,
+      ),
+      explore: element(
+        "Hide Explore feed",
+        "Feeds",
+        ['[data-e2e="explore-item-list"]', "#main-content-explore_page"],
+        at("/explore"),
+        true,
+      ),
+      videos: element(
+        "Block videos entirely",
+        "Short-form video",
+        ["video", '[data-e2e="feed-video"]'],
+        undefined,
+        true,
+      ),
+      comments: element("Hide comments", "Video page", [
+        '[data-e2e="comment-list"]',
+        '[data-e2e="search-comment-container"]',
+        '[data-e2e="browse-comment"]',
+      ]),
+      forYouButton: element("Hide For You button", "Navigation", [
+        '[data-e2e="nav-foryou"]',
+      ]),
+      exploreButton: element("Hide Explore button", "Navigation", [
+        '[data-e2e="nav-explore"]',
+        'a[href="/explore"]',
+      ]),
+      followingButton: element("Hide Following button", "Navigation", [
+        '[data-e2e="nav-following"]',
+        'a[href="/following"]',
+      ]),
+      liveButton: element("Hide LIVE button", "Navigation", [
+        '[data-e2e="nav-live"]',
+        'a[href="/live"]',
+      ]),
+      messagesButton: element("Hide Messages button", "Navigation", [
+        '[data-e2e="nav-messages"]',
+        'a[href^="/messages"]',
+      ]),
+      activityButton: element("Hide Activity button", "Navigation", [
+        '[data-e2e="nav-activity"]',
+        '[data-e2e="inbox-icon"]',
+      ]),
+      uploadButton: element("Hide Upload button", "Navigation", [
+        '[data-e2e="nav-upload"]',
+        '[data-e2e="upload-icon"]',
+        'a[href*="/upload"]',
+      ]),
+      suggestedAccounts: element("Hide suggested accounts", "Sidebar", [
+        '[data-e2e="recommend-user"]',
+        '[data-e2e="suggest-accounts"]',
+      ]),
+    },
+  },
 ];
-
-const hostMatches = (host: string, domain: string) => host === domain || host.endsWith(`.${domain}`);
-
 export function siteFor(host: string): SiteDefinition | undefined {
-  const normalized = host.toLowerCase().replace(/^www\./, '');
-  return siteDefinitions.find((candidate) => candidate.domains.some((domain) => hostMatches(normalized, domain)));
+  return siteDefinitions.find((site) =>
+    site.domains.some((domain) => hostMatchesDomain(host, domain)),
+  );
 }
-
-/** Setting keys shown to the user (aliases like `reelsFeed` follow their parent toggle). */
-const settingKey = (element: string) => (element === 'reelsFeed' ? 'reels' : element);
-
-function enabledElements(settings: FeedSettings, url: URL): FeedElement[] {
-  if (!settings.globalEnabled) return [];
-  const definition = siteFor(url.hostname);
-  if (!definition) return [];
-  const selected = settings.sites[definition.site] ?? {};
-  return Object.entries(definition.elements)
-    .filter(([key]) => selected[settingKey(key)])
-    .map(([, element]) => element);
-}
-
-export function activeSelectors(settings: FeedSettings, href: string): string[] {
+export function enabledElements(
+  settings: FeedSettings,
+  href: string,
+): FeedElement[] {
   let url: URL;
-  try { url = new URL(href); } catch { return []; }
-  return enabledElements(settings, url)
-    .filter((element) => !element.when || element.when(url))
-    .flatMap((element) => element.selectors);
-}
-
-export function buildBlockingCss(settings: FeedSettings, href: string): string {
-  // One rule per selector: an unsupported selector (e.g. :has in an old engine) must not void the others.
-  return activeSelectors(settings, href).map((selector) => `${selector}{display:none!important}`).join('\n');
-}
-
-export function feedRedirect(settings: FeedSettings, href: string): string | undefined {
-  let url: URL;
-  try { url = new URL(href); } catch { return undefined; }
-  for (const element of enabledElements(settings, url)) {
-    const target = element.redirect?.(url);
-    if (target && target !== href) return target;
+  try {
+    url = new URL(href);
+  } catch {
+    return [];
   }
-  return undefined;
+  if (!settings.globalEnabled) return [];
+  const site = siteFor(url.hostname);
+  if (!site) return [];
+  return Object.entries(site.elements)
+    .filter(
+      ([key, value]) =>
+        settings.sites[site.site]?.[key] && (!value.when || value.when(url)),
+    )
+    .map(([, value]) => value);
 }
-
+export const activeSelectors = (settings: FeedSettings, href: string) =>
+  enabledElements(settings, href).flatMap((value) => value.selectors);
+export const buildBlockingCss = (settings: FeedSettings, href: string) =>
+  activeSelectors(settings, href)
+    .map((selector) => `${selector}{display:none!important}`)
+    .join("\n");
+/** The site's short-form definition, when its "block entirely" setting is on. */
+export function activeShortForm(
+  settings: FeedSettings,
+  host: string,
+): ShortFormDefinition | undefined {
+  if (!settings.globalEnabled) return;
+  const site = siteFor(host);
+  const short = site?.shortForm;
+  return short && settings.sites[site.site]?.[short.setting]
+    ? short
+    : undefined;
+}
+/** Matches a short-form URL path such as /shorts/abc or /reel/abc. */
+export const shortFormPath = (short: ShortFormDefinition) =>
+  new RegExp(`^/(?:${short.pathSegment})(?:/|$)`, "i");
+/** These are content restrictions, not URL rewrites into a different player. */
+export function shortFormBlock(
+  settings: FeedSettings,
+  href: string,
+): string | undefined {
+  let url: URL;
+  try {
+    url = new URL(href);
+  } catch {
+    return;
+  }
+  const short = activeShortForm(settings, url.hostname);
+  return short && shortFormPath(short).test(url.pathname)
+    ? short.label
+    : undefined;
+}
+/** Every short-form label, for pages that must recognise one. */
+export const shortFormLabels = siteDefinitions.flatMap((s) =>
+  s.shortForm ? [s.shortForm.label] : [],
+);
 export function feedLabels(site: FeedSite): Record<string, string> {
-  const definition = siteDefinitions.find((candidate) => candidate.site === site)!;
-  return Object.fromEntries(Object.entries(definition.elements).filter(([key]) => key === settingKey(key)).map(([key, element]) => [key, element.label]));
+  return Object.fromEntries(
+    Object.entries(siteDefinitions.find((s) => s.site === site)!.elements).map(
+      ([key, value]) => [key, value.label],
+    ),
+  );
 }

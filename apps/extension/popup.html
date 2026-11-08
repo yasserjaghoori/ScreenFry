@@ -1,1 +1,30 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Screentime</title></head><body class="popup-body"><div id="root"></div><script type="module" src="/src/popup/index.tsx"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="icon" type="image/png" href="/icons/icon-32.png" />
+    <title>ScreenFry</title>
+    <!-- Safari sizes the popover before modules finish loading. Keep this shell inline. -->
+    <style>
+      html, body, #root { width: 380px; height: 580px; margin: 0; overflow: hidden; }
+      body { background: #f8f3ec; color: #261e18; font: 14px system-ui, sans-serif; }
+      .popup-loading { padding: 20px; }
+      .popup-loading a { color: #c9460f; }
+      @media (prefers-color-scheme: dark) {
+        body { background: #17120e; color: #f5e9df; }
+        .popup-loading a { color: #ff9a3c; }
+      }
+    </style>
+  </head>
+  <body class="popup-body">
+    <div id="root">
+      <div class="popup-loading" role="status">
+        <strong>ScreenFry</strong>
+        <p>Loading controls…</p>
+        <a href="dashboard.html" target="_blank" rel="noopener">Open ScreenFry in a tab ↗</a>
+      </div>
+    </div>
+    <script type="module" src="/src/popup/index.tsx"></script>
+  </body>
+</html>

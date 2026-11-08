@@ -1,0 +1,105 @@
+name: ScreenFry
+options:
+  bundleIdPrefix: com.screenfry
+  deploymentTarget:
+    macOS: "13.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+packages:
+  # In-app updates from GitHub Releases (docs/DISTRIBUTION.md).
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.4"
+targets:
+  ScreenFry:
+    type: application
+    platform: macOS
+    sources:
+      - path: ScreenFry
+        excludes:
+          - "*.entitlements"
+          - "Info *.plist"
+          - ChromeExtension
+          - "ChromeExtension/**"
+      # The Chrome build, copied by `npm run build:safari`. The app installs it into
+      # ~/Library/Application Support/ScreenFry/Chrome Extension for Chrome to load.
+      - path: ScreenFry/ChromeExtension
+        type: folder
+        buildPhase: resources
+    info:
+      path: ScreenFry/Info.plist
+      properties:
+        CFBundleDisplayName: ScreenFry
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.productivity
+        # Sparkle: checks this feed daily and offers updates. SUPublicEDKey stays empty
+        # (updates off) until a release signing key is generated; see docs/DISTRIBUTION.md.
+        SUFeedURL: https://github.com/yasserjaghoori/ScreenFry/releases/latest/download/appcast.xml
+        SUPublicEDKey: ""
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
+    # The app is not sandboxed: it writes the Chrome folder where Chrome can read it and lets
+    # Sparkle replace the app. The Safari extension inside it stays sandboxed.
+    entitlements:
+      path: ScreenFry/ScreenFry.entitlements
+      properties:
+        com.apple.security.cs.disable-library-validation: false
+    settings:
+      base:
+        # Changing the bundle identifiers makes Safari treat ScreenFry as a new extension
+        # (its settings start fresh), so keep them stable from 0.6.0 on.
+        PRODUCT_NAME: ScreenFry
+        PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry
+        # Required for notarization once the app is Developer ID signed.
+        ENABLE_HARDENED_RUNTIME: YES
+        MARKETING_VERSION: "0.6.0"
+        CURRENT_PROJECT_VERSION: "22"
+    dependencies:
+      - target: ScreenFry Extension
+        embed: true
+      - package: Sparkle
+  ScreenFry Extension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: ScreenFry Extension
+        excludes:
+          - Resources
+          - "*.entitlements"
+      # Safari reads manifest.json from the root of the appex Resources directory, so the
+      # top-level files are added individually; assets/ and icons/ retain their folder paths.
+      - path: ScreenFry Extension/Resources
+        type: group
+        buildPhase: resources
+        excludes:
+          - assets
+          - "assets/**"
+          - icons
+          - "icons/**"
+      - path: ScreenFry Extension/Resources/assets
+        type: folder
+        buildPhase: resources
+      - path: ScreenFry Extension/Resources/icons
+        type: folder
+        buildPhase: resources
+    info:
+      path: ScreenFry Extension/Info.plist
+      properties:
+        CFBundleDisplayName: ScreenFry Extension
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.Safari.web-extension
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).SafariWebExtensionHandler"
+    entitlements:
+      path: ScreenFry Extension/ScreenFry Extension.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+    settings:
+      base:
+        PRODUCT_NAME: ScreenFry Extension
+        PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry.Extension
+        MARKETING_VERSION: "0.6.0"
+        CURRENT_PROJECT_VERSION: "22"

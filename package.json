@@ -1,23 +1,27 @@
 {
-  "name": "screentime",
-  "version": "0.2.0",
+  "name": "screenfry",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite build --watch --config vite.config.ts",
     "build": "tsc --noEmit && vite build --config vite.config.ts && vite build --config vite.content.config.ts && node scripts/verify-build.mjs",
-    "build:safari": "npm run build && mkdir -p 'safari/Screentime/Screentime Extension/Resources' && rsync -a --delete dist/chrome/ 'safari/Screentime/Screentime Extension/Resources/'",
+    "build:safari": "npm run build && mkdir -p 'safari/ScreenFry/ScreenFry Extension/Resources' 'safari/ScreenFry/ScreenFry/ChromeExtension' && rsync -a --delete dist/chrome/ 'safari/ScreenFry/ScreenFry Extension/Resources/' && rsync -a --delete dist/chrome/ 'safari/ScreenFry/ScreenFry/ChromeExtension/' && node scripts/prepare-safari.mjs",
+    "dmg": "node scripts/make-dmg.mjs",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "check": "npm run test && npm run build",
-    "test:e2e": "npm run build && node tests/e2e/chrome-smoke.mjs"
+    "test:e2e": "npm run build && node tests/e2e/chrome-smoke.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "dmg:local": "bash scripts/build-mac-local.sh"
   },
   "dependencies": {
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/chrome": "0.3.7",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",

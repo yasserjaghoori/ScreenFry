@@ -1,49 +1,38 @@
 # Architecture
 
-```
-apps/extension/            UI pages (React) + MV3 service worker + content script
-  src/background/          thin event glue: tracking checkpoints, DNR sync, tab enforcement, alarms
-  src/content-scripts/     feed CSS, SPA navigation, override countdown, warnings (classic IIFE build)
-  src/blocked|popup|onboarding|dashboard/
-  src/ui/                  shared components (PIN pad, private-access guide, formatting)
-packages/
-  shared-types/            AppState, rules, decisions
-  core/                    actions (every state transition), commitments, tracking, PIN, domains, store, migration
-  policy-engine/           deterministic evaluatePolicy / nextAccessTime / boundaries
-  feed-blockers/           per-site selector table with path scoping
-  browser-adapters/        chrome.storage store, message types, Chrome/Safari detection
-safari/                    XcodeGen spec + minimal containing app + generated WebExtension resources
-tests/                     Vitest unit tests; tests/e2e real-Chrome smoke test
-```
+- `apps/extension`: ScreenFry React dashboard, popup, welcome and blocked pages; shared background implementation and classic content script. Chrome runs a module service worker; Safari packaging selects a nonpersistent module background page.
+- `packages/core`: authorized state transitions, optional password hashing, usage accounting, storage migration and domain matching.
+- `packages/policy-engine`: pure allowance/window/short-form decisions and upcoming boundaries.
+- `packages/feed-blockers`: grouped per-site selector definitions and short-form URL matching.
+- `packages/browser-adapters`: messages, serialized storage and Chrome/Safari capability differences.
+- `safari`: macOS containing app and Safari Web Extension target.
 
-## Where the rules live
+## State and authorization
 
-Every change to state goes through `packages/core/src/actions.ts`, which takes an injected store and clock. The background only routes messages there. Sealproof rules are enforced in three places:
+Schema 3 separates `rules` (per-site allowance/manual blocking) from `windows` (allowed times and website whitelists). `feedSettings` contains the individual controls for the five launch sites. All user mutations go through the actions layer and its optional-password check, inside the serialized storage update. Merely hiding a UI control does not authorize a write.
 
-- `commitments.ts`: `weakeningReasons` decides whether an edit is looser. While a rule is committed, `mutateRule` stores looser edits as a `pendingChange`, so the live rule stays the same. Identity fields (`id`, `createdAt`, `pendingChange`) always come from the stored rule.
-- `policy-engine`: `evaluatePolicy(state, url, now)` is pure. When several rules cover a URL, the strictest wins. `nextAccessTime` steps minute by minute in local time, and includes local midnight explicitly. Day-specific allowances, overlapping and overnight schedules, DST and time-zone changes are handled by evaluating each instant in the current zone. `canOverride` already refuses PIN visits for committed `strict` rules (future mode). Phase 1 never stores `strict`.
-- `actions.requestOverride`: the background resolves the rule from the URL, checks the PIN with cooldowns, and grants one shared 10-minute window per rule. It stores absolute timestamps, so restarts neither reset nor extend the window.
+A settings password is a salted PBKDF2-SHA-256 verifier (310,000 iterations). The entered password is held only in the current extension page's memory and supplied on protected edits; it is not persisted or logged. Closing/reloading the page locks it again. Password protection is for changing settings and provides no temporary website access.
 
-The UI disables buttons only as a convenience. Every rule above is enforced in the actions layer.
+Legacy mandatory PINs, overrides, commitments and queued changes are discarded. Usage and applicable feed choices are kept. Legacy blocked schedules become complementary allowed windows; an all-week block becomes explicit site blocking.
 
-## Enforcement layers
+## Policy
 
-1. **declarativeNetRequest** dynamic redirect rules, regenerated from the policy engine, for main frames and sub-frames (embeds). They're removed during an override.
-2. **Tab redirect** of already-open tabs whenever a decision changes (`enforceAllTabs`).
-3. **Content script**: evaluates the same policy locally from `storage.local` on load, on SPA URL changes, on storage changes, and every second in the top frame, so an override ends on time even while the worker is asleep.
+A website is blocked if manually blocked, its daily allowance is exhausted, it is outside every matching enabled allowed window, or its URL identifies disabled short-form content. A matching window is not required for unlisted sites. Overlapping allowed windows combine with OR; all independent restrictions must permit access. Forecasting checks local midnights and window boundaries against the complete policy, so midnight alone does not claim access before the next window and blocked pages avoid repeated minute-by-minute scans.
 
-## Tracking
+Network rules cover blocked domains and direct Shorts/Reels routes. Chrome redirects matched requests to its blocked page; Safari blocks embedded frames only. For top-level pages, tab updates and the content script's authorized `SHOW_BLOCKED_PAGE` request navigate through the background to the notice page, with self-navigation as a fallback. Safari live notice routing remains unverified. Tab enforcement replaces already-open blocked sites. Content scripts enforce storage changes, recognized in-page players and SPA routes, and pause restricted media before redirecting. Button hiding, feed removal and playback blocking have separate controls. DOM mutation checks are limited to supported social sites and coalesced into 50 ms macrotasks so stylesheet removal cannot create an input-starving microtask loop. Media play events still pause restricted playback synchronously. Unrelated pages and frames read state once and then stay idle; relevant embedded frames poll every five seconds. Background tab/network enforcement still covers navigation. State updates skip unchanged writes, reevaluation requests coalesce, and network-rule signatures persist across background-page reloads to avoid recompilation on each wake.
 
-At each event (tab, focus, idle, audible, alarm) the worker checkpoints:
+## Usage
 
-1. Credit the session since the last checkpoint, capped at 90 s per gap so sleep and suspension aren't counted, and split at local midnight.
-2. Choose the next session: the active tab of the focused window, while the user is active or the tab is playing audio.
-3. Persist the session in `storage.session`.
+Track only websites matching enabled rules. Within those websites, track the active tab of the focused window plus tabs playing media. General per-host browsing history is removed during migration and is no longer collected. Content scripts report playback booleans (including muted video and frames), backed by the browser's audible flag. Reports and sessions use `storage.session` when available, with memory fallback. Tabs that are only open in the background do not qualify.
 
-Time goes to the rules covering the URL: `millisecondsByRule` when allowed, `overrideMillisecondsByRule` during a PIN visit. Per-host history is recorded only if the user keeps general history on. A one-minute heartbeat plus a precise boundary alarm bounds both data loss and enforcement delay, at about one storage write per minute while browsing.
+Checkpoint intervals are unioned per rule to prevent double-counting two tabs of the same site. Intervals split at midnight, session boundaries and policy boundaries. Credit is capped at the remaining allowance and at 90 seconds per checkpoint gap. A heartbeat and policy-boundary alarms/timers handle sleep, midnight, window changes and limit exhaustion.
 
-## Future phases
+## Feed source
 
-- `EnforcementMode` already includes `strict`. Enabling it is a UI and product decision; the engine supports it.
-- `StateStore` is an interface. A Phase 2 macOS companion could provide an authoritative store or clock through `SafariWebExtensionHandler` native messaging, without changing the policy code.
-- Chrome and Safari state are deliberately separate in Phase 1.
+Selected CSS selectors are adapted from Saner Social Media revision `f795e09d9408733bf543836c319915be7a5cfd99`. The complete MIT notice ships in `apps/extension/public/THIRD_PARTY_NOTICES.txt`, copied to both browser builds. SocialFocus supplied the interaction reference, not source code or assets.
+
+## Site registry and branding
+
+`siteDefinitions` in `packages/feed-blockers` supplies site names, domains, controls and short-form detection. Default rules, site pickers and network rules derive from it; see [Adding a website](ADDING_A_SITE.md).
+
+The supplied melting-monitor PNG in `assets/branding` is the color-logo source. `npm run icons` generates extension/UI/favicon assets, the native AppIcon and Dock fallback, plus a monochrome toolbar counterpart. See [Branding](../assets/branding/README.md).

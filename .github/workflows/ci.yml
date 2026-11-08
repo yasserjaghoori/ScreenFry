@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chrome:
+    name: Unit tests and Chrome integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: Chrome smoke test (uses the verified build)
+        run: node tests/e2e/chrome-smoke.mjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+  safari:
+    name: Unsigned Safari build
+    runs-on: macos-latest
+    timeout-minutes: 20
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: brew install xcodegen
+      - run: npm run build:safari
+      - run: xcodegen generate --spec safari/ScreenFry/project.yml
+      - name: Compile app and extension without signing
+        run: >-
+          xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj
+          -scheme ScreenFry -configuration Debug -derivedDataPath dist/safari
+          CODE_SIGNING_ALLOWED=NO build
+      - name: Verify Safari package and generated entitlements
+        run: node scripts/verify-safari.mjs dist/safari/Build/Products/Debug/ScreenFry.app
+
+  dmg:
+    name: Test download (disk image)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: brew install xcodegen
+      - run: npm run build:safari
+      - run: xcodegen generate --spec safari/ScreenFry/project.yml
+      - name: Build an ad-hoc signed Release app (what a test download contains)
+        run: >-
+          xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj
+          -scheme ScreenFry -configuration Release -derivedDataPath dist/safari
+          CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=
+          ENABLE_HARDENED_RUNTIME=NO build
+      - run: node scripts/verify-safari.mjs dist/safari/Build/Products/Release/ScreenFry.app
+      - run: node scripts/verify-macos-signing.mjs dist/safari/Build/Products/Release/ScreenFry.app
+      - name: Launch the app and make sure it keeps running
+        run: |
+          APP=dist/safari/Build/Products/Release/ScreenFry.app
+          "$APP/Contents/MacOS/ScreenFry" > launch.log 2>&1 &
+          PID=$!
+          sleep 8
+          if ! kill -0 "$PID" 2>/dev/null; then
+            echo "ScreenFry exited during launch:"; cat launch.log
+            ls -t ~/Library/Logs/DiagnosticReports/ScreenFry* 2>/dev/null | head -1 | xargs -I{} head -60 {}
+            exit 1
+          fi
+          kill "$PID"
+          cat launch.log
+      - run: npm run dmg -- dist/safari/Build/Products/Release/ScreenFry.app
+      - name: Check the disk image layout
+        run: |
+          DMG=$(ls dist/ScreenFry-*.dmg)
+          hdiutil attach -nobrowse -readonly -mountpoint /tmp/screenfry-dmg "$DMG"
+          ls -la /tmp/screenfry-dmg
+          test -d /tmp/screenfry-dmg/ScreenFry.app
+          test -L /tmp/screenfry-dmg/Applications
+          hdiutil detach /tmp/screenfry-dmg
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ScreenFry-test-download
+          path: dist/ScreenFry-*.dmg
+          retention-days: 14

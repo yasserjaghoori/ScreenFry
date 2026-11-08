@@ -1,0 +1,131 @@
+name: Release
+
+# Builds ScreenFry.app (with the Safari and Chrome extensions inside), packages the
+# drag-to-Applications disk image, and publishes a GitHub Release with the update feed.
+# Optional secrets switch on the later steps (docs/DISTRIBUTION.md):
+#   DEVELOPER_ID_P12, DEVELOPER_ID_P12_PASSWORD, APPLE_TEAM_ID  -> Developer ID signing
+#   APPLE_ID, APPLE_APP_PASSWORD (with APPLE_TEAM_ID)          -> notarization
+#   SPARKLE_PRIVATE_KEY                                         -> signed in-app updates
+# Without them the release is a test build: ad-hoc signed, with updates off.
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Mark as a pre-release
+        type: boolean
+        default: true
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HAS_DEVELOPER_ID: ${{ secrets.DEVELOPER_ID_P12 != '' }}
+      HAS_NOTARY: ${{ secrets.APPLE_APP_PASSWORD != '' }}
+      HAS_SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: brew install xcodegen
+      - run: npm run build:safari
+
+      - name: Version and tag
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Add the update signing public key
+        if: env.HAS_SPARKLE_KEY == 'true'
+        run: |
+          test -n "${{ vars.SPARKLE_PUBLIC_KEY }}" || { echo "Set the SPARKLE_PUBLIC_KEY repository variable"; exit 1; }
+          sed -i '' 's|SUPublicEDKey: ""|SUPublicEDKey: "${{ vars.SPARKLE_PUBLIC_KEY }}"|' safari/ScreenFry/project.yml
+
+      - run: xcodegen generate --spec safari/ScreenFry/project.yml
+
+      - name: Import Developer ID certificate
+        if: env.HAS_DEVELOPER_ID == 'true'
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/build.keychain"
+          security create-keychain -p "" "$KEYCHAIN"
+          security set-keychain-settings "$KEYCHAIN"
+          security unlock-keychain -p "" "$KEYCHAIN"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+
+      - name: Build ScreenFry.app
+        run: |
+          if [ "$HAS_DEVELOPER_ID" = "true" ]; then
+            SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=Developer ID Application" DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" OTHER_CODE_SIGN_FLAGS=--timestamp)
+          else
+            # Ad-hoc: runs after "Open Anyway", and Safari needs Allow Unsigned Extensions.
+            # The hardened runtime (needed only for notarization) refuses to load the ad-hoc
+            # signed Sparkle framework, so test builds leave it off.
+            SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= ENABLE_HARDENED_RUNTIME=NO)
+          fi
+          xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj -scheme ScreenFry \
+            -configuration Release -derivedDataPath dist/safari "${SIGNING[@]}" build
+          node scripts/verify-safari.mjs dist/safari/Build/Products/Release/ScreenFry.app
+          node scripts/verify-macos-signing.mjs dist/safari/Build/Products/Release/ScreenFry.app
+
+      - name: Package disk image
+        run: npm run dmg -- dist/safari/Build/Products/Release/ScreenFry.app
+
+      - name: Sign disk image
+        if: env.HAS_DEVELOPER_ID == 'true'
+        run: codesign --sign "Developer ID Application" --timestamp "dist/ScreenFry-${{ steps.version.outputs.version }}.dmg"
+
+      - name: Notarize
+        if: env.HAS_DEVELOPER_ID == 'true' && env.HAS_NOTARY == 'true'
+        run: |
+          DMG="dist/ScreenFry-${{ steps.version.outputs.version }}.dmg"
+          xcrun notarytool submit "$DMG" --apple-id "${{ secrets.APPLE_ID }}" \
+            --team-id "${{ secrets.APPLE_TEAM_ID }}" --password "${{ secrets.APPLE_APP_PASSWORD }}" --wait
+          xcrun stapler staple "$DMG"
+
+      - name: Update feed
+        if: env.HAS_SPARKLE_KEY == 'true'
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          TOOLS=$(find dist/safari/SourcePackages/artifacts -type d -path "*Sparkle*/bin" | head -1)
+          mkdir -p dist/updates
+          cp "dist/ScreenFry-${{ steps.version.outputs.version }}.dmg" dist/updates/
+          echo "$SPARKLE_PRIVATE_KEY" | "$TOOLS/generate_appcast" --ed-key-file - \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/" \
+            -o dist/updates/appcast.xml dist/updates
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FILES=("dist/ScreenFry-${{ steps.version.outputs.version }}.dmg")
+          [ -f dist/updates/appcast.xml ] && FILES+=(dist/updates/appcast.xml)
+          PRE=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.prerelease }}" = "true" ]; then PRE="--prerelease"; fi
+          if [ "$HAS_DEVELOPER_ID" != "true" ]; then
+            NOTES="Test build (not yet signed by Apple). See docs/DISTRIBUTION.md for the first-open steps."
+          else
+            NOTES="ScreenFry ${{ steps.version.outputs.version }}"
+          fi
+          gh release create "${{ steps.version.outputs.tag }}" "${FILES[@]}" \
+            --target "${{ github.sha }}" --title "ScreenFry ${{ steps.version.outputs.version }}" \
+            --notes "$NOTES" $PRE
