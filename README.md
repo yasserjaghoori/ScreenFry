@@ -50,6 +50,16 @@ If an allow window and a block window overlap, **blocking wins**. Daily limits a
 
 ## Install
 
+### Download (Mac)
+
+1. Download the latest `ScreenFry-<version>.dmg` from [Releases](https://github.com/yasserjaghoori/Screentime/releases).
+2. Open it and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications.
+3. The app walks you through turning on **Safari** (one switch in Safari's settings) and **Chrome** (turn on Developer mode, then drag the ScreenFry tile onto Chrome's Extensions page).
+
+To update, drag a newer download over the old app, or use **Check for Updates…** once updates are turned on. Both browsers update together and keep your settings. Current downloads are test builds that aren't yet signed by Apple, so the first open needs **Open Anyway** in System Settings. Details are in [Distribution](docs/DISTRIBUTION.md).
+
+### Build from source
+
 You'll need [Node.js](https://nodejs.org) (the version in `.nvmrc`).
 
 ```bash
@@ -57,7 +67,7 @@ npm ci
 npm run build
 ```
 
-### Chrome
+#### Chrome
 
 1. Open `chrome://extensions` and turn on **Developer mode**.
 2. Click **Load unpacked** and choose the `dist/chrome` folder.
@@ -66,7 +76,7 @@ npm run build
 
 After rebuilding, click **Reload** on the ScreenFry card.
 
-### Safari (macOS)
+#### Safari (macOS)
 
 You'll also need Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
@@ -116,4 +126,4 @@ More in [Enforcement limits](docs/THREAT_MODEL.md) and [Privacy](docs/PRIVACY.md
 
 The interface is inspired by [SocialFocus](https://socialfocus.app); none of its code or artwork is used. Some feed selectors are adapted from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia) under the MIT license, whose full notice ships with both builds.
 
-**Docs:** [Project brief](docs/PROJECT_BRIEF.md) · [Architecture](docs/ARCHITECTURE.md) · [Development setup](docs/SETUP.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Adding a website](docs/ADDING_A_SITE.md) · [Branding](assets/branding/README.md) · [AI handoff](docs/AI_HANDOFF.md)
+**Docs:** [Project brief](docs/PROJECT_BRIEF.md) · [Architecture](docs/ARCHITECTURE.md) · [Development setup](docs/SETUP.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Distribution](docs/DISTRIBUTION.md) · [Adding a website](docs/ADDING_A_SITE.md) · [Branding](assets/branding/README.md) · [AI handoff](docs/AI_HANDOFF.md)
