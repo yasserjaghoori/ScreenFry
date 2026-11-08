@@ -504,6 +504,7 @@ if (hasIdleApi()) {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === HEARTBEAT || alarm.name === BOUNDARY)
     void reevaluate(true);
+  if (alarm.name === HEARTBEAT) void reloadIfUpdatedOnDisk();
 });
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await ensureAlarms();
@@ -517,6 +518,28 @@ chrome.runtime.onStartup.addListener(() => {
     .then(refreshProtection)
     .then(() => reevaluate(true));
 });
+/**
+ * Chrome loads ScreenFry from a folder the Mac app keeps current (an unpacked install).
+ * After an app update the files on disk are newer than the code running, so reload to pick
+ * them up. Store installs update themselves and are skipped.
+ */
+async function reloadIfUpdatedOnDisk() {
+  if (browser !== "chrome") return;
+  try {
+    const self = await chrome.management.getSelf();
+    if (self.installType !== "development") return;
+    const response = await fetch(chrome.runtime.getURL("manifest.json"), {
+      cache: "no-store",
+    });
+    const onDisk = ((await response.json()) as { version?: string }).version;
+    if (onDisk && onDisk !== chrome.runtime.getManifest().version) {
+      console.info(`ScreenFry: reloading to apply ${onDisk}`);
+      chrome.runtime.reload();
+    }
+  } catch {
+    /* management unavailable or manifest mid-update; try again next heartbeat */
+  }
+}
 async function start() {
   try {
     media =
@@ -527,6 +550,7 @@ async function start() {
   }
   await ensureAlarms();
   await reevaluate();
+  await reloadIfUpdatedOnDisk();
 }
 void start();
 console.info(`ScreenFry ready (${browser})`);

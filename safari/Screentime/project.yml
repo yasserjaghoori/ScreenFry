@@ -6,6 +6,11 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
+packages:
+  # In-app updates from GitHub Releases (docs/DISTRIBUTION.md).
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.4"
 targets:
   Screentime:
     type: application
@@ -14,6 +19,13 @@ targets:
       - path: Screentime
         excludes:
           - "*.entitlements"
+          - ChromeExtension
+          - "ChromeExtension/**"
+      # The Chrome build, copied by `npm run build:safari`. The app installs it into
+      # ~/Library/Application Support/ScreenFry/Chrome Extension for Chrome to load.
+      - path: Screentime/ChromeExtension
+        type: folder
+        buildPhase: resources
     info:
       path: Screentime/Info.plist
       properties:
@@ -21,21 +33,32 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
+        # Sparkle: checks this feed daily and offers updates. SUPublicEDKey stays empty
+        # (updates off) until a release signing key is generated; see docs/DISTRIBUTION.md.
+        SUFeedURL: https://github.com/yasserjaghoori/Screentime/releases/latest/download/appcast.xml
+        SUPublicEDKey: ""
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
+    # The app is not sandboxed: it writes the Chrome folder where Chrome can read it and lets
+    # Sparkle replace the app. The Safari extension inside it stays sandboxed.
     entitlements:
       path: Screentime/Screentime.entitlements
       properties:
-        com.apple.security.app-sandbox: true
+        com.apple.security.cs.disable-library-validation: false
     settings:
       base:
         # The user-facing name. Bundle identifiers stay com.screentime.* so Safari keeps
         # the existing registration and the settings stored against it.
         PRODUCT_NAME: ScreenFry
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime
-        MARKETING_VERSION: "0.4.10"
-        CURRENT_PROJECT_VERSION: "19"
+        # Required for notarization once the app is Developer ID signed.
+        ENABLE_HARDENED_RUNTIME: YES
+        MARKETING_VERSION: "0.5.0"
+        CURRENT_PROJECT_VERSION: "20"
     dependencies:
       - target: Screentime Extension
         embed: true
+      - package: Sparkle
   Screentime Extension:
     type: app-extension
     platform: macOS
@@ -77,5 +100,5 @@ targets:
       base:
         PRODUCT_NAME: ScreenFry Extension
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime.Extension
-        MARKETING_VERSION: "0.4.10"
-        CURRENT_PROJECT_VERSION: "19"
+        MARKETING_VERSION: "0.5.0"
+        CURRENT_PROJECT_VERSION: "20"

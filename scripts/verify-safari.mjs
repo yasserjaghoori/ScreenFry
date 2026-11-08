@@ -17,17 +17,30 @@ const plist = (path) =>
   );
 const errors = [];
 
-for (const target of [
-  "Screentime/Screentime.entitlements",
-  "Screentime Extension/Screentime Extension.entitlements",
-]) {
-  if (
-    plist(join(projectRoot, "safari/Screentime", target))[
-      "com.apple.security.app-sandbox"
-    ] !== true
-  )
-    errors.push(`${target} lost its sandbox entitlement`);
+// The Safari extension must stay sandboxed. The containing app is deliberately not
+// sandboxed (it installs the Chrome folder and runs Sparkle updates).
+if (
+  plist(
+    join(
+      projectRoot,
+      "safari/Screentime/Screentime Extension/Screentime Extension.entitlements",
+    ),
+  )["com.apple.security.app-sandbox"] !== true
+)
+  errors.push("the Safari extension lost its sandbox entitlement");
+const chromeDir = join(app, "Contents/Resources/ChromeExtension");
+if (!existsSync(join(chromeDir, "manifest.json")))
+  errors.push("missing bundled Chrome extension");
+else {
+  const chrome = JSON.parse(readFileSync(join(chromeDir, "manifest.json"), "utf8"));
+  if (!chrome.background?.service_worker)
+    errors.push("bundled Chrome extension must keep its service worker");
 }
+if (!existsSync(join(app, "Contents/Frameworks/Sparkle.framework")))
+  errors.push("Sparkle updater framework is not embedded");
+const appInfo = plist(join(app, "Contents/Info.plist"));
+if (!/^https:\/\/github\.com\/.+\/appcast\.xml$/.test(appInfo.SUFeedURL ?? ""))
+  errors.push("update feed URL is missing");
 const info = plist(join(extension, "Contents/Info.plist"));
 if (
   info.NSExtension?.NSExtensionPointIdentifier !==
@@ -92,9 +105,13 @@ if (!errors.length) {
   const packageVersion = JSON.parse(
     readFileSync(join(projectRoot, "package.json"), "utf8"),
   ).version;
+  const chromeVersion = existsSync(join(chromeDir, "manifest.json"))
+    ? JSON.parse(readFileSync(join(chromeDir, "manifest.json"), "utf8")).version
+    : undefined;
   if (
     manifest.version !== packageVersion ||
-    info.CFBundleShortVersionString !== packageVersion
+    info.CFBundleShortVersionString !== packageVersion ||
+    chromeVersion !== packageVersion
   )
     errors.push("Safari version does not match the package");
   if (

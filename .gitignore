@@ -7,3 +7,4 @@ xcuserdata/
 
 # Rebuilt from source by npm run build:safari.
 /safari/Screentime/Screentime Extension/Resources/
+/safari/Screentime/Screentime/ChromeExtension/

@@ -53,9 +53,12 @@ if (
   /^export\s/m.test(content)
 )
   errors.push("content.js must be a classic script without import/export");
+// The one allowed fetch reads ScreenFry's own packaged manifest (a local extension file) to
+// notice a newer build on disk; anything else would be a network request.
+const ownManifestRead = /\bfetch\(\s*chrome\.runtime\.getURL\(\s*["'`]manifest\.json["'`]\s*\)/g;
 if (
   /\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket/.test(
-    read(manifest.background.service_worker) + content,
+    (read(manifest.background.service_worker) + content).replace(ownManifestRead, ""),
   )
 )
   errors.push("background/content must not make network requests");
