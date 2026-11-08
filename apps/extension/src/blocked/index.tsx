@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { send } from "@browser/messages";
 import { parseWebUrl } from "@core/domains";
+import { shortFormLabels } from "@feeds/index";
 import type { PolicyDecision } from "@shared/index";
 import { formatWhen } from "../ui/format";
 import "../styles/global.css";
@@ -29,8 +30,7 @@ function Blocked() {
   const requested = params.get("label") ?? "";
   // A short-form player found inside an ordinary page: the page itself is allowed, but the
   // notice must still explain the short-form block rather than invite the user straight back.
-  const shortForm =
-    requested === "YouTube Shorts" || requested === "Instagram Reels";
+  const shortForm = shortFormLabels.includes(requested);
   const allowed = decision?.status === "allowed";
   const label =
     (allowed && shortForm ? requested : decision?.ruleLabel) ??

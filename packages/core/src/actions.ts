@@ -218,14 +218,10 @@ export const setFeeds = (ctx: ActionContext, input: FeedSettings) =>
   });
 export const setPreferences = (
   ctx: ActionContext,
-  input: { trackingEnabled?: boolean; warningsEnabled?: boolean },
+  input: { warningsEnabled?: boolean },
 ) =>
   protectedUpdate(ctx, (s) => ({
     ...s,
-    trackingEnabled:
-      typeof input.trackingEnabled === "boolean"
-        ? input.trackingEnabled
-        : s.trackingEnabled,
     warningsEnabled:
       typeof input.warningsEnabled === "boolean"
         ? input.warningsEnabled
@@ -254,14 +250,6 @@ export async function recordProtection(
     return s;
   });
 }
-export const deleteHistory = (ctx: ActionContext) =>
-  protectedUpdate(ctx, (s) => {
-    const key = localDateKey(new Date(ctx.now())),
-      today = s.usage[key];
-    // Clearing history does not replenish today's time limits.
-    s.usage = today ? { [key]: { ...today, millisecondsByHost: {} } } : {};
-    return s;
-  });
 export const resetAll = (ctx: ActionContext) =>
   protectedUpdate(ctx, (s) => ({
     ...createDefaultState(s.protection.browser),

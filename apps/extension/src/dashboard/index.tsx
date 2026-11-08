@@ -31,7 +31,7 @@ function Dashboard() {
     () =>
       launchSites.find(
         (s) => s.id === new URLSearchParams(location.search).get("site"),
-      )?.id ?? "youtube",
+      )?.id ?? launchSites[0].id,
   );
   const [notice, setNotice] = useState<Notice>(),
     [unlocked, setUnlocked] = useState(false);

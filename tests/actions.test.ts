@@ -43,9 +43,10 @@ describe("no mandatory PIN or commitment", () => {
         ?.defaultMinutes,
     ).toBe(90);
     expect((await actions.deleteRule(ctx, "youtube")).ok).toBe(true);
-    expect((await store.get()).rules.some((r) => r.id === "youtube")).toBe(
-      false,
-    );
+    // A launch site always has a rule; removing its limits leaves it unrestricted.
+    const youtube = (await store.get()).rules.find((r) => r.id === "youtube");
+    expect(youtube?.dailyAllowance).toBeUndefined();
+    expect(youtube?.blocked).toBe(false);
   });
 });
 describe("optional settings password", () => {
@@ -66,7 +67,6 @@ describe("optional settings password", () => {
     "delete-window",
     "feeds",
     "preferences",
-    "history",
     "reset",
     "password",
   ] as const)(
@@ -85,7 +85,6 @@ describe("optional settings password", () => {
           }),
         preferences: () =>
           actions.setPreferences(ctx, { warningsEnabled: false }),
-        history: () => actions.deleteHistory(ctx),
         reset: () => actions.resetAll(ctx),
         password: () => actions.setSettingsPassword(ctx, "replacement"),
       };
@@ -205,14 +204,13 @@ describe("validation and persistence", () => {
       "youtu.be",
     );
   });
-  it("retains counted time after allowance edits and history clearing", async () => {
+  it("retains counted time after allowance edits", async () => {
     await actions.saveRule(ctx, rule());
     await store.update((s) => setUsage(s, 12 * MIN, "youtube", clock.value));
     await actions.saveRule(
       ctx,
       rule({ dailyAllowance: { defaultMinutes: 15 } }),
     );
-    await actions.deleteHistory(ctx);
     expect(
       (await store.get()).usage[localDateKey(new Date(clock.value))]
         .millisecondsByRule.youtube,

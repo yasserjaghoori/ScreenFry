@@ -19,7 +19,7 @@ import {
   sessionArea,
 } from "@browser/platform";
 import { chromeStateStore } from "@browser/storage";
-import { siteFor } from "@feeds/index";
+import { activeShortForm, siteDefinitions } from "@feeds/index";
 import {
   extensionPageUrl,
   networkBlockAction,
@@ -109,20 +109,17 @@ async function syncNetworkRules(state: AppState) {
         decision.ruleLabel ?? domain,
       );
   });
-  if (state.feedSettings.globalEnabled) {
-    if (state.feedSettings.sites.youtube.shorts)
-      redirect(
-        50_001,
-        "^(https?://([^/?#]+\\.)?(youtube\\.com|youtube-nocookie\\.com)\\.?(:[0-9]+)?/shorts([/?#].*)?)$",
-        "YouTube Shorts",
-      );
-    if (state.feedSettings.sites.instagram.reels)
-      redirect(
-        50_002,
-        "^(https?://([^/?#]+\\.)?(instagram\\.com|instagr\\.am)\\.?(:[0-9]+)?/reels?([/?#].*)?)$",
-        "Instagram Reels",
-      );
-  }
+  // One rule per site whose "block short-form entirely" setting is on.
+  siteDefinitions.forEach((site, index) => {
+    const short = site.shortForm;
+    if (!short || !activeShortForm(state.feedSettings, site.domains[0])) return;
+    const hosts = site.domains.map(escapeRegex).join("|");
+    redirect(
+      50_001 + index,
+      `^(https?://([^/?#]+\\.)?(${hosts})\\.?(:[0-9]+)?/(${short.pathSegment})([/?#].*)?)$`,
+      short.label,
+    );
+  });
   const signature = JSON.stringify(addRules);
   // Already installed during this background lifetime: skip the browser round trip.
   if (signature === lastNetworkRules) return;
@@ -185,7 +182,8 @@ async function currentIdleState(): Promise<IdleState> {
     return "active";
   }
 }
-async function findTrackableTabs() {
+/** Only tabs on websites with a rule are tracked; nothing is recorded about other browsing. */
+async function findTrackableTabs(state: AppState) {
   const [tabs, window, idle] = await Promise.all([
     chrome.tabs.query({}),
     chrome.windows.getLastFocused(),
@@ -200,7 +198,7 @@ async function findTrackableTabs() {
     ),
   }));
   return pickTrackedTabs(
-    enriched,
+    enriched.filter((t) => matchingRules(state, t.url ?? "").length),
     window.focused ? window.id : undefined,
     idle,
   );
@@ -216,7 +214,7 @@ const sameTabs = (a: TrackingSession[], b: { id?: number; url?: string }[]) =>
 async function checkpointTracking(force: boolean) {
   const now = Date.now(),
     sessions = await loadSessions();
-  const tabs = await findTrackableTabs();
+  const tabs = await findTrackableTabs(await chromeStateStore.get());
   if (!force && sessions.length && sameTabs(sessions, tabs)) return;
   if (sessions.length) {
     let warnings: {
@@ -337,21 +335,8 @@ function shortFormLabelAllowed(
   url: string,
   label: string,
 ): string | undefined {
-  const feeds = state.feedSettings;
-  if (!feeds.globalEnabled) return;
-  const site = siteFor(new URL(url).hostname)?.site;
-  if (
-    label === "YouTube Shorts" &&
-    site === "youtube" &&
-    feeds.sites.youtube.shorts
-  )
-    return label;
-  if (
-    label === "Instagram Reels" &&
-    site === "instagram" &&
-    feeds.sites.instagram.reels
-  )
-    return label;
+  const short = activeShortForm(state.feedSettings, new URL(url).hostname);
+  return short?.label === label ? label : undefined;
 }
 const isExtensionSender = (sender: chrome.runtime.MessageSender) =>
   sender.id === chrome.runtime.id &&
@@ -463,8 +448,6 @@ async function handle(
       return actions.completeOnboarding(auth);
     case "REFRESH_PROTECTION":
       return { ok: true, data: await refreshProtection() };
-    case "DELETE_HISTORY":
-      return actions.deleteHistory(auth);
     case "RESET_ALL": {
       const r = await actions.resetAll(auth);
       await reevaluate(true);

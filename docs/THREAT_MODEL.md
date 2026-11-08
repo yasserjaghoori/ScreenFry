@@ -6,7 +6,7 @@ Screentime is a browser productivity tool. It applies selected controls while th
 
 - Full-site blocking at exhausted daily limits and outside enabled allowed windows.
 - Independent feed/button choices, Shorts/Reels URL blocking and playback suppression in recognized short-form players.
-- Optional password checks on all user mutations: site rules, windows, feed settings, preferences, history deletion, password replacement/removal and reset.
+- Optional password checks on all user mutations: site rules, windows, feed settings, preferences, password replacement/removal and reset.
 - Web-page content scripts can report media status and request policy decisions; they cannot change settings.
 - No temporary visits, PIN bypasses, commitment dates or queued changes.
 

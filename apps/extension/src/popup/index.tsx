@@ -15,7 +15,7 @@ import "../styles/dashboard.css";
 import "../styles/popup.css";
 function Popup() {
   const [state, setState] = useState<AppState>(),
-    [site, setSite] = useState<FeedSite>("youtube"),
+    [site, setSite] = useState<FeedSite>(launchSites[0].id),
     [error, setError] = useState(""),
     [unlocked, setUnlocked] = useState(false);
   useEffect(() => {

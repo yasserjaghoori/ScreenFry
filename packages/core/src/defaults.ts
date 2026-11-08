@@ -31,7 +31,6 @@ export function createDefaultState(browser: BrowserKind = "chrome"): AppState {
     usage: {},
     feedSettings: structuredClone(feedDefaults),
     protection: { browser, privateAccess: "unverified" },
-    trackingEnabled: true,
     warningsEnabled: true,
   };
 }
@@ -39,7 +38,6 @@ export function emptyUsageDay(dateKey: string): UsageDay {
   return {
     dateKey,
     millisecondsByRule: {},
-    millisecondsByHost: {},
     warningsSent: {},
   };
 }
@@ -96,7 +94,6 @@ export function migrateState(
   if (!object(raw)) return state;
   const legacy = raw.schemaVersion !== 3;
   state.onboardingComplete = raw.onboardingComplete === true;
-  state.trackingEnabled = raw.trackingEnabled !== false;
   state.warningsEnabled = raw.warningsEnabled !== false;
   if (typeof raw.usageAsOf === "number") state.usageAsOf = raw.usageAsOf;
   state.windows =
@@ -104,8 +101,9 @@ export function migrateState(
       ? (raw.windows as AccessWindow[])
       : [];
   state.rules = Array.isArray(raw.rules)
-    ? (raw.rules as Record<string, unknown>[]).filter(object).map(
-        (r): WebsiteRule => ({
+    ? (raw.rules as Record<string, unknown>[])
+        .filter(object)
+        .map((r): WebsiteRule => ({
           id: String(r.id),
           label: String(r.label ?? "Website"),
           domains: Array.isArray(r.domains) ? (r.domains as string[]) : [],
@@ -117,8 +115,7 @@ export function migrateState(
           showTimer: r.showTimer === true,
           createdAt: Number(r.createdAt) || 0,
           updatedAt: Number(r.updatedAt) || 0,
-        }),
-      )
+        }))
     : defaultRules();
   if (legacy && Array.isArray(raw.rules)) {
     (raw.rules as Record<string, unknown>[]).forEach((r, i) => {
@@ -134,6 +131,15 @@ export function migrateState(
       "Mandatory PINs, temporary visits and commitments have been removed. Existing blocked schedules were converted into allowed windows; please review Windows.";
   } else if (typeof raw.migrationNotice === "string")
     state.migrationNotice = raw.migrationNotice;
+  // Websites added to the registry after this install get their default (unrestricted) rule.
+  for (const fresh of defaultRules())
+    if (
+      !state.rules.some(
+        (r) =>
+          r.id === fresh.id || r.domains.some((d) => fresh.domains.includes(d)),
+      )
+    )
+      state.rules.push(fresh);
   // A legacy mandatory PIN is intentionally NOT turned into an optional settings password.
   if (!legacy && object(raw.settingsPassword))
     state.settingsPassword =
@@ -148,9 +154,6 @@ export function migrateState(
         dateKey: key,
         millisecondsByRule: object(value.millisecondsByRule)
           ? (value.millisecondsByRule as Record<string, number>)
-          : {},
-        millisecondsByHost: object(value.millisecondsByHost)
-          ? (value.millisecondsByHost as Record<string, number>)
           : {},
         warningsSent: object(value.warningsSent)
           ? (value.warningsSent as Record<string, number[]>)

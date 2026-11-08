@@ -1,6 +1,7 @@
 /** Reads URL, selector attributes and media playback state only. No page text or form data. */
 import { migrateState } from "@core/defaults";
 import {
+  activeShortForm,
   buildBlockingCss,
   enabledElements,
   shortFormBlock,
@@ -37,27 +38,17 @@ function applyCss(css: string) {
   if (sheet.parentNode !== parent) parent.append(sheet);
 }
 function documentShortForm(): string | undefined {
-  if (!state?.feedSettings.globalEnabled) return;
-  const site = siteFor(location.hostname)?.site;
-  if (site === "youtube" && state.feedSettings.sites.youtube.shorts) {
-    const canonical = document.querySelector<HTMLLinkElement>(
-      'link[rel="canonical"]',
-    )?.href;
-    if (canonical && shortFormBlock(state.feedSettings, canonical))
-      return "YouTube Shorts";
-    if (
-      document.querySelector(
-        'ytd-reel-video-renderer[is-active] video, ytd-shorts:not([hidden]) ytd-reel-video-renderer[is-active], [data-testid="shorts-player"] video',
-      )
-    )
-      return "YouTube Shorts";
-  }
-  if (
-    site === "instagram" &&
-    state.feedSettings.sites.instagram.reels &&
-    document.querySelector('[data-testid="reels-viewer"] video')
-  )
-    return "Instagram Reels";
+  if (!state) return;
+  const short = activeShortForm(state.feedSettings, location.hostname);
+  if (!short) return;
+  // SPA navigation can update the canonical link before the address bar.
+  const canonical = document.querySelector<HTMLLinkElement>(
+    'link[rel="canonical"]',
+  )?.href;
+  if (canonical && shortFormBlock(state.feedSettings, canonical))
+    return short.label;
+  if (document.querySelector(short.playerSelectors.join(",")))
+    return short.label;
 }
 function blockedMedia(media: HTMLMediaElement): boolean {
   if (!state) return false;

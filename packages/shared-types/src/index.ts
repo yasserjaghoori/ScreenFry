@@ -31,8 +31,8 @@ export interface WebsiteRule {
 }
 export interface UsageDay {
   dateKey: string;
+  /** Time counted toward each website rule. ScreenFry records nothing about other websites. */
   millisecondsByRule: Record<string, number>;
-  millisecondsByHost: Record<string, number>;
   warningsSent: Record<string, number[]>;
 }
 export interface PasswordVerifier {
@@ -67,7 +67,6 @@ export interface AppState {
   usageAsOf?: number;
   feedSettings: FeedSettings;
   protection: ProtectionStatus;
-  trackingEnabled: boolean;
   warningsEnabled: boolean;
   migrationNotice?: string;
 }

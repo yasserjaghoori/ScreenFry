@@ -11,11 +11,34 @@ export interface FeedElement {
   when?: (url: URL) => boolean;
   pauseMedia?: boolean;
 }
+/** Blocks a short-form video format (Shorts, Reels…) entirely when its setting is on. */
+export interface ShortFormDefinition {
+  /** Key in `elements` whose switch turns the block on, e.g. "shorts". */
+  setting: string;
+  /** Shown on the blocked page, e.g. "YouTube Shorts". */
+  label: string;
+  /** First path segment(s) of short-form URLs, as a regex fragment, e.g. "shorts" or "reels?". */
+  pathSegment: string;
+  /** Players that mean short-form is playing even without a short-form URL (modals, SPA). */
+  playerSelectors: string[];
+  /** A real short-form path, used by tests, e.g. "/shorts/abc". */
+  examplePath: string;
+}
+/**
+ * The single registry of supported websites. Adding a website means adding one entry here
+ * (plus its id in the FeedSite type); the dashboard, popup, windows picker, default rules,
+ * network rules and short-form blocking all read from this list. See docs/ADDING_A_SITE.md.
+ */
 export interface SiteDefinition {
   site: FeedSite;
   name: string;
+  /** Main domain first; the rest are aliases and embed domains. Subdomains always match. */
   domains: string[];
+  /** Brand color and a one-character mark for the site's avatar in the UI. */
+  color: string;
+  symbol: string;
   elements: Record<string, FeedElement>;
+  shortForm?: ShortFormDefinition;
 }
 const path = (url: URL) => url.pathname.replace(/\/+$/, "") || "/";
 const at =
@@ -32,8 +55,21 @@ const element = (
 export const siteDefinitions: SiteDefinition[] = [
   {
     site: "youtube",
+    color: "#e34436",
+    symbol: "▶",
     name: "YouTube",
     domains: ["youtube.com", "youtube-nocookie.com"],
+    shortForm: {
+      setting: "shorts",
+      label: "YouTube Shorts",
+      pathSegment: "shorts",
+      examplePath: "/shorts/abc",
+      playerSelectors: [
+        "ytd-reel-video-renderer[is-active] video",
+        "ytd-shorts:not([hidden]) ytd-reel-video-renderer[is-active]",
+        '[data-testid="shorts-player"] video',
+      ],
+    },
     elements: {
       home: element(
         "Hide home feed",
@@ -114,8 +150,17 @@ export const siteDefinitions: SiteDefinition[] = [
   },
   {
     site: "instagram",
+    color: "#b84783",
+    symbol: "◎",
     name: "Instagram",
     domains: ["instagram.com", "instagr.am"],
+    shortForm: {
+      setting: "reels",
+      label: "Instagram Reels",
+      pathSegment: "reels?",
+      examplePath: "/reel/abc",
+      playerSelectors: ['[data-testid="reels-viewer"] video'],
+    },
     elements: {
       home: element(
         "Hide home feed",
@@ -186,6 +231,8 @@ export const siteDefinitions: SiteDefinition[] = [
   },
   {
     site: "x",
+    color: "#333b46",
+    symbol: "𝕏",
     name: "X",
     domains: ["x.com", "twitter.com"],
     elements: {
@@ -251,6 +298,8 @@ export const siteDefinitions: SiteDefinition[] = [
   },
   {
     site: "reddit",
+    color: "#db5827",
+    symbol: "r",
     name: "Reddit",
     domains: ["reddit.com"],
     elements: {
@@ -315,6 +364,8 @@ export const siteDefinitions: SiteDefinition[] = [
   },
   {
     site: "substack",
+    color: "#e57c34",
+    symbol: "≡",
     name: "Substack",
     domains: ["substack.com"],
     elements: {
@@ -399,6 +450,19 @@ export const buildBlockingCss = (settings: FeedSettings, href: string) =>
   activeSelectors(settings, href)
     .map((selector) => `${selector}{display:none!important}`)
     .join("\n");
+/** The site's short-form definition, when its "block entirely" setting is on. */
+export function activeShortForm(
+  settings: FeedSettings,
+  host: string,
+): ShortFormDefinition | undefined {
+  if (!settings.globalEnabled) return;
+  const site = siteFor(host);
+  const short = site?.shortForm;
+  return short && settings.sites[site.site]?.[short.setting] ? short : undefined;
+}
+/** Matches a short-form URL path such as /shorts/abc or /reel/abc. */
+export const shortFormPath = (short: ShortFormDefinition) =>
+  new RegExp(`^/(?:${short.pathSegment})(?:/|$)`, "i");
 /** These are content restrictions, not URL rewrites into a different player. */
 export function shortFormBlock(
   settings: FeedSettings,
@@ -410,21 +474,15 @@ export function shortFormBlock(
   } catch {
     return;
   }
-  if (!settings.globalEnabled) return;
-  const site = siteFor(url.hostname)?.site;
-  if (
-    site === "youtube" &&
-    settings.sites.youtube.shorts &&
-    /^\/shorts(?:\/|$)/i.test(url.pathname)
-  )
-    return "YouTube Shorts";
-  if (
-    site === "instagram" &&
-    settings.sites.instagram.reels &&
-    /^\/reels?(?:\/|$)/i.test(url.pathname)
-  )
-    return "Instagram Reels";
+  const short = activeShortForm(settings, url.hostname);
+  return short && shortFormPath(short).test(url.pathname)
+    ? short.label
+    : undefined;
 }
+/** Every short-form label, for pages that must recognise one. */
+export const shortFormLabels = siteDefinitions.flatMap((s) =>
+  s.shortForm ? [s.shortForm.label] : [],
+);
 export function feedLabels(site: FeedSite): Record<string, string> {
   return Object.fromEntries(
     Object.entries(siteDefinitions.find((s) => s.site === site)!.elements).map(

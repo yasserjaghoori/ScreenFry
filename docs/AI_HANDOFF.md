@@ -43,6 +43,13 @@ Evidence (isolated headless Chrome, 1 YouTube fixture + 6 pages with 8 iframes e
 - **Background:** rule installs and boundary alarms are skipped when unchanged.
 - **Open product question:** per-site history (`trackingEnabled`, default on) records time on every website, is never displayed and has no UI toggle, and causes a storage write on every tab switch.
 
+## 0.4.5 Privacy, rule-only tracking and the site registry (user decisions)
+
+- **No general browsing history (user decision):** ScreenFry measures time only on websites that have a rule. `millisecondsByHost`, `trackingEnabled` and `DELETE_HISTORY` are removed; migration deletes previously recorded history. The background only creates tracking sessions for tabs whose URL matches an enabled rule, so other browsing causes no checkpoints or storage writes.
+- **Idle time keeps counting (user decision):** a focused page counts until the screen locks; playing media always counts. No change.
+- **Windows picker (user decision):** sites come from the Websites page list, plus custom domains. This is already how it works.
+- **Expansion:** `siteDefinitions` is the single site registry: name, domains, color, symbol, controls and optional `shortForm` (setting, label, path regex, example path, player selectors). `launchSites`, `defaultRules`, feed defaults, network short-form rules, content-script player detection and the blocked page all derive from it. Migration adds a default rule for any registry site missing from saved state. Adding a site needs the `FeedSite` id plus one entry; see `docs/ADDING_A_SITE.md`. A dry run that added TikTok this way built and rendered correctly (reverted). `tests/site-registry.test.ts` guards completeness.
+
 ## Historical requirements and assessment record
 
 The retained snapshot below describes earlier 0.3.x work. Its requirements and reference-extension assessment remain useful; its version/path/test-status statements are superseded by the current section, README and Testing document.

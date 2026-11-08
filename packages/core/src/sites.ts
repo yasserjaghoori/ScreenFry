@@ -1,47 +1,29 @@
 import type { FeedSite, WebsiteRule } from "@shared/index";
+import { siteDefinitions } from "@feeds/index";
 import { expandDomainAliases } from "./domains";
+
+/**
+ * Websites shown on the Websites page, popup and Windows picker, in registry order.
+ * Derived from the site registry in packages/feed-blockers, so a new site needs no edits here.
+ */
 export const launchSites: {
   id: FeedSite;
   name: string;
   domain: string;
   color: string;
   symbol: string;
-}[] = [
-  {
-    id: "youtube",
-    name: "YouTube",
-    domain: "youtube.com",
-    color: "#e34436",
-    symbol: "▶",
-  },
-  {
-    id: "instagram",
-    name: "Instagram",
-    domain: "instagram.com",
-    color: "#b84783",
-    symbol: "◎",
-  },
-  { id: "x", name: "X", domain: "x.com", color: "#333b46", symbol: "𝕏" },
-  {
-    id: "reddit",
-    name: "Reddit",
-    domain: "reddit.com",
-    color: "#db5827",
-    symbol: "r",
-  },
-  {
-    id: "substack",
-    name: "Substack",
-    domain: "substack.com",
-    color: "#e57c34",
-    symbol: "≡",
-  },
-];
+}[] = siteDefinitions.map((site) => ({
+  id: site.site,
+  name: site.name,
+  domain: site.domains[0],
+  color: site.color,
+  symbol: site.symbol,
+}));
 export function defaultRules(): WebsiteRule[] {
-  return launchSites.map((site) => ({
-    id: site.id,
+  return siteDefinitions.map((site) => ({
+    id: site.site,
     label: site.name,
-    domains: expandDomainAliases([site.domain]),
+    domains: expandDomainAliases(site.domains),
     enabled: true,
     blocked: false,
     showTimer: false,

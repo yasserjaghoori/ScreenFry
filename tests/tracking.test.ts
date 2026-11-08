@@ -65,15 +65,14 @@ describe("what counts as usage", () => {
 });
 
 describe("crediting usage", () => {
-  it("credits the matching rule and host, never two tabs at once", () => {
+  it("credits the matching rule across alias domains", () => {
     const now = at(2026, 10, 3, 12);
     const state = stateWith([rule()]);
     creditUsage(state, "https://www.youtube.com/watch?v=1", now, now + 30_000);
     creditUsage(state, "https://youtu.be/2", now + 30_000, now + 60_000);
     const day = state.usage[localDateKey(new Date(now))];
     expect(day.millisecondsByRule.youtube).toBe(60_000);
-    expect(day.millisecondsByHost["youtube.com"]).toBe(30_000);
-    expect(day.millisecondsByHost["youtu.be"]).toBe(30_000);
+    expect(Object.keys(day)).not.toContain("millisecondsByHost");
   });
 
   it("caps a single gap so sleep or a suspended worker is not counted", () => {
@@ -158,14 +157,14 @@ describe("crediting usage", () => {
     expect(state.usage["2026-11-03"].millisecondsByRule.youtube).toBe(30 * MIN);
   });
 
-  it("always measures restricted sites even with general history off", () => {
+  it("records nothing about websites without a rule", () => {
     const now = at(2026, 10, 3, 12);
-    const state = stateWith([rule()], { trackingEnabled: false });
+    const state = stateWith([rule()]);
+    creditUsage(state, "https://example.com", now, now + 30_000);
+    expect(state.usage).toEqual({});
     creditUsage(state, "https://youtube.com", now, now + 60_000);
-    creditUsage(state, "https://example.com", now + 60_000, now + 90_000);
     const day = state.usage[localDateKey(new Date(now))];
-    expect(day.millisecondsByRule.youtube).toBe(60_000);
-    expect(day.millisecondsByHost).toEqual({});
+    expect(day.millisecondsByRule).toEqual({ youtube: 60_000 });
   });
 
   it("raises the 5- and 1-minute warnings once each", () => {

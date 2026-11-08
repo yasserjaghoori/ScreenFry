@@ -51,7 +51,7 @@
 }
 .site-picker {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
   gap: 6px;
   margin: 0 0 12px;
 }

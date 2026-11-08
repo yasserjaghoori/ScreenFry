@@ -13,12 +13,10 @@ export type Request = (
   | { type: "SET_FEEDS"; feedSettings: FeedSettings }
   | {
       type: "SET_PREFERENCES";
-      trackingEnabled?: boolean;
       warningsEnabled?: boolean;
     }
   | { type: "COMPLETE_ONBOARDING" }
   | { type: "REFRESH_PROTECTION" }
-  | { type: "DELETE_HISTORY" }
   | { type: "RESET_ALL" }
 ) & { password?: string };
 export const CONTENT_SCRIPT_REQUESTS: ReadonlySet<Request["type"]> = new Set([

@@ -25,6 +25,33 @@ describe("storage and schema migration", () => {
     expect(reopened.rules[0].blocked).toBe(true);
     expect(reopened.windows[0].label).toBe("Lunch");
   });
+  it("adds a default rule for registry websites missing from saved state", () => {
+    const saved = createDefaultState();
+    saved.rules = saved.rules.filter((r) => r.id !== "substack");
+    saved.rules[0].dailyAllowance = { defaultMinutes: 10 };
+    const state = migrateState(JSON.parse(JSON.stringify(saved)));
+    expect(state.rules.map((r) => r.id)).toContain("substack");
+    expect(
+      state.rules.find((r) => r.id === "substack")?.dailyAllowance,
+    ).toBeUndefined();
+    expect(state.rules[0].dailyAllowance).toEqual({ defaultMinutes: 10 });
+  });
+  it("deletes previously recorded history of other websites on upgrade", () => {
+    const state = migrateState({
+      schemaVersion: 3,
+      trackingEnabled: true,
+      usage: {
+        "2026-11-03": {
+          millisecondsByRule: { youtube: 60_000 },
+          millisecondsByHost: { "example.com": 90_000, "youtube.com": 60_000 },
+          warningsSent: {},
+        },
+      },
+    });
+    expect(JSON.stringify(state)).not.toContain("example.com");
+    expect(state).not.toHaveProperty("trackingEnabled");
+    expect(state.usage["2026-11-03"].millisecondsByRule.youtube).toBe(60_000);
+  });
   it("drops old mandatory PINs, overrides, pending changes and commitments while retaining usage", () => {
     const state = migrateState({
       schemaVersion: 2,

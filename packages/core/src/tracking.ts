@@ -68,22 +68,16 @@ function creditSlice(
   ms: number,
   warnings: CreditWarning[],
 ) {
-  const date = new Date(at),
-    key = localDateKey(date),
-    day = state.usage[key] ?? emptyUsageDay(key);
-  state.usage[key] = day;
   const rules = new Map<string, string>();
-  const hosts = new Set<string>();
   for (const url of urls) {
     // Blocked pages and playback outside a window do not consume a future allowance.
     if (evaluatePolicy(state, url, at).status === "blocked") continue;
-    const host = displayHost(url);
-    if (host) hosts.add(host);
     for (const rule of matchingRules(state, url)) rules.set(rule.id, url);
   }
-  if (state.trackingEnabled)
-    for (const host of hosts)
-      day.millisecondsByHost[host] = (day.millisecondsByHost[host] ?? 0) + ms;
+  if (!rules.size) return;
+  const key = localDateKey(new Date(at)),
+    day = state.usage[key] ?? emptyUsageDay(key);
+  state.usage[key] = day;
   // Several playing tabs on one website consume one second of allowance per wall-clock second.
   for (const [id] of rules) {
     const rule = state.rules.find((r) => r.id === id)!;
