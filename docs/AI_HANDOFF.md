@@ -2,7 +2,15 @@
 
 Updated November 7, 2026. The user-facing product is **ScreenFry**; repository/package/scheme/bundle identifiers retain Screentime.
 
-## Current state — 0.4.6, superseding all older snapshots below
+## Current Mac app handoff — 0.5.0/build 20
+
+Read [Mac app review](MAC_APP_REVIEW.md) first. Claude's native installer/updater work is pulled through `b541dd3`; preserve it. The raw launch report is already available locally in `screenfry-crash.txt` and is excluded from Git. It confirms Sparkle was rejected by hardened library validation in an ad-hoc-signed app, rather than a missing embedded framework. A locally Apple Development-signed build, retaining runtime protection, is installed at `/Applications/ScreenFry.app` and passes signing/package verification. The old crashing copy is recoverable in Trash.
+
+The two old 0.3.0 apps and their standalone extensions were removed from the ChatGPT project's build folders to Trash and unregistered; source/duplicate Xcode projects remain. The installer disk image was ejected. `scripts/verify-macos-signing.mjs` now guards signed CI and Release builds against the confirmed launch failure. Validation: **89 unit tests and 46 isolated Chrome checks pass**. See Testing for the native launch result.
+
+The user corrected an earlier typo and confirmed that the **0.4.8 Safari popup opens consistently** after reload. Safari is enabled; older disabled-state notes below are historical. Do not infer full Safari policy acceptance from this popup result. The raw crash file and other personal diagnostics must never be committed.
+
+## Historical 0.4.6 state
 
 Reviewed and pulled Claude's three newer commits: `b8fe2c0` (Safari load feedback loop), `41dc7c8` (background-mediated blocked pages and fast forecasts), and `390102b` (rule-only tracking and one site registry). Preserve these changes. The older performance/routing diagnoses below are historical, and Claude's claims about Safari fixes still need live acceptance.
 

@@ -8,3 +8,6 @@ xcuserdata/
 # Rebuilt from source by npm run build:safari.
 /safari/Screentime/Screentime Extension/Resources/
 /safari/Screentime/Screentime/ChromeExtension/
+
+# Local diagnostic exports can contain machine identifiers and user paths.
+/screenfry-crash*.txt

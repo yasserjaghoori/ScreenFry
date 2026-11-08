@@ -80,7 +80,7 @@ jobs:
           CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=
           ENABLE_HARDENED_RUNTIME=NO build
       - run: node scripts/verify-safari.mjs dist/safari/Build/Products/Release/ScreenFry.app
-      - run: codesign --verify --deep --strict dist/safari/Build/Products/Release/ScreenFry.app
+      - run: node scripts/verify-macos-signing.mjs dist/safari/Build/Products/Release/ScreenFry.app
       - name: Launch the app and make sure it keeps running
         run: |
           APP=dist/safari/Build/Products/Release/ScreenFry.app

@@ -16,7 +16,19 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
-## Current verification — 0.4.6, November 7, 2026
+## Current Mac app review — 0.5.0/build 20, November 7, 2026
+
+- Reviewed Claude's installer/updater and launch-fix changes through `b541dd3`. The previous 0.4.x snapshots below remain historical.
+- `npm ci` (zero vulnerabilities), `npm run check`: **89 unit tests**, typecheck and verified build pass. `npm run test:e2e`: **46 checks passed, zero failed**, including popup startup, permission-limited site selection, playback, limits/windows and settings authorization.
+- The user's local crash export confirms a pre-launch dyld failure loading Sparkle under library validation. The old installed 0.5.0 was ad-hoc signed with hardened runtime and no Team ID. It failed the new `verify-macos-signing.mjs` guard even though recursive signature verification alone could succeed.
+- Built current 0.5.0 with an available Apple Development identity, **keeping hardened runtime enabled**. Built and installed apps pass the new matching-team signing check, recursive signature verification and package checks. `/Applications/ScreenFry.app` was replaced; the crashing copy is recoverable in Trash. No quarantine attributes or system security settings were bypassed.
+- **Native launch passed:** opened the repaired app from Applications twice. It remained running beyond the launch-check interval, showed the full Safari and Chrome setup cards, reported Safari on and Chrome's folder ready at 0.5.0. Ejecting the installer image removed the duplicate-copy notice. The update button is correctly disabled without an update signing key. This verifies native startup/UI, not that the Chrome extension is installed/enabled or that every Safari policy scenario passes.
+- The user confirmed the 0.4.8 Safari popup opens consistently after reload, correcting an earlier response. That is a live popup pass; broader Safari navigation/performance/playback acceptance remains separate.
+- Two old 0.3.0 app bundles and two standalone extension bundles under the project's old build folders were unregistered and moved to Trash. Filesystem and Spotlight checks find no remaining app bundles within the ChatGPT project folder. Source and duplicate Xcode projects were preserved.
+
+See [Mac app review and Claude handoff](MAC_APP_REVIEW.md). Raw crash exports are local-only and ignored by Git.
+
+## Historical verification — 0.4.6, November 7, 2026
 
 - Reviewed and fast-forwarded Claude's `b8fe2c0`, `41dc7c8` and `390102b`: coalesced background work, skipped unchanged state writes/rule installs, idle unrelated frames, faster boundary-based forecasts, Safari top-level blocked-page messaging, rule-only usage and the shared site registry. These changes have automated coverage; their live Safari behavior is still unverified.
 - Replaced the earlier clock logo with Sam's supplied melting-monitor artwork. The metadata-cleaned source has exactly the same RGBA pixels as the attachment. Regenerated color extension/UI/favicon assets, native AppIcon and Dock/setup fallback, plus the corresponding monochrome toolbar mark. Visually checked exports against light/dark backgrounds and the installed native setup window.

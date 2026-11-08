@@ -12,13 +12,17 @@
 		47E411FC8650DD759BFCE70D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 83C05A74B71C689BCF2CD8B7 /* Assets.xcassets */; };
 		4F79517F89A5C628479D58C8 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = FADDCB8CA04FA91FA363D0D6 /* assets */; };
 		50A10FB3889A819AA8ABBB2F /* Screentime Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4F804E7E0B925B31E9AB1DBD /* Screentime Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		681DDDB77E7D991D6C8AA4DF /* DragTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6F6C4F30FD3B391DB738F1 /* DragTile.swift */; };
 		8088F7EDABABFE35B2DA58A3 /* dashboard.html in Resources */ = {isa = PBXBuildFile; fileRef = 71716388FEB746F7C094205F /* dashboard.html */; };
 		808D467F12F3B1D223DB9595 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEFA4E5C7D60F66970944743 /* SafariWebExtensionHandler.swift */; };
 		8CCC4ACA3EE5AB729CB5EE64 /* onboarding.html in Resources */ = {isa = PBXBuildFile; fileRef = EA1F24D3A61FF056A4C6C310 /* onboarding.html */; };
 		90570BA3ADCC1FB8E9BAF877 /* BrandIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = 83700A5B79279A415CCA797F /* BrandIcon.png */; };
+		99E4FB6DA1C128AA8406C5A5 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = C51ADA09D06CC367D0CD4522 /* Sparkle */; };
 		9E09787AC411179051B2FDC2 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944A8504504762AFCD6C73CC /* AppDelegate.swift */; };
+		AC5018C94020913D9E7ACEC3 /* ChromeInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39596D65F0EF5E25879A49CC /* ChromeInstaller.swift */; };
 		BDD8D772DF042CF35D027562 /* THIRD_PARTY_NOTICES.txt in Resources */ = {isa = PBXBuildFile; fileRef = 4335D047B886E15E682774F6 /* THIRD_PARTY_NOTICES.txt */; };
 		CDDCB14A1AD7A624340D3852 /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 295BE3C74DE255B2A4686A81 /* blocked.html */; };
+		E0E8142773CB87AEDD3B1009 /* ChromeExtension in Resources */ = {isa = PBXBuildFile; fileRef = DC8C83B13E26CAC33DF4CDC3 /* ChromeExtension */; };
 		FF9930CF31BA2244172C335A /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = 5195AD4A908E80A96DAB8A27 /* popup.html */; };
 /* End PBXBuildFile section */
 
@@ -49,6 +53,7 @@
 /* Begin PBXFileReference section */
 		0D89A121EE5FD88CA71D661C /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
 		295BE3C74DE255B2A4686A81 /* blocked.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = blocked.html; sourceTree = "<group>"; };
+		39596D65F0EF5E25879A49CC /* ChromeInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeInstaller.swift; sourceTree = "<group>"; };
 		4335D047B886E15E682774F6 /* THIRD_PARTY_NOTICES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES.txt; sourceTree = "<group>"; };
 		4F804E7E0B925B31E9AB1DBD /* Screentime Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Screentime Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5195AD4A908E80A96DAB8A27 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = popup.html; sourceTree = "<group>"; };
@@ -61,9 +66,22 @@
 		944A8504504762AFCD6C73CC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C1BC319F402E00CEAC7F664D /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = "Screentime Extension/Resources/icons"; sourceTree = SOURCE_ROOT; };
 		CEFA4E5C7D60F66970944743 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		DC8C83B13E26CAC33DF4CDC3 /* ChromeExtension */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ChromeExtension; path = Screentime/ChromeExtension; sourceTree = SOURCE_ROOT; };
+		DD6F6C4F30FD3B391DB738F1 /* DragTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragTile.swift; sourceTree = "<group>"; };
 		EA1F24D3A61FF056A4C6C310 /* onboarding.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = onboarding.html; sourceTree = "<group>"; };
 		FADDCB8CA04FA91FA363D0D6 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = "Screentime Extension/Resources/assets"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D8979AF4592733848FC611A2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				99E4FB6DA1C128AA8406C5A5 /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		03B04857A2B78711AD0A3F2D /* Screentime Extension */ = {
@@ -81,6 +99,8 @@
 				944A8504504762AFCD6C73CC /* AppDelegate.swift */,
 				83C05A74B71C689BCF2CD8B7 /* Assets.xcassets */,
 				83700A5B79279A415CCA797F /* BrandIcon.png */,
+				39596D65F0EF5E25879A49CC /* ChromeInstaller.swift */,
+				DD6F6C4F30FD3B391DB738F1 /* DragTile.swift */,
 				61B16774DE9B5D634AED0020 /* Info.plist */,
 			);
 			path = Screentime;
@@ -90,6 +110,7 @@
 			isa = PBXGroup;
 			children = (
 				FADDCB8CA04FA91FA363D0D6 /* assets */,
+				DC8C83B13E26CAC33DF4CDC3 /* ChromeExtension */,
 				C1BC319F402E00CEAC7F664D /* icons */,
 				EB6FB3B4AD1683410276F355 /* Resources */,
 				28BA74E6205703D2DA9001E2 /* Screentime */,
@@ -130,6 +151,7 @@
 			buildPhases = (
 				68B05FD2AEAE5ADC85A7A5AE /* Sources */,
 				E328DDFE16ACEF34459C73EF /* Resources */,
+				D8979AF4592733848FC611A2 /* Frameworks */,
 				7C7ED23D5B6E15924FD47B00 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -139,6 +161,7 @@
 			);
 			name = Screentime;
 			packageProductDependencies = (
+				C51ADA09D06CC367D0CD4522 /* Sparkle */,
 			);
 			productName = Screentime;
 			productReference = 7D74C02722B563F3FACD85AC /* Screentime.app */;
@@ -182,6 +205,9 @@
 			);
 			mainGroup = 55506A67DF5D0B5AE9689D54;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CA40F22C97CC10F68AFCAE1B /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C2A3D82F8188CB2F4923404A /* Products */;
 			projectDirPath = "";
@@ -200,6 +226,7 @@
 			files = (
 				47E411FC8650DD759BFCE70D /* Assets.xcassets in Resources */,
 				90570BA3ADCC1FB8E9BAF877 /* BrandIcon.png in Resources */,
+				E0E8142773CB87AEDD3B1009 /* ChromeExtension in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -234,6 +261,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				9E09787AC411179051B2FDC2 /* AppDelegate.swift in Sources */,
+				AC5018C94020913D9E7ACEC3 /* ChromeInstaller.swift in Sources */,
+				681DDDB77E7D991D6C8AA4DF /* DragTile.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -393,6 +422,7 @@
 				CODE_SIGN_ENTITLEMENTS = Screentime/Screentime.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 20;
+				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = Screentime/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -412,6 +442,7 @@
 				CODE_SIGN_ENTITLEMENTS = Screentime/Screentime.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 20;
+				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = Screentime/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -474,6 +505,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CA40F22C97CC10F68AFCAE1B /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C51ADA09D06CC367D0CD4522 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CA40F22C97CC10F68AFCAE1B /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AAD9449A201DCD495B6175C5 /* Project object */;
 }

@@ -84,7 +84,7 @@ jobs:
           xcodebuild -project safari/Screentime/Screentime.xcodeproj -scheme Screentime \
             -configuration Release -derivedDataPath dist/safari "${SIGNING[@]}" build
           node scripts/verify-safari.mjs dist/safari/Build/Products/Release/ScreenFry.app
-          codesign --verify --deep --strict dist/safari/Build/Products/Release/ScreenFry.app
+          node scripts/verify-macos-signing.mjs dist/safari/Build/Products/Release/ScreenFry.app
 
       - name: Package disk image
         run: npm run dmg -- dist/safari/Build/Products/Release/ScreenFry.app

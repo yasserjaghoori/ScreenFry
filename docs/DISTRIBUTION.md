@@ -55,3 +55,11 @@ With an Apple Developer Program membership, create a **Developer ID Application*
 ## Later: Chrome Web Store
 
 An unlisted Web Store listing would give one-click Chrome installs and automatic updates. The app's Chrome card could then link to the listing instead of the folder. Store-installed copies skip the folder reload check (`installType` isn't `development`).
+
+## Verifying signing before shipping
+
+After a signed build, run `node scripts/verify-macos-signing.mjs <path/to/ScreenFry.app>`. A recursive `codesign --verify` alone can accept an ad-hoc app that dyld rejects under hardened library validation. The guard checks that hardened apps have a Team ID and matching embedded framework teams. Both the signed-download CI job and Release workflow run it. See [Mac app review](MAC_APP_REVIEW.md) for the confirmed 0.5.0 launch failure and local repair.
+
+For local hardened development builds, sign with Apple Development rather than an ad-hoc identity. Public releases need Developer ID signing and notarization; the workflow's non-hardened ad-hoc branch is a test-download configuration.
+
+Moving an existing unpacked Chrome install from `dist/chrome` to the app-managed folder is a one-time installation change with a different path-derived ID. Settings transfer from that older developer install is not automatic. The stable folder preserves settings for subsequent app-managed updates.
