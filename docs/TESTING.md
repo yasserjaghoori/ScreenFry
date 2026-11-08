@@ -16,6 +16,15 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## 0.6.2 responsive blocking and TikTok — November 8, 2026
+
+- Node 24.14.0: `npm ci` reported no vulnerabilities; `npm run check` passed **93 unit tests**, typecheck and verified build. `npm run test:e2e` passed **61 checks** in a disposable Chrome profile.
+- Added runtime checks for live TikTok settings without reload, fallback reload when the content responder fails, player scroll prevention with comment scrolling preserved, second-video SPA playback suppression, restoration when disabled, current-site popup selection despite broad-host denial, popup closure on navigation/tab selection, and responsive settings while tab navigation/network compilation are deliberately stalled.
+- A separate injected runtime fixture shows the inline time-up notice while background messages never resolve, checks bounded message traffic/responsiveness, and advances local time over midnight to verify recovery without reloading. Existing unit tests cover local midnight, 23/25-hour DST days, and usage splitting across midnight. The fixture is Chromium, not live Safari.
+- Visually checked `dist/screenshots/time-up-inline.png` and `tiktok-linked-video.png`: existing logo, glimmer/drips, readable notice, and linked-video return action. Animation includes `prefers-reduced-motion`; the React/listener review also scopes nonpassive scroll guards to active TikTok linked-video mode and avoids unchanged blocked-page rerenders.
+- Development-signed **0.6.2/build 24** macOS Release app and `dist/ScreenFry-0.6.2.dmg` built successfully. Safari package and matching-team hardened-signature verification passed. Xcode's unrelated obsolete iOS Simulator warning remains. No installed app, everyday-browser settings, or GitHub branch was changed by these checks.
+- Still required: live Safari acceptance of exhaustion, toolbar responsiveness, new-site navigation, permission-limited injection and midnight recovery; real signed-in TikTok recommendation/next-video selectors. Fixtures establish the changed logic, not every website's current markup or a full diagnosis of the reported Safari hang. The hidden Safari document may still fetch resources; this change does not establish that a data leak occurred.
+
 ## 0.6.1 setup-window improvements — November 8, 2026
 
 - Node 24.14.0: `npm ci`, `npm run check` passed (89 unit tests, typecheck, verified extension build). Isolated Chrome integration passed 49 checks, including persistent Safari-reminder dismissal and preservation of Chrome's host-access warning. The Safari cases simulate Safari's browser identity/permission response in the isolated Chrome fixture; they do not establish live Safari permission behavior.

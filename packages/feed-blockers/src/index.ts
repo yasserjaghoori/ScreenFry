@@ -438,16 +438,6 @@ export const siteDefinitions: SiteDefinition[] = [
     symbol: "♪",
     name: "TikTok",
     domains: ["tiktok.com"],
-    shortForm: {
-      setting: "videos",
-      label: "TikTok videos",
-      pathSegment: "@[^/]+/video",
-      examplePath: "/@someone/video/123",
-      playerSelectors: [
-        '[data-e2e="feed-video"] video',
-        '[data-e2e="browse-video"] video',
-      ],
-    },
     elements: {
       forYou: element(
         "Hide For You feed",
@@ -476,17 +466,35 @@ export const siteDefinitions: SiteDefinition[] = [
         at("/explore"),
         true,
       ),
-      videos: element(
-        "Block videos entirely",
-        "Short-form video",
-        ["video", '[data-e2e="feed-video"]'],
-        undefined,
-        true,
+      singleVideo: element(
+        "Only play the linked video",
+        "Video page",
+        [
+          '[data-e2e="arrow-left"]',
+          '[data-e2e="arrow-right"]',
+          '[data-e2e="browse-video-prev"]',
+          '[data-e2e="browse-video-next"]',
+        ],
+        (url) => /\/@[^/]+\/video\/[^/]+/.test(url.pathname),
       ),
       comments: element("Hide comments", "Video page", [
         '[data-e2e="comment-list"]',
         '[data-e2e="search-comment-container"]',
         '[data-e2e="browse-comment"]',
+      ]),
+      recommendedVideos: element(
+        "Hide “You may like” recommended videos",
+        "Sidebar",
+        [
+          '[data-e2e="browse-video-recommend"]',
+          '[data-e2e="recommend-video-list"]',
+          '[data-e2e="related-video"]',
+        ],
+        (url) => /\/@[^/]+\/video\/[^/]+/.test(url.pathname),
+      ),
+      suggestedAccounts: element("Hide suggested accounts", "Sidebar", [
+        '[data-e2e="recommend-user"]',
+        '[data-e2e="suggest-accounts"]',
       ]),
       forYouButton: element("Hide For You button", "Navigation", [
         '[data-e2e="nav-foryou"]',
@@ -515,10 +523,6 @@ export const siteDefinitions: SiteDefinition[] = [
         '[data-e2e="nav-upload"]',
         '[data-e2e="upload-icon"]',
         'a[href*="/upload"]',
-      ]),
-      suggestedAccounts: element("Hide suggested accounts", "Sidebar", [
-        '[data-e2e="recommend-user"]',
-        '[data-e2e="suggest-accounts"]',
       ]),
     },
   },

@@ -10,18 +10,33 @@ import {
 import type { TabMessage } from "@browser/messages";
 import { STATE_KEY } from "@browser/storage";
 import { hostMatchesDomain } from "@core/domains";
-import { extensionPageUrl } from "@browser/urls";
+import { tiktokVideoId } from "@feeds/tiktok";
+import { createBlockedScreen } from "./blocked-screen";
 import { createBatchedTask } from "@browser/scheduling";
 import { evaluatePolicy, matchingRules } from "@policy/index";
 import type { AppState, PolicyDecision } from "@shared/index";
 const isTop = window === window.top;
-let state: AppState | undefined,
-  redirecting = false;
+let state: AppState | undefined;
+let pageBlocked = false;
+let linkedVideoUrl = tiktokVideoId(location.href) ? location.href : undefined;
+const blockedScreen = createBlockedScreen();
+let scrollGuardsInstalled = false;
 const STYLE = "screenfry-feed-blocker";
 let lastReportedPlaying: boolean | undefined,
   lastReportAt = 0;
-function blockedUrl(label: string) {
-  return extensionPageUrl("blocked.html", { label, url: location.href });
+function singleVideoEnabled() {
+  return (
+    state?.feedSettings.globalEnabled &&
+    state.feedSettings.sites.tiktok.singleVideo &&
+    siteFor(location.hostname)?.site === "tiktok"
+  );
+}
+function beyondLinkedVideo() {
+  return (
+    singleVideoEnabled() &&
+    linkedVideoUrl &&
+    tiktokVideoId(location.href) !== tiktokVideoId(linkedVideoUrl)
+  );
 }
 function applyCss(css: string) {
   let sheet = document.getElementById(STYLE) as HTMLStyleElement | null;
@@ -52,6 +67,12 @@ function documentShortForm(): string | undefined {
 }
 function blockedMedia(media: HTMLMediaElement): boolean {
   if (!state) return false;
+  if (
+    pageBlocked ||
+    beyondLinkedVideo() ||
+    evaluatePolicy(state, location.href, Date.now()).status === "blocked"
+  )
+    return true;
   if (shortFormBlock(state.feedSettings, location.href) || documentShortForm())
     return true;
   return enabledElements(state.feedSettings, location.href).some(
@@ -72,15 +93,11 @@ function pauseRestrictedMedia() {
   ))
     if (blockedMedia(media) && !media.paused) media.pause();
 }
-function reportMedia(force = false) {
+function reportMedia() {
   const playing = [
     ...document.querySelectorAll<HTMLMediaElement>("video,audio"),
   ].some((m) => !m.paused && !m.ended && m.readyState >= 2 && !blockedMedia(m));
-  if (
-    !force &&
-    playing === lastReportedPlaying &&
-    Date.now() - lastReportAt < 10_000
-  )
+  if (playing === lastReportedPlaying && Date.now() - lastReportAt < 10_000)
     return;
   lastReportedPlaying = playing;
   lastReportAt = Date.now();
@@ -107,51 +124,51 @@ function markXTab() {
     document.documentElement.dataset.screenfryXTab = value;
 }
 function evaluate() {
-  if (!state || redirecting || !/^https?:/.test(location.href)) return;
+  if (!state || !/^https?:/.test(location.href) || !document.documentElement)
+    return;
+  if (!singleVideoEnabled()) linkedVideoUrl = undefined;
+  else if (!linkedVideoUrl && tiktokVideoId(location.href))
+    linkedVideoUrl = location.href;
+  syncScrollGuards();
   const decision = evaluatePolicy(state, location.href, Date.now());
   const short = documentShortForm();
-  if (decision.status === "blocked" || short) {
-    // Pause first, including embedded media, then replace the page. Never open another player.
+  const single = beyondLinkedVideo();
+  if (decision.status === "blocked" || short || single) {
+    pageBlocked = true;
+    // Never wait for a background navigation or stop the document while Safari is loading.
     for (const media of document.querySelectorAll<HTMLMediaElement>(
       "video,audio",
     ))
-      media.pause();
-    redirecting = true;
+      if (!media.paused) media.pause();
     const label = short ?? decision.ruleLabel ?? "This website";
     if (!isTop) {
-      applyCss("video,audio{display:none!important}");
-      location.replace(blockedUrl(label));
+      applyCss(
+        "html{visibility:hidden!important}video,audio{display:none!important}",
+      );
+      reportMedia();
       return;
     }
-    // Hide and stop the page so a blocked player never loads, then let the background
-    // open the blocked page (reliable in Safari). Navigate ourselves only as a fallback.
     applyCss(
-      "html{visibility:hidden!important}video,audio{display:none!important}",
+      "body{visibility:hidden!important}video,audio{display:none!important}",
     );
-    window.stop();
-    void showBlockedPage(label);
+    blockedScreen.show(
+      short
+        ? { ...decision, status: "blocked", reasons: ["short-form"] }
+        : decision,
+      label,
+      single ? linkedVideoUrl : undefined,
+    );
+    overlay.update({ status: "allowed", reasons: [] });
+    reportMedia();
     return;
   }
+  pageBlocked = false;
+  blockedScreen.hide();
   markXTab();
   applyCss(buildBlockingCss(state.feedSettings, location.href));
   pauseRestrictedMedia();
   reportMedia();
   if (isTop) overlay.update(decision);
-}
-async function showBlockedPage(label: string) {
-  const fallback = () => location.replace(blockedUrl(label));
-  const timer = setTimeout(fallback, 2000);
-  try {
-    const r = (await chrome.runtime.sendMessage({
-      type: "SHOW_BLOCKED_PAGE",
-      label,
-    })) as { ok?: boolean } | undefined;
-    if (r?.ok) return;
-  } catch {
-    /* background unavailable */
-  }
-  clearTimeout(timer);
-  fallback();
 }
 const queueEvaluation = createBatchedTask(evaluate);
 const overlay = (() => {
@@ -241,17 +258,63 @@ async function load() {
     state = migrateState(
       (await chrome.storage.local.get(STATE_KEY))[STATE_KEY],
     );
-    if (!relevantHost(state)) return;
+    if (!relevantHost(state)) return false;
     start();
     evaluate();
+    return true;
   } catch {
     /* unavailable context */
+    return false;
   }
 }
 // Launch sites start watching at document_start, before state arrives, so Shorts/Reels
 // entry points can't slip through; everything else waits for the state check.
 if (siteFor(location.hostname)) start();
 void load();
+function guardScroll(event: Event) {
+  // Block player scrolling, not scrolling through comments or typing in a field.
+  if (
+    !singleVideoEnabled() ||
+    !linkedVideoUrl ||
+    !(event.target instanceof Element)
+  )
+    return;
+  if (
+    event.target.closest(
+      'input,textarea,[contenteditable="true"],[data-e2e*="comment"]',
+    )
+  )
+    return;
+  const keyboard = event instanceof KeyboardEvent;
+  if (
+    keyboard &&
+    !["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(event.key)
+  )
+    return;
+  if (
+    keyboard ||
+    event.target.closest(
+      'video,[data-e2e="browse-video"],[data-e2e="feed-video"]',
+    )
+  ) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}
+function syncScrollGuards() {
+  const enabled = Boolean(singleVideoEnabled() && linkedVideoUrl);
+  if (enabled === scrollGuardsInstalled) return;
+  scrollGuardsInstalled = enabled;
+  for (const event of ["wheel", "touchmove", "keydown"]) {
+    // These need preventDefault, but only while TikTok's linked-video mode is on.
+    if (enabled)
+      window.addEventListener(event, guardScroll, {
+        capture: true,
+        passive: false,
+      });
+    else window.removeEventListener(event, guardScroll, true);
+  }
+}
 function startPageWatchers() {
   // CSS already applies to new elements. Only supported social sites need DOM checks
   // for player/modal and selected-tab changes; unrelated pages keep timer/media tracking.
@@ -295,10 +358,14 @@ function startPageWatchers() {
     document.addEventListener(
       event,
       (e) => {
-        if (e.target instanceof HTMLMediaElement && blockedMedia(e.target))
+        if (
+          e.target instanceof HTMLMediaElement &&
+          !e.target.paused &&
+          blockedMedia(e.target)
+        )
           e.target.pause();
         queueEvaluation();
-        reportMedia(true);
+        reportMedia();
       },
       true,
     );
@@ -325,9 +392,15 @@ function startPageWatchers() {
   });
 }
 if (isTop)
-  chrome.runtime.onMessage.addListener((message: TabMessage) => {
-    if (message?.type === "SCREENFRY_WARNING")
-      overlay.toast(
-        `${message.minutesRemaining} minute${message.minutesRemaining === 1 ? "" : "s"} left on ${message.label} today`,
-      );
-  });
+  chrome.runtime.onMessage.addListener(
+    (message: TabMessage, _sender, respond) => {
+      if (message?.type === "SCREENFRY_APPLY_SETTINGS") {
+        void load().then((applied) => respond({ applied, url: location.href }));
+        return true;
+      }
+      if (message?.type === "SCREENFRY_WARNING")
+        overlay.toast(
+          `${message.minutesRemaining} minute${message.minutesRemaining === 1 ? "" : "s"} left on ${message.label} today`,
+        );
+    },
+  );

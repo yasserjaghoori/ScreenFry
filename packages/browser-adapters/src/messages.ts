@@ -51,8 +51,10 @@ export async function send<T>(request: Request): Promise<Response<T>> {
     };
   }
 }
-export type TabMessage = {
-  type: "SCREENFRY_WARNING";
-  label: string;
-  minutesRemaining: number;
-};
+export type TabMessage =
+  | { type: "SCREENFRY_APPLY_SETTINGS" }
+  | {
+      type: "SCREENFRY_WARNING";
+      label: string;
+      minutesRemaining: number;
+    };

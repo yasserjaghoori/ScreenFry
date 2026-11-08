@@ -4,14 +4,14 @@
 
 **Less feed. More day.** ScreenFry is a Chrome and Safari extension that strips the distracting parts out of social websites and limits how long you spend on them, without taking away the useful parts.
 
-> **Status:** development build, version 0.6.1. No public release has been published yet, so for now you install it by building it on a Mac (below). Chrome is covered by automated browser tests. The Mac app and Safari extension build, install and pass packaging checks, but live behavior on each website is still being verified. See [Testing](docs/TESTING.md).
+> **Status:** development build, version 0.6.2. No public release has been published yet, so for now you install it by building it on a Mac (below). Chrome is covered by automated browser tests. The Mac app and Safari extension build and pass packaging checks, but live behavior on each website is still being verified. See [Testing](docs/TESTING.md).
 
 ## What it does
 
 | | |
 | --- | --- |
 | **Hide distractions** | Turn off feeds, recommendations, comments and navigation buttons, site by site. Search, direct links, profiles and messages keep working. |
-| **Block Shorts, Reels and TikToks** | Blocks them completely, not just the button: direct links, notifications and in-page players are all caught. |
+| **Block Shorts and Reels** | Blocks playback, not just the button: recognized direct links, notifications and in-page players are caught. TikTok has whole-site blocking and a linked-video-only option. |
 | **Daily limits** | Give each website its own daily allowance, or none. When it runs out, the whole site is blocked, including tabs already open. Resets at midnight. |
 | **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
 | **Optional password** | Protect your settings from impulsive changes. It never grants extra time. |
@@ -26,9 +26,13 @@
 | **X** | For You and Following feeds (separately) · Create Post box · trends, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback |
 | **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
 | **Substack** | Home and Notes feeds · Home, Notes, Explore, Notifications and Chat buttons · video playback |
-| **TikTok** | For You, Following and Explore feeds · **block videos entirely** · comments · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons · suggested accounts |
+| **TikTok** | For You, Following and Explore feeds · **only play the linked video** · comments · “You may like” recommendations and suggested accounts · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons |
 
 Every control starts **off**: a fresh install changes nothing until you choose. More websites can be added with one entry each; see [Adding a website](docs/ADDING_A_SITE.md).
+
+The toolbar popup selects the current supported website and closes when that tab navigates or you switch tabs. Settings apply live where the content script responds; otherwise the active matching site refreshes once. Daily exhaustion shows an animated “Time is up!” screen (motion respects your system preference). Safari displays it in place without navigating to an extension URL. Timers reset at local midnight; other active blocks/windows still apply.
+
+TikTok's old “Block videos entirely” switch has been removed. An enabled old switch migrates to **Block TikTok** in Essentials, preserving your choice; turn it off there to allow TikTok. The linked-video option stops next-video scrolling on a direct video URL while keeping comments scrollable. Live TikTok markup still needs manual acceptance checks.
 
 ## How time is counted
 

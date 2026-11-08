@@ -156,6 +156,7 @@ async function open(url, { initScript, scriptsDisabled = false } = {}) {
         "x.com",
         "reddit.com",
         "substack.com",
+        "tiktok.com",
       ].map((host) => ({
         urlPattern: `https://${host}/*`,
         requestStage: "Request",
@@ -414,7 +415,11 @@ try {
   const modal = await open(site());
   await evaluate(modal.session, `document.querySelector('#modal').click()`);
   await waitFor(
-    async () => (await urlOf(modal.id)).includes("blocked.html"),
+    async () =>
+      await evaluate(
+        modal.session,
+        `!!document.querySelector('screenfry-blocked') && document.querySelector('#media').paused`,
+      ),
     "short-form modal",
   );
   check("short-form player modal is blocked even without a Shorts URL", true);
@@ -488,6 +493,184 @@ try {
     await cdp("Target.closeTarget", { targetId: videoPage.id });
   }
   // Content scripts cannot make privileged settings changes, even when password protection is off.
+  const tiktok = await open("https://tiktok.com/@fixture/video/123");
+  await evaluate(
+    tiktok.session,
+    `
+    window.documentMarker='same-document';
+    const recommendations=document.createElement('aside');recommendations.dataset.e2e='recommend-video-list';recommendations.textContent='You may like';document.body.append(recommendations);
+    const comments=document.createElement('div');comments.dataset.e2e='comment-list';comments.textContent='Comments';document.body.append(comments);
+    document.querySelector('#regular-player').dataset.e2e='browse-video';
+  `,
+  );
+  feeds = (await getState()).feedSettings;
+  feeds.sites.tiktok.recommendedVideos = true;
+  feeds.sites.tiktok.singleVideo = true;
+  await send({ type: "SET_FEEDS", feedSettings: feeds });
+  await waitFor(
+    async () =>
+      await evaluate(
+        tiktok.session,
+        `getComputedStyle(document.querySelector('[data-e2e="recommend-video-list"]')).display==='none'`,
+      ),
+    "live TikTok recommendations",
+  );
+  check(
+    "TikTok settings apply live without reloading the document",
+    await evaluate(tiktok.session, `window.documentMarker==='same-document'`),
+  );
+  check(
+    "linked-video mode blocks player scrolling but preserves comment scrolling",
+    await evaluate(
+      tiktok.session,
+      `
+    !document.querySelector('#media').dispatchEvent(new WheelEvent('wheel',{bubbles:true,cancelable:true,deltaY:100})) &&
+    document.querySelector('[data-e2e="comment-list"]').dispatchEvent(new WheelEvent('wheel',{bubbles:true,cancelable:true,deltaY:100}))
+  `,
+    ),
+  );
+  await evaluate(
+    tiktok.session,
+    `history.pushState({},'', '/@fixture/video/456');document.querySelector('#media').play().catch(()=>{})`,
+  );
+  await waitFor(
+    async () =>
+      await evaluate(
+        tiktok.session,
+        `!!document.querySelector('screenfry-blocked') && document.querySelector('#media').paused`,
+      ),
+    "single video navigation guard",
+  );
+  check("scrolling/SPA navigation cannot play a second TikTok", true);
+  await screenshot(tiktok, "tiktok-linked-video.png");
+  feeds.sites.tiktok.singleVideo = false;
+  feeds.sites.tiktok.recommendedVideos = false;
+  await send({ type: "SET_FEEDS", feedSettings: feeds });
+  await waitFor(
+    async () =>
+      await evaluate(
+        tiktok.session,
+        `!document.querySelector('screenfry-blocked') && getComputedStyle(document.querySelector('[data-e2e="recommend-video-list"]')).display!=='none'`,
+      ),
+    "live TikTok restoration",
+  );
+  check("disabling TikTok controls restores the page live", true);
+  const workerTarget = (await cdp("Target.getTargets")).targetInfos.find(
+    (t) =>
+      t.type === "service_worker" &&
+      t.url.startsWith(`chrome-extension://${extId}/`),
+  );
+  if (!workerTarget) throw Error("Extension worker not found");
+  const workerSession = await attach(workerTarget.targetId);
+  const tiktokTabId = await evaluate(
+    controller.session,
+    `chrome.tabs.query({url:'https://tiktok.com/*'}).then(tabs=>tabs[0].id)`,
+  );
+  await evaluate(
+    workerSession,
+    `
+    globalThis.originalTabSend=chrome.tabs.sendMessage.bind(chrome.tabs);
+    chrome.tabs.sendMessage=(id,message,...args)=>{
+      if(id===${tiktokTabId} && message.type==='SCREENFRY_APPLY_SETTINGS') return Promise.reject(new Error('Fixture: stale content script'));
+      return originalTabSend(id,message,...args);
+    };
+  `,
+  );
+  feeds.sites.tiktok.recommendedVideos = true;
+  await send({ type: "SET_FEEDS", feedSettings: feeds });
+  await waitFor(
+    async () =>
+      await evaluate(tiktok.session, `window.documentMarker===undefined`),
+    "fallback refresh",
+  );
+  check(
+    "a missing live-update responder triggers a single automatic refresh",
+    true,
+  );
+  await evaluate(workerSession, `chrome.tabs.sendMessage=originalTabSend`);
+  await cdp("Target.closeTarget", { targetId: tiktok.id });
+
+  // Exercise the Safari-style local screen with a deliberately unresponsive background.
+  // This is a runtime fixture, not evidence of live Safari acceptance.
+  await send({ type: "DELETE_RULE", ruleId: "example" });
+  const inline = await open("https://example.com/inline-block");
+  const { frameTree } = await cdp("Page.getFrameTree", {}, inline.session);
+  const { executionContextId } = await cdp(
+    "Page.createIsolatedWorld",
+    { frameId: frameTree.frame.id, worldName: "screenfry-inline-test" },
+    inline.session,
+  );
+  const inlineState = await getState();
+  inlineState.rules.push(rule("example", "example.com", 1));
+  const dateKey = "2026-11-08";
+  inlineState.usage[dateKey] = {
+    dateKey,
+    millisecondsByRule: { example: 60000 },
+    warningsSent: {},
+  };
+  const isolated = async (expression) => {
+    const result = await cdp(
+      "Runtime.evaluate",
+      {
+        expression,
+        contextId: executionContextId,
+        awaitPromise: true,
+        returnByValue: true,
+      },
+      inline.session,
+    );
+    if (result.exceptionDetails)
+      throw Error(JSON.stringify(result.exceptionDetails));
+    return result.result.value;
+  };
+  // Use the browser's local date to keep this fixture portable across machines.
+  await isolated(`
+    window.testState=${JSON.stringify(inlineState)};
+    window.fakeNow=new Date(2026,10,8,23,59,59).getTime();Date.now=()=>window.fakeNow;
+    window.messages=0;
+    window.chrome={storage:{local:{get:async()=>({screenfryState:window.testState})},onChanged:{addListener:fn=>window.stateChanged=fn}},runtime:{getURL:path=>'chrome-extension://${extId}/'+path,sendMessage:()=>{window.messages++;return new Promise(()=>{})},onMessage:{addListener:fn=>window.applySettings=fn}}};
+    const attach=Element.prototype.attachShadow;Element.prototype.attachShadow=function(options){return attach.call(this,{...options,mode:'open'})};
+  `);
+  await isolated(
+    readFileSync(join(root, "dist/chrome/assets/content.js"), "utf8"),
+  );
+  await waitFor(
+    async () =>
+      await evaluate(
+        inline.session,
+        `document.querySelector('screenfry-blocked')?.shadowRoot.querySelector('h1').textContent==='Time is up!'`,
+      ),
+    "inline time-up screen",
+  );
+  check(
+    "time-up screen renders without waiting for background navigation",
+    await evaluate(
+      inline.session,
+      `document.querySelector('screenfry-blocked').shadowRoot.querySelector('dialog').open && location.pathname==='/inline-block'`,
+    ),
+  );
+  await screenshot(inline, "time-up-inline.png");
+  check(
+    "blocked page stays responsive and does not flood background messages",
+    await isolated(
+      `new Promise(resolve=>setTimeout(()=>resolve(window.messages<4),250))`,
+    ),
+  );
+  await isolated(`window.fakeNow=new Date(2026,10,9,0,0,1).getTime()`);
+  await waitFor(
+    async () =>
+      await evaluate(
+        inline.session,
+        `!document.querySelector('screenfry-blocked')`,
+      ),
+    "midnight inline recovery",
+  );
+  check(
+    "daily limit resets at local midnight without a background reply or reload",
+    true,
+  );
+  await cdp("Target.closeTarget", { targetId: inline.id });
+
   await cdp("Runtime.enable", {}, media.session);
   await sleep(100);
   const iso = contexts.find(
@@ -611,13 +794,13 @@ try {
     `,
   });
   check(
-    "popup opens saved controls without waking a background refresh or reading ungranted tabs",
+    "popup opens saved controls even when the optional URL query never resolves",
     await evaluate(
       coldPopup.session,
       `
       !!document.querySelector('#daily-limit') &&
       document.querySelectorAll('#site-picker [role=option]').length===6 &&
-      startupCalls.refreshes===0 && startupCalls.queries===0 &&
+      startupCalls.refreshes===0 && startupCalls.queries===1 &&
       !!document.querySelector('.popup-access')
     `,
     ),
@@ -632,23 +815,88 @@ try {
       chrome.permissions.contains=async()=>false;
     `,
   };
-  const safariPopup = await open(`chrome-extension://${extId}/popup.html`, safariPopupOptions);
-  check("Safari permission reminder explains uncertainty and can be dismissed", await evaluate(safariPopup.session, `
+  const safariPopup = await open(
+    `chrome-extension://${extId}/popup.html`,
+    safariPopupOptions,
+  );
+  check(
+    "Safari permission reminder explains uncertainty and can be dismissed",
+    await evaluate(
+      safariPopup.session,
+      `
     document.querySelector('.popup-access')?.textContent.includes('Safari hasn’t confirmed') &&
     [...document.querySelectorAll('button')].some(b=>b.textContent==='Dismiss reminder')
-  `));
-  await evaluate(safariPopup.session, `[...document.querySelectorAll('button')].find(b=>b.textContent==='Dismiss reminder').click()`);
-  await waitFor(async () => await evaluate(safariPopup.session, `chrome.storage.local.get('safariSiteAccessNoticeDismissed').then(saved=>saved.safariSiteAccessNoticeDismissed===true)`), "saved Safari reminder dismissal");
+  `,
+    ),
+  );
+  await evaluate(
+    safariPopup.session,
+    `[...document.querySelectorAll('button')].find(b=>b.textContent==='Dismiss reminder').click()`,
+  );
+  await waitFor(
+    async () =>
+      await evaluate(
+        safariPopup.session,
+        `chrome.storage.local.get('safariSiteAccessNoticeDismissed').then(saved=>saved.safariSiteAccessNoticeDismissed===true)`,
+      ),
+    "saved Safari reminder dismissal",
+  );
   await cdp("Target.closeTarget", { targetId: safariPopup.id });
-  const reopenedSafari = await open(`chrome-extension://${extId}/popup.html`, safariPopupOptions);
-  check("Safari reminder stays dismissed on reopening without changing host access", await evaluate(reopenedSafari.session, `
+  const reopenedSafari = await open(
+    `chrome-extension://${extId}/popup.html`,
+    safariPopupOptions,
+  );
+  check(
+    "Safari reminder stays dismissed on reopening without changing host access",
+    await evaluate(
+      reopenedSafari.session,
+      `
     (async()=>!!document.querySelector('#daily-limit') && !document.querySelector('.popup-access') &&
     await chrome.permissions.contains({origins:['<all_urls>']})===false)()
-  `));
+  `,
+    ),
+  );
   await cdp("Target.closeTarget", { targetId: reopenedSafari.id });
-  const chromeAfterDismissal = await open(`chrome-extension://${extId}/popup.html`, {initScript: `chrome.permissions.contains=async()=>false;`});
-  check("Safari dismissal does not hide Chrome's missing-access warning", await evaluate(chromeAfterDismissal.session, `!!document.querySelector('.popup-access')`));
+  const chromeAfterDismissal = await open(
+    `chrome-extension://${extId}/popup.html`,
+    { initScript: `chrome.permissions.contains=async()=>false;` },
+  );
+  check(
+    "Safari dismissal does not hide Chrome's missing-access warning",
+    await evaluate(
+      chromeAfterDismissal.session,
+      `!!document.querySelector('.popup-access')`,
+    ),
+  );
   await cdp("Target.closeTarget", { targetId: chromeAfterDismissal.id });
+  const followsSite = await open(`chrome-extension://${extId}/popup.html`, {
+    initScript: `
+    chrome.permissions.contains=async()=>false;
+    chrome.tabs.query=async()=>[{id:888,url:'https://www.tiktok.com/@fixture/video/123'}];
+    chrome.tabs.onUpdated.addListener=fn=>window.tabChanged=fn;
+    chrome.tabs.onActivated.addListener=fn=>window.tabActivated=fn;
+    window.close=()=>{window.closeCalls=(window.closeCalls||0)+1};
+  `,
+  });
+  check(
+    "popup selects the current website even without broad host permission",
+    await evaluate(
+      followsSite.session,
+      `document.querySelector('.site-summary h2').textContent==='TikTok'`,
+    ),
+  );
+  check(
+    "popup closes when its tab navigates or another tab is selected",
+    await evaluate(
+      followsSite.session,
+      `
+    tabChanged(999,{url:'https://example.com'}); const untouched=!window.closeCalls;
+    tabChanged(888,{url:'https://example.com'});tabActivated({tabId:999});
+    untouched && window.closeCalls===2
+  `,
+    ),
+  );
+  await cdp("Target.closeTarget", { targetId: followsSite.id });
   const x = await send({
     type: "SAVE_RULE",
     rule: rule("youtube", "youtube.com", 0),
@@ -660,6 +908,29 @@ try {
         async () => (await urlOf(media.id)).includes("blocked.html"),
         "open tab reblock",
       )),
+  );
+  await evaluate(
+    workerSession,
+    `
+    chrome.tabs.update=()=>new Promise(()=>{});
+    chrome.declarativeNetRequest.updateDynamicRules=()=>new Promise(()=>{});
+  `,
+  );
+  const editStarted = Date.now();
+  const responsive = await send({
+    type: "SAVE_RULE",
+    rule: rule("stalled", "example.com", 0),
+  });
+  check(
+    "settings edits finish even when browser navigation and rule compilation stall",
+    responsive.ok && Date.now() - editStarted < 3000,
+  );
+  const readStarted = Date.now();
+  const responsiveState = await getState();
+  check(
+    "settings remain readable during stalled enforcement",
+    responsiveState.rules.some((r) => r.id === "stalled") &&
+      Date.now() - readStarted < 1000,
   );
 } catch (error) {
   check("script error", false, error.message);
