@@ -4,7 +4,7 @@
 
 **Less feed. More day.** ScreenFry is a Chrome and Safari extension that strips the distracting parts out of social websites and limits how long you spend on them, without taking away the useful parts.
 
-> **Status:** development build, version 0.5.0. Chrome is covered by automated browser tests. Safari builds, installs and passes packaging checks, but its live behavior is still being verified. See [Testing](docs/TESTING.md).
+> **Status:** development build, version 0.5.1. Chrome is covered by automated browser tests. Safari builds, installs and passes packaging checks, but its live behavior is still being verified. See [Testing](docs/TESTING.md).
 
 ## What it does
 

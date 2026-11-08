@@ -58,6 +58,11 @@ final class DragTile: NSView, NSDraggingSource {
         }
     }
 
+    // The window can be dragged by its background; without these, pressing on the tile moved
+    // the whole window instead of starting a file drag.
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func mouseDown(with event: NSEvent) {}
+
     override func resetCursorRects() {
         addCursorRect(bounds, cursor: .openHand)
     }
@@ -77,5 +82,14 @@ final class DragTile: NSView, NSDraggingSource {
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         context == .outsideApplication ? [.copy, .link, .generic] : []
+    }
+
+    // While dragging, fade the ScreenFry window so the Chrome page underneath is visible.
+    func draggingSession(_ session: NSDraggingSession, willBeginAt screenPoint: NSPoint) {
+        window?.animator().alphaValue = 0.2
+    }
+
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+        window?.animator().alphaValue = 1
     }
 }

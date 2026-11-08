@@ -11,12 +11,22 @@ ScreenFry ships as one Mac app, downloaded from GitHub Releases as a disk image.
 
 Both are one-time steps. Apple requires the user to turn a Safari extension on themselves. Google doesn't let any Mac app install a Chrome extension from outside the Chrome Web Store: Chrome 137 removed the `--load-extension` option because malware abused it. So Chrome is loaded from a folder the app maintains.
 
+### Testing on your own Mac (recommended)
+
+`npm run dmg:local` builds the disk image signed with this Mac's Apple Development identity (from Xcode's Accounts settings). Safari lists that build's extension on this Mac without any developer settings, unlike the unsigned CI download. Run it from the project folder, then install the disk image it prints.
+
+### Uninstalling
+
+**ScreenFry → Uninstall…** (also a button at the bottom of the window) offers:
+- **Keep Settings:** removes the app, its Safari extension and the Chrome extension folder. Chrome keeps ScreenFry's settings until you click Remove on its Extensions page, so a reinstall picks them up.
+- **Erase Everything:** also deletes ScreenFry's caches and preferences, then opens Chrome's Extensions page so you can click Remove, which deletes Chrome's copy of the settings.
+
 ### Test builds (before Apple Developer ID signing)
 
 Until releases are signed with a Developer ID and notarized, they're test builds:
 
 - **First open:** macOS says the app can't be verified. Open **System Settings → Privacy & Security** and click **Open Anyway** (once).
-- **Safari:** if ScreenFry isn't in the Extensions list, turn on **Settings → Advanced → Show features for web developers**, then **Develop → Allow Unsigned Extensions**. Safari turns this off when it quits, so it's needed again after each Safari restart. The app shows this hint only on unsigned builds.
+- **Safari:** if ScreenFry isn't in the Extensions list, turn on **Settings → Advanced → Show features for web developers**, then the new **Developer** tab → **Allow unsigned extensions**. Safari turns this off when it quits, so it's needed again after each Safari restart. The app shows this hint only on unsigned builds.
 
 ## How updates reach everything
 

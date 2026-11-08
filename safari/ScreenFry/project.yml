@@ -54,8 +54,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime
         # Required for notarization once the app is Developer ID signed.
         ENABLE_HARDENED_RUNTIME: YES
-        MARKETING_VERSION: "0.5.0"
-        CURRENT_PROJECT_VERSION: "20"
+        MARKETING_VERSION: "0.5.1"
+        CURRENT_PROJECT_VERSION: "21"
     dependencies:
       - target: ScreenFry Extension
         embed: true
@@ -101,5 +101,5 @@ targets:
       base:
         PRODUCT_NAME: ScreenFry Extension
         PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime.Extension
-        MARKETING_VERSION: "0.5.0"
-        CURRENT_PROJECT_VERSION: "20"
+        MARKETING_VERSION: "0.5.1"
+        CURRENT_PROJECT_VERSION: "21"

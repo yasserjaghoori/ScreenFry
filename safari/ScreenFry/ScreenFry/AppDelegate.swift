@@ -29,6 +29,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let chromeDot = NSView()
     private let chromeStatus = NSTextField(labelWithString: "")
     private let notice = NSTextField(wrappingLabelWithString: "")
+    private lazy var ejectButton = button("Eject Installer", #selector(ejectInstaller(_:)), primary: false)
+    private var installerVolume: URL?
     private var extensionIdentifier: String { (Bundle.main.bundleIdentifier ?? "com.screentime.Screentime") + ".Extension" }
     private var version: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
 
@@ -85,16 +87,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Two installed copies register two Safari extensions with the same identity, which makes
-    /// Safari flaky. Point the user to any other copy.
+    /// Safari flaky. The installer disk image left mounted counts too (Safari can register the
+    /// extension inside it), but it is not a real install: offer to eject it instead.
     private func warnAboutOtherCopies() {
         guard let id = Bundle.main.bundleIdentifier else { return }
         let others = NSWorkspace.shared.urlsForApplications(withBundleIdentifier: id).filter {
             $0.standardizedFileURL != Bundle.main.bundleURL.standardizedFileURL
+                && FileManager.default.fileExists(atPath: $0.path)
                 && !$0.path.contains("/DerivedData/") && !$0.path.contains("/.Trash/")
         }
-        guard let other = others.first else { return }
-        notice.stringValue = "Another copy of ScreenFry is installed at \(other.deletingLastPathComponent().path). Keep only this one: move the other copy to the Trash."
-        notice.isHidden = false
+        if let installer = others.first(where: { $0.path.hasPrefix("/Volumes/") }) {
+            installerVolume = URL(fileURLWithPath: "/Volumes").appendingPathComponent(installer.pathComponents[2])
+            ejectButton.isHidden = false
+            notice.stringValue = "The ScreenFry installer is still open. Eject it now that ScreenFry is in Applications."
+            notice.isHidden = false
+        } else if let other = others.first {
+            notice.stringValue = "Another copy of ScreenFry is installed at \(other.deletingLastPathComponent().path). Keep only one: move the other copy to the Trash."
+            notice.isHidden = false
+        }
+    }
+
+    @objc private func ejectInstaller(_ sender: Any?) {
+        guard let volume = installerVolume else { return }
+        do {
+            try NSWorkspace.shared.unmountAndEjectDevice(at: volume)
+            notice.isHidden = true
+            ejectButton.isHidden = true
+        } catch {
+            notice.stringValue = "Couldn’t eject the installer (\(error.localizedDescription)). Eject “ScreenFry” in Finder’s sidebar."
+        }
     }
 
     private func installChromeExtension() {
@@ -152,7 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notice.font = .systemFont(ofSize: 12, weight: .medium)
         notice.textColor = .systemOrange
         notice.isHidden = true
-        notice.preferredMaxLayoutWidth = 500
+        notice.preferredMaxLayoutWidth = 360
 
         let safari = card(
             title: "Safari", dot: safariDot, status: safariStatus,
@@ -161,7 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 "Click Edit Websites and set Other Websites to Allow.",
                 "Optional: turn on Allow in Private Browsing.",
             ] + (Self.isDeveloperIDSigned ? [] : [
-                "Don’t see ScreenFry in the list? This test build isn’t signed by Apple yet. In Safari → Settings → Advanced, turn on “Show features for web developers”, then choose Develop → Allow Unsigned Extensions and look again.",
+                "Not in Safari’s list? This test build isn’t signed by Apple yet, and Safari hides unsigned extensions. In Safari → Settings → Advanced, turn on “Show features for web developers”. Then open the new Developer tab and turn on “Allow unsigned extensions”. Safari turns this off when it quits, so repeat it after restarting Safari.",
             ]),
             actions: [button("Open Safari Settings", #selector(openSafariSettings(_:)), primary: true)])
 
@@ -187,7 +208,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             stack.addArrangedSubview(foot)
         }
 
-        let stack = NSStackView(views: [header, notice, safari, chrome])
+        ejectButton.isHidden = true
+        let noticeRow = NSStackView(views: [notice, ejectButton])
+        noticeRow.orientation = .horizontal
+        noticeRow.alignment = .centerY
+        noticeRow.spacing = 10
+        let uninstallButton = NSButton(title: "Uninstall…", target: self, action: #selector(uninstall(_:)))
+        uninstallButton.bezelStyle = .inline
+        let stack = NSStackView(views: [header, noticeRow, safari, chrome, uninstallButton])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 16
@@ -303,7 +331,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async {
                 guard let self else { return }
                 if let state {
-                    self.safariStatus.stringValue = state.isEnabled ? "On in Safari" : "Installed, turned off"
+                    self.safariStatus.stringValue = state.isEnabled
+                        ? "On in Safari"
+                        : (Self.isDeveloperIDSigned ? "Installed, turned off" : "Turned off, or hidden until unsigned extensions are allowed")
                     self.safariDot.layer?.backgroundColor = (state.isEnabled ? NSColor.systemGreen : Self.ember).cgColor
                 } else {
                     self.safariStatus.stringValue = "Not visible to Safari yet\(error.map { " (\($0.localizedDescription))" } ?? "")"
@@ -356,6 +386,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
 
+    // MARK: Uninstall
+
+    @objc private func uninstall(_ sender: Any?) {
+        let alert = NSAlert()
+        alert.messageText = "Uninstall ScreenFry?"
+        alert.informativeText = """
+        Keep Settings removes the app, its Safari extension and the Chrome extension folder. \
+        Chrome keeps ScreenFry’s settings until you click Remove on its Extensions page, so \
+        reinstalling picks them up again.
+
+        Erase Everything also deletes ScreenFry’s files and preferences on this Mac, then opens \
+        Chrome’s Extensions page so you can click Remove, which deletes Chrome’s copy of the \
+        settings. Safari removes its extension with the app.
+        """
+        alert.addButton(withTitle: "Keep Settings")
+        alert.addButton(withTitle: "Erase Everything")
+        alert.addButton(withTitle: "Cancel")
+        alert.buttons[1].hasDestructiveAction = true
+        let choice = alert.runModal()
+        guard choice != .alertThirdButtonReturn else { return }
+        performUninstall(erase: choice == .alertSecondButtonReturn)
+    }
+
+    private func performUninstall(erase: Bool) {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser
+        let id = Bundle.main.bundleIdentifier ?? "com.screentime.Screentime"
+        // Unregister the Safari extension first so Safari drops it right away.
+        if let appex = Bundle.main.builtInPlugInsURL?.appendingPathComponent("ScreenFry Extension.appex") {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/pluginkit")
+            task.arguments = ["-r", appex.path]
+            try? task.run()
+            task.waitUntilExit()
+        }
+        var paths = [ChromeInstaller.folder.deletingLastPathComponent()] // Application Support/ScreenFry
+        if erase {
+            paths += [
+                home.appendingPathComponent("Library/Caches/\(id)"),
+                home.appendingPathComponent("Library/HTTPStorages/\(id)"),
+                home.appendingPathComponent("Library/Saved Application State/\(id).savedState"),
+            ]
+            UserDefaults.standard.removePersistentDomain(forName: id)
+        }
+        for path in paths where fm.fileExists(atPath: path.path) {
+            try? fm.removeItem(at: path)
+        }
+        if erase, NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.chromeBundleID) != nil {
+            openChromeExtensions(nil)
+        }
+        NSWorkspace.shared.recycle([Bundle.main.bundleURL]) { _, error in
+            DispatchQueue.main.async {
+                let done = NSAlert()
+                if let error {
+                    done.messageText = "Almost done"
+                    done.informativeText = "ScreenFry’s data was removed, but the app couldn’t move itself to the Trash (\(error.localizedDescription)). Drag ScreenFry from Applications to the Trash."
+                } else {
+                    done.messageText = "ScreenFry is uninstalled"
+                    done.informativeText = erase
+                        ? "In Chrome’s Extensions page, click Remove on ScreenFry to delete its settings there."
+                        : "Reinstall any time; Chrome keeps your ScreenFry settings until you remove it there."
+                }
+                done.runModal()
+                NSApp.terminate(nil)
+            }
+        }
+    }
+
     private func buildMenu() {
         let main = NSMenu()
         let appItem = NSMenuItem()
@@ -367,6 +465,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         update.target = self
         update.isEnabled = Self.updatesConfigured
         appMenu.addItem(update)
+        appMenu.addItem(.separator())
+        let uninstallItem = NSMenuItem(title: "Uninstall ScreenFry…", action: #selector(uninstall(_:)), keyEquivalent: "")
+        uninstallItem.target = self
+        appMenu.addItem(uninstallItem)
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit ScreenFry", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
