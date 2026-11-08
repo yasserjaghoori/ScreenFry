@@ -6,7 +6,7 @@ Updated November 8, 2026. The product, local folder and Xcode project/scheme use
 
 The checkout is now `/Users/samhangster/Documents/ChatGPT/ScreenFry`. Open this new path in Claude or other tools that remembered the old folder. Safari sources are under `safari/ScreenFry`, with `ScreenFry.xcodeproj`, the **ScreenFry** scheme, `ScreenFry` and `ScreenFry Extension` targets, and matching entitlement file names. CI, scripts and documentation use those paths. Duplicate local Xcode project copies were renamed and preserved; do not commit or delete them accidentally.
 
-Keep these compatibility identifiers: `com.screentime.Screentime`, `com.screentime.Screentime.Extension`, the existing state/export keys and message/DOM markers. They identify installed data or protocol endpoints, rather than user-facing project files. The GitHub repository remains `https://github.com/yasserjaghoori/Screentime`; this local rename did not rename the hosted repository.
+Identifiers (since 0.6.0): bundle IDs `com.screenfry.ScreenFry` and `com.screenfry.ScreenFry.Extension`, storage key `screenfryState`, export format `screenfry-export-v3`, and `screenfry` message/DOM markers. 0.6.0 dropped every use of the project's old name; installs from before it start with fresh settings. Keep these identifiers stable from now on, since changing them resets every user's settings. Repository: https://github.com/yasserjaghoori/ScreenFry (being renamed on GitHub; GitHub redirects the old address).
 
 The previous fresh reset removed installed copies and saved settings and provided the latest tested 0.5.0 DMG in Downloads. This naming change does not reinstall or enable an extension. Older installed-state notes below are historical; verify actual installation state before testing.
 
@@ -95,7 +95,8 @@ Codex's 0.4.8 popup work, made on the user's Mac and never pushed, is merged her
 
 ## 0.5.1 Installer fixes and how to verify them (read before changing the Mac app)
 
-- **Working copy:** the user's checkout lives at `~/Documents/Claude/ScreenFry` (earlier copies under `Documents/ChatGPT` are stale).
+- **Working copy:** the user's checkout on the Mac is `~/ScreenFry` (repository: https://github.com/yasserjaghoori/ScreenFry). `~/Documents/Claude/ScreenFry` existed only in a remote session's sandbox; copies under `Documents/ChatGPT` are stale.
+- **Build copy:** `npm run dmg:local` leaves a signed app in `dist/safari/Build/Products/Release`, and building registers it with macOS, which made Safari list a second ScreenFry and the installed app report "another copy". The script now unregisters it after making the disk image, and the app ignores `/Build/Products/` paths.
 - **Verify on the real Mac, not only in CI.** CI proves the app builds and launches; it never clicks the window, drags the Chrome tile or checks Safari's list. The 0.5.0 install bugs (mounted installer counted as a duplicate, unsigned extension hidden in Safari, the tile dragging the window) all passed CI. After any Mac app change: `npm ci && npm run dmg:local`, quit ScreenFry, eject old installers, install the new disk image (Replace), open it from Applications, and check the following on the Mac:
   1. no "another copy" notice, apart from the Eject Installer offer while the disk image is mounted
   2. ScreenFry appears in Safari → Settings → Extensions
@@ -122,10 +123,10 @@ Continue from these results rather than redesigning the product or reintroducing
 
 ## 2. Project and source of truth
 
-- Repository: https://github.com/yasserjaghoori/Screentime
+- Repository: https://github.com/yasserjaghoori/ScreenFry
 - Local checkout: `/Users/samhangster/Documents/ChatGPT/ScreenFry`
 - Working branch: `codex/project-setup`.
-- Existing draft PR: https://github.com/yasserjaghoori/Screentime/pull/1
+- Existing draft PR: https://github.com/yasserjaghoori/ScreenFry/pull/1
 - The last pre-restart pushed commit was `b98b99b7eb340b35d63f9e92e729e90d2f5bd9b1` (0.3.1, clock logos). The resumed 0.3.2 correction and handoff follow it on the same branch; inspect the branch tip for the latest commit.
 - Current source and installed Safari app: **0.3.2**. Use the PR branch rather than old `main`, whose README still describes the rejected commitment-based product.
 - Read `AGENTS.md`, `README.md`, `docs/PROJECT_BRIEF.md`, `docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/SAFARI.md` and `docs/THREAT_MODEL.md` before changing behavior.
@@ -246,7 +247,7 @@ Post-restart confirmation: `npm ci` completed under Node 24.14.0, `npm run check
 - Current local **0.3.2**: isolated Chrome integration finished **43 passed, 0 failed** before the pause. The test uses throwaway profiles and local fixtures under launch-site origins, not the user's everyday settings or real current website markup.
 - Integration checks include UI controls, five launch sites, no mandatory PIN, allowance/window editing and enforcement, direct/notification/SPA/modal short-form entry points, muted background video counting, paused-background stopping, actual playback suppression on X/Reddit/Substack, optional-password behavior, privileged-message rejection, popup controls and reblocking open tabs after exhaustion.
 - Current **0.3.2**: signed Safari compilation succeeded after restart. Both built and installed bundles passed `codesign --verify --deep --strict` and the package verifier. The installed host reports enabled, and `pluginkit` lists one 0.3.2 copy at the persistent app path.
-- Pushed **0.3.1**: both GitHub CI runs succeeded, including Chrome tests and unsigned Safari compilation/package verification: https://github.com/yasserjaghoori/Screentime/actions/runs/42406658788 and https://github.com/yasserjaghoori/Screentime/actions/runs/42406654621.
+- Pushed **0.3.1**: both GitHub CI runs succeeded, including Chrome tests and unsigned Safari compilation/package verification: https://github.com/yasserjaghoori/ScreenFry/actions/runs/42406658788 and https://github.com/yasserjaghoori/ScreenFry/actions/runs/42406654621.
 - Installed Safari **0.3.1**: strict recursive signature and package verification passed. Earlier tests found and fixed XcodeGen stripping sandbox entitlements.
 
 ### Everyday browsers
@@ -278,7 +279,7 @@ This fixes a documented manifest mismatch. It is **not a confirmed diagnosis or 
 ## 9. Safari packaging and installation lessons
 
 - Installed containing app confirmed at `/Users/samhangster/Applications/ScreenFry.app`, version 0.3.2. The Chrome unpacked build path is `dist/chrome`; the browser's loaded version can lag behind files until reloaded.
-- Bundle identifiers: `com.screentime.Screentime` and `com.screentime.Screentime.Extension`.
+- Bundle identifiers: `com.screenfry.ScreenFry` and `com.screenfry.ScreenFry.Extension` (since 0.6.0).
 - A valid local Apple Development identity was available. Do not put signing identities, hashes or team-specific credentials into source or this handoff. Discover the authorized local identity again if needed.
 - Signed builds worked without enabling unsigned extensions. Do not weaken signing protections unnecessarily.
 - XcodeGen rewrote entitlements to empty dictionaries until `com.apple.security.app-sandbox: true` was explicitly supplied under both targets' `entitlements.properties` in `project.yml`. Keep this fix and its package check.

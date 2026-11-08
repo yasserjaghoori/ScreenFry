@@ -3,7 +3,7 @@ import type { StateStore } from "@core/store";
 import type { AppState } from "@shared/index";
 import { detectBrowser } from "./platform";
 
-export const STATE_KEY = "screentimeState";
+export const STATE_KEY = "screenfryState";
 
 let updateQueue: Promise<unknown> = Promise.resolve();
 

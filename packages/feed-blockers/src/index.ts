@@ -252,7 +252,7 @@ export const siteDefinitions: SiteDefinition[] = [
         "Hide For You feed",
         "Home page",
         [
-          'html[data-screentime-x-tab="0"] [data-testid="primaryColumn"] section[role="region"]',
+          'html[data-screenfry-x-tab="0"] [data-testid="primaryColumn"] section[role="region"]',
         ],
         at("/home"),
         true,
@@ -261,7 +261,7 @@ export const siteDefinitions: SiteDefinition[] = [
         "Hide Following feed",
         "Home page",
         [
-          'html[data-screentime-x-tab="1"] [data-testid="primaryColumn"] section[role="region"]',
+          'html[data-screenfry-x-tab="1"] [data-testid="primaryColumn"] section[role="region"]',
         ],
         at("/home"),
         true,

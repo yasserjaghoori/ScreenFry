@@ -241,7 +241,7 @@ async function checkpointTracking(force: boolean) {
       for (const id of ids)
         try {
           await chrome.tabs.sendMessage(id, {
-            type: "SCREENTIME_WARNING",
+            type: "SCREENFRY_WARNING",
             label: warning.label,
             minutesRemaining: warning.minutesRemaining,
           } satisfies TabMessage);

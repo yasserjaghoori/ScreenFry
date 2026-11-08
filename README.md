@@ -4,7 +4,7 @@
 
 **Less feed. More day.** ScreenFry is a Chrome and Safari extension that strips the distracting parts out of social websites and limits how long you spend on them, without taking away the useful parts.
 
-> **Status:** development build, version 0.5.1. Chrome is covered by automated browser tests. Safari builds, installs and passes packaging checks, but its live behavior is still being verified. See [Testing](docs/TESTING.md).
+> **Status:** development build, version 0.6.0. No public release has been published yet, so for now you install it by building it on a Mac (below). Chrome is covered by automated browser tests. The Mac app and Safari extension build, install and pass packaging checks, but live behavior on each website is still being verified. See [Testing](docs/TESTING.md).
 
 ## What it does
 
@@ -50,17 +50,29 @@ If an allow window and a block window overlap, **blocking wins**. Daily limits a
 
 ## Install
 
-### Download (Mac)
+### Install on a Mac
 
-1. Download the latest `ScreenFry-<version>.dmg` from [Releases](https://github.com/yasserjaghoori/Screentime/releases).
-2. Open it and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications.
-3. The app walks you through turning on **Safari** (one switch in Safari's settings) and **Chrome** (turn on Developer mode, then drag the ScreenFry tile onto Chrome's Extensions page).
+No release is on the [Releases page](https://github.com/yasserjaghoori/ScreenFry/releases) yet. Until there is one, build the installer yourself. You'll need [Node.js](https://nodejs.org) (the version in `.nvmrc`), Xcode signed in to your Apple ID (Xcode → Settings → Accounts), and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
-To update, drag a newer download over the old app, or use **Check for Updates…** once updates are turned on. Both browsers update together and keep your settings. Current downloads are test builds that aren't yet signed by Apple, so the first open needs **Open Anyway** in System Settings. Details are in [Distribution](docs/DISTRIBUTION.md).
+```bash
+npm ci
+npm run dmg:local
+```
+
+This builds `dist/ScreenFry-<version>.dmg`, signed with your Mac's Apple Development identity, so Safari shows the extension without any developer settings.
+
+1. Open the disk image and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications.
+2. The app walks you through turning on **Safari** (one switch in Safari's settings, then allow it on websites) and **Chrome** (turn on Developer mode, then drag the ScreenFry tile onto Chrome's Extensions page).
+
+**Updating:** drag a newer build over the old app. Both browsers update together and keep their settings. In-app updates (**Check for Updates…**) stay off until release signing is set up. Version 0.6.0 changed the app's identifiers, so settings from earlier builds don't carry over: uninstall the old version first and set ScreenFry up again.
+
+**Uninstalling:** **ScreenFry → Uninstall…** (also at the bottom of the window). **Keep Settings** removes the app and both extensions, but Chrome keeps your settings for a reinstall. **Erase Everything** also deletes ScreenFry's files on your Mac and opens Chrome's Extensions page so you can click **Remove**.
+
+Once releases are published, downloads built by GitHub won't be signed by Apple at first. The first open then needs **Open Anyway** in System Settings → Privacy & Security, and Safari only lists the extension with **Allow unsigned extensions** turned on. Details are in [Distribution](docs/DISTRIBUTION.md).
 
 ### Build from source
 
-You'll need [Node.js](https://nodejs.org) (the version in `.nvmrc`).
+To load the extensions without the Mac app (for development):
 
 ```bash
 npm ci
@@ -111,7 +123,7 @@ Run builds and integration tests one at a time, since both use `dist/chrome`.
 | `packages/browser-adapters` | Messaging, storage and Chrome/Safari differences |
 | `safari/ScreenFry` | The Mac app that packages the Safari extension |
 
-> The local project folder and Xcode project/scheme are **ScreenFry**; the npm package is **screenfry**. The GitHub URL and existing browser bundle/storage identifiers keep their legacy values for compatibility.
+> Everything uses the ScreenFry name: the repository, Xcode project and scheme, npm package (`screenfry`) and the app's bundle identifiers (`com.screenfry.ScreenFry` and `com.screenfry.ScreenFry.Extension`).
 
 ## Limitations
 

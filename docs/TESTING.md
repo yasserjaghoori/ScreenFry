@@ -16,9 +16,13 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## 0.6.0 identifier rename — November 8, 2026
+
+The repository is now `yasserjaghoori/ScreenFry`. Bundle identifiers are `com.screenfry.ScreenFry` and `com.screenfry.ScreenFry.Extension`, and storage, export, message and page markers use `screenfry`, so earlier installs start with fresh settings. `npm run check` (**89 unit tests**, typecheck, verified build) and `npm run test:e2e` (**46 checks**) pass. `npm run dmg:local` built a signed 0.6.0 disk image that passes strict signature and package verification, and the built app contains no old identifiers. Before the rename, on the user's Mac, the signed 0.5.1 install passed checks 1 and 2 of the handoff list and the Erase Everything uninstall. 0.6.0 hasn't been installed and checked on the Mac yet.
+
 ## Project naming verification — November 8, 2026
 
-The checkout and Safari project paths now use ScreenFry, including the Xcode targets/scheme and entitlement file names. The npm package is screenfry. CI, icon generation, packaging scripts and setup instructions use the new paths. The GitHub URL and persisted browser identifiers are retained for compatibility; see the current handoff.
+The checkout and Safari project paths now use ScreenFry, including the Xcode targets/scheme and entitlement file names. The npm package is screenfry. CI, icon generation, packaging scripts and setup instructions use the new paths. At that point the GitHub URL and persisted browser identifiers kept their old values; 0.6.0 (below) renamed those too.
 
 `npm ci`, `npm run check` (**89 unit tests**, typecheck and verified build), and `npm run test:e2e` (**46 checks**) pass. From the renamed checkout, `npm run build:safari`, XcodeGen, the **ScreenFry** scheme's unsigned Debug build and Safari package verification all pass. Existing untracked duplicate project files were renamed and preserved, and duplicate Info plists are excluded from generated target sources. No installed app or browser settings were changed as part of this rename.
 

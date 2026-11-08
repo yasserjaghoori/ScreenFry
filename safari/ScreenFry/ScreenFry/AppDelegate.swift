@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let notice = NSTextField(wrappingLabelWithString: "")
     private lazy var ejectButton = button("Eject Installer", #selector(ejectInstaller(_:)), primary: false)
     private var installerVolume: URL?
-    private var extensionIdentifier: String { (Bundle.main.bundleIdentifier ?? "com.screentime.Screentime") + ".Extension" }
+    private var extensionIdentifier: String { (Bundle.main.bundleIdentifier ?? "com.screenfry.ScreenFry") + ".Extension" }
     private var version: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
 
     #if canImport(Sparkle)
@@ -94,7 +94,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let others = NSWorkspace.shared.urlsForApplications(withBundleIdentifier: id).filter {
             $0.standardizedFileURL != Bundle.main.bundleURL.standardizedFileURL
                 && FileManager.default.fileExists(atPath: $0.path)
-                && !$0.path.contains("/DerivedData/") && !$0.path.contains("/.Trash/")
+                && !$0.path.contains("/DerivedData/") && !$0.path.contains("/Build/Products/")
+                && !$0.path.contains("/.Trash/")
         }
         if let installer = others.first(where: { $0.path.hasPrefix("/Volumes/") }) {
             installerVolume = URL(fileURLWithPath: "/Volumes").appendingPathComponent(installer.pathComponents[2])
@@ -412,7 +413,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func performUninstall(erase: Bool) {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
-        let id = Bundle.main.bundleIdentifier ?? "com.screentime.Screentime"
+        let id = Bundle.main.bundleIdentifier ?? "com.screenfry.ScreenFry"
         // Unregister the Safari extension first so Safari drops it right away.
         if let appex = Bundle.main.builtInPlugInsURL?.appendingPathComponent("ScreenFry Extension.appex") {
             let task = Process()

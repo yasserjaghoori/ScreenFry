@@ -146,10 +146,10 @@ describe("per-site feed and button controls", () => {
   it("separates X home feeds and Instagram button hiding from playback blocking", () => {
     const s = settings();
     expect(activeSelectors(s, "https://x.com/home").join()).toContain(
-      'data-screentime-x-tab="0"',
+      'data-screenfry-x-tab="0"',
     );
     expect(activeSelectors(s, "https://x.com/home").join()).not.toContain(
-      'data-screentime-x-tab="1"',
+      'data-screenfry-x-tab="1"',
     );
     s.sites.instagram.reels = false;
     s.sites.instagram.reelsButton = true;

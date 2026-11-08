@@ -17,7 +17,7 @@ import type { AppState, PolicyDecision } from "@shared/index";
 const isTop = window === window.top;
 let state: AppState | undefined,
   redirecting = false;
-const STYLE = "screentime-feed-blocker";
+const STYLE = "screenfry-feed-blocker";
 let lastReportedPlaying: boolean | undefined,
   lastReportAt = 0;
 function blockedUrl(label: string) {
@@ -103,8 +103,8 @@ function markXTab() {
     (tab) => tab.getAttribute("aria-selected") === "true",
   );
   const value = index < 0 ? "" : String(index);
-  if (document.documentElement.dataset.screentimeXTab !== value)
-    document.documentElement.dataset.screentimeXTab = value;
+  if (document.documentElement.dataset.screenfryXTab !== value)
+    document.documentElement.dataset.screenfryXTab = value;
 }
 function evaluate() {
   if (!state || redirecting || !/^https?:/.test(location.href)) return;
@@ -160,7 +160,7 @@ const overlay = (() => {
   function ensure() {
     if (!document.body) return;
     if (!host) {
-      host = document.createElement("screentime-overlay");
+      host = document.createElement("screenfry-overlay");
       const root = host.attachShadow({ mode: "closed" });
       root.innerHTML = `<style>:host{all:initial}.wrap{position:fixed;right:18px;bottom:18px;z-index:2147483647;display:grid;gap:8px;justify-items:end;font:500 13px/1.3 system-ui}.chip{display:none;padding:10px 14px;border-radius:99px;background:#263a32;color:white;box-shadow:0 5px 20px #0003;font-variant-numeric:tabular-nums}.show{display:block}</style><div class="wrap"><div class="chip toast"></div><div class="chip pill"></div></div>`;
       pill = root.querySelector(".pill")!;
@@ -326,7 +326,7 @@ function startPageWatchers() {
 }
 if (isTop)
   chrome.runtime.onMessage.addListener((message: TabMessage) => {
-    if (message?.type === "SCREENTIME_WARNING")
+    if (message?.type === "SCREENFRY_WARNING")
       overlay.toast(
         `${message.minutesRemaining} minute${message.minutesRemaining === 1 ? "" : "s"} left on ${message.label} today`,
       );

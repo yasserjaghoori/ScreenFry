@@ -1,6 +1,6 @@
 name: ScreenFry
 options:
-  bundleIdPrefix: com.screentime
+  bundleIdPrefix: com.screenfry
   deploymentTarget:
     macOS: "13.0"
 settings:
@@ -36,7 +36,7 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         # Sparkle: checks this feed daily and offers updates. SUPublicEDKey stays empty
         # (updates off) until a release signing key is generated; see docs/DISTRIBUTION.md.
-        SUFeedURL: https://github.com/yasserjaghoori/Screentime/releases/latest/download/appcast.xml
+        SUFeedURL: https://github.com/yasserjaghoori/ScreenFry/releases/latest/download/appcast.xml
         SUPublicEDKey: ""
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
@@ -48,14 +48,14 @@ targets:
         com.apple.security.cs.disable-library-validation: false
     settings:
       base:
-        # The user-facing name. Bundle identifiers stay com.screentime.* so Safari keeps
-        # the existing registration and the settings stored against it.
+        # Changing the bundle identifiers makes Safari treat ScreenFry as a new extension
+        # (its settings start fresh), so keep them stable from 0.6.0 on.
         PRODUCT_NAME: ScreenFry
-        PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime
+        PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry
         # Required for notarization once the app is Developer ID signed.
         ENABLE_HARDENED_RUNTIME: YES
-        MARKETING_VERSION: "0.5.1"
-        CURRENT_PROJECT_VERSION: "21"
+        MARKETING_VERSION: "0.6.0"
+        CURRENT_PROJECT_VERSION: "22"
     dependencies:
       - target: ScreenFry Extension
         embed: true
@@ -100,6 +100,6 @@ targets:
     settings:
       base:
         PRODUCT_NAME: ScreenFry Extension
-        PRODUCT_BUNDLE_IDENTIFIER: com.screentime.Screentime.Extension
-        MARKETING_VERSION: "0.5.1"
-        CURRENT_PROJECT_VERSION: "21"
+        PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry.Extension
+        MARKETING_VERSION: "0.6.0"
+        CURRENT_PROJECT_VERSION: "22"

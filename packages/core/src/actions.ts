@@ -264,7 +264,7 @@ export function exportData(state: AppState): Record<string, unknown> {
   } = state;
   return {
     exportedAt: new Date().toISOString(),
-    format: "screentime-export-v3",
+    format: "screenfry-export-v3",
     ...rest,
   };
 }

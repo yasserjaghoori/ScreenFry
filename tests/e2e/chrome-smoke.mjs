@@ -374,9 +374,9 @@ try {
   const timerDelay = await evaluate(
     styleChurn.session,
     `new Promise(resolve=>{
-      const observer=new MutationObserver(()=>document.getElementById('screentime-feed-blocker')?.remove());
+      const observer=new MutationObserver(()=>document.getElementById('screenfry-feed-blocker')?.remove());
       observer.observe(document.head,{childList:true});
-      document.getElementById('screentime-feed-blocker')?.remove();
+      document.getElementById('screenfry-feed-blocker')?.remove();
       const start=performance.now();
       setTimeout(()=>{observer.disconnect();resolve(performance.now()-start)},200);
     })`,

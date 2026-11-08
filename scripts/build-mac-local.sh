@@ -32,6 +32,12 @@ APP=dist/safari/Build/Products/Release/ScreenFry.app
 node scripts/verify-safari.mjs "$APP"
 node scripts/verify-macos-signing.mjs "$APP"
 npm run dmg -- "$APP"
+
+# Building registers this copy (and its Safari extension) with macOS. Unregister it so Safari
+# doesn't list a second ScreenFry and the installed app doesn't report another copy.
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+pluginkit -r "$APP/Contents/PlugIns/ScreenFry Extension.appex" 2>/dev/null || true
+"$LSREGISTER" -u "$APP" 2>/dev/null || true
 echo
 echo "Next: quit ScreenFry, eject any open ScreenFry installer, open the new disk image in dist/,"
 echo "drag ScreenFry onto Applications (Replace), and open it from Applications."

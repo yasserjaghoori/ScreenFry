@@ -52,7 +52,7 @@ export async function send<T>(request: Request): Promise<Response<T>> {
   }
 }
 export type TabMessage = {
-  type: "SCREENTIME_WARNING";
+  type: "SCREENFRY_WARNING";
   label: string;
   minutesRemaining: number;
 };

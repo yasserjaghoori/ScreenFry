@@ -2,6 +2,7 @@
 
 Read `docs/PROJECT_BRIEF.md`, `README.md`, and the relevant architecture/testing docs before changing behavior.
 
+- The one working copy on Sam's Mac is `~/ScreenFry` (repository: https://github.com/yasserjaghoori/ScreenFry). Work only there; don't create or use copies elsewhere, such as under `Documents/ChatGPT`.
 - This is Sam and Yasser's productivity project. Start with Chrome and Safari extensions; a native macOS companion and iOS app are later phases.
 - Preserve local-first operation: Phase 1 has no backend, accounts, analytics, or API keys.
 - Keep policy decisions in `packages/policy-engine` and state changes in `packages/core`; UI controls alone must not enforce limits or authorize edits.

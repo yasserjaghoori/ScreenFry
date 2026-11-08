@@ -1,10 +1,10 @@
 # Distribution: the ScreenFry download
 
-ScreenFry ships as one Mac app, downloaded from GitHub Releases as a disk image. Users drag the app into Applications and open it. The app carries both browser extensions and keeps them updated together.
+ScreenFry ships as one Mac app, downloaded from GitHub Releases as a disk image. No release has been published yet; until then, build one with `npm run dmg:local` (below). Users drag the app into Applications and open it. The app carries both browser extensions and keeps them updated together.
 
 ## What the user does
 
-1. Download `ScreenFry-<version>.dmg` from the [Releases page](https://github.com/yasserjaghoori/Screentime/releases) and open it.
+1. Download `ScreenFry-<version>.dmg` from the [Releases page](https://github.com/yasserjaghoori/ScreenFry/releases) and open it.
 2. Drag **ScreenFry** onto **Applications**, then open it from Applications. (If it's opened straight from the download, it asks to be moved first.)
 3. **Safari:** click **Open Safari Settings**, turn ScreenFry on, then set **Edit Websites → Other Websites → Allow**.
 4. **Chrome:** click **Open Chrome Extensions**, turn on **Developer mode**, and drag the **ScreenFry for Chrome** tile from the app onto that page.
@@ -32,7 +32,7 @@ Until releases are signed with a Developer ID and notarized, they're test builds
 
 | Path | What happens |
 | --- | --- |
-| **Drag a new download over the old one** | Finder asks to Replace. Bundle identifiers never change, so Safari keeps the extension and its settings. On next launch, the app copies its newer Chrome build into the same folder. |
+| **Drag a new download over the old one** | Finder asks to Replace. Bundle identifiers stay the same from 0.6.0 on, so Safari keeps the extension and its settings. (0.6.0 changed them to `com.screenfry.*`, so builds before it start fresh.) On next launch, the app copies its newer Chrome build into the same folder. |
 | **In-app update** (Sparkle) | The app checks the feed daily and from **Check for Updates…**, then offers the new version. Installing it replaces the whole app, so the Safari extension inside updates too, and the relaunch refreshes the Chrome folder. |
 | **Chrome picks it up** | The Chrome extension checks once a minute, and on browser start, whether the version on disk differs from the one running, and reloads itself (`reloadIfUpdatedOnDisk` in the background). |
 
