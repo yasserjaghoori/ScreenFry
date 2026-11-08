@@ -2,7 +2,17 @@
 
 Updated November 7, 2026. The user-facing product is **ScreenFry**; repository/package/scheme/bundle identifiers retain Screentime.
 
-## Current state superseding the historical snapshot below
+## Current state — 0.4.6, superseding all older snapshots below
+
+Reviewed and pulled Claude's three newer commits: `b8fe2c0` (Safari load feedback loop), `41dc7c8` (background-mediated blocked pages and fast forecasts), and `390102b` (rule-only tracking and one site registry). Preserve these changes. The older performance/routing diagnoses below are historical, and Claude's claims about Safari fixes still need live acceptance.
+
+**ScreenFry** is the public product name. Version **0.4.6**, native build **15**, adds the melting clock/monitor logo supplied by Sam. `assets/branding/screenfry-source.png` preserves the original RGBA pixels with embedded EXIF removed. `npm run icons` generates color extension/UI/favicon icons, macOS AppIcon and Dock/setup fallback, with a monochrome toolbar counterpart. See `assets/branding/README.md`. Do not regenerate the older round clock. Internal repository/package/bundle/scheme names remain Screentime to preserve installations.
+
+Validation: Node 24.14.0, `npm ci`, **84 unit tests**, typecheck/verified build, **44 isolated Chrome integration checks**, signed Safari build and strict package/signature verification all pass. Chrome's actual extension card confirms 0.4.6 enabled after Reload; live YouTube search and direct Shorts blocking pass (blocked destination metadata only). The persistent native app at `/Users/samhangster/Applications/ScreenFry.app` is updated to 0.4.6/build 15 and visually shows the new logo. One Safari extension registration remains.
+
+**Safari stays disabled** after the previous performance incident. The new logo and package are verified, but no new live Safari navigation/performance pass was claimed. Continue Safari diagnosis in an isolated environment before another everyday-profile test. Never bypass the tool's denied installed-extension settings access. Preserve the user's untracked duplicate Xcode projects. See `docs/TESTING.md` for evidence and remaining acceptance.
+
+## Historical 0.4.2 state
 
 Claude pushed `877f8f7` (Shorts navigation and isolated-world lookup) and `2e78a48` (ScreenFry 0.4.0 ember redesign, Today summaries, popup site buttons and Mac Dock icon fallback). Those commits were fast-forwarded into local `codex/project-setup`.
 

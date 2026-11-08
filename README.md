@@ -1,5 +1,7 @@
 # ScreenFry
 
+<img src="apps/extension/public/icons/icon-128.png" width="96" height="96" alt="ScreenFry melting clock monitor logo" />
+
 ScreenFry is a Chrome and Safari extension for using social websites with fewer distractions. It combines feed and button controls with per-website daily allowances and recurring allowed-time windows.
 
 This is a development build. Chrome fixture coverage and Safari runtime acceptance are tracked separately in [Testing](docs/TESTING.md); Safari acceptance is not complete.
@@ -55,17 +57,17 @@ See [Safari setup](docs/SAFARI.md) for command-line builds and packaging checks.
 ```bash
 npm run check       # unit tests, typecheck and verified Chrome build
 npm run test:e2e    # isolated Chrome browser integration tests
-npm run icons       # regenerate extension and native app clock icons
+npm run icons       # regenerate extension and native app icons
 ```
 
 Builds and integration tests share `dist/chrome`; run them sequentially. The browser tests use local fixtures and disposable profiles. They do not establish that every selector works on today's signed-in websites or that Safari runtime behavior passes. Current results and unfinished acceptance checks belong in [Testing](docs/TESTING.md), rather than installation-specific claims in this README.
 
 ## Privacy and limitations
 
-The extension stores settings and usage locally. It has no account, backend, analytics or API key. Chrome and Safari do not share settings, passwords or allowances.
+The extension stores settings and usage locally. It measures time only on sites with rules; it does not keep general browsing history. It has no account, backend, analytics or API key. Chrome and Safari do not share settings, passwords or allowances.
 
 Website markup changes can break selectors. A video reached through a normal watch/embed URL without short-form signals cannot always be identified as a Short. Opaque media players may need additional support. Browser permissions must remain enabled, and the extension cannot prevent disabling or removal. See [Enforcement limits](docs/THREAT_MODEL.md).
 
 The interface is informed by [SocialFocus](https://socialfocus.app). Selected feed selectors are adapted from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia), with its full MIT notice bundled in both browser builds. SocialFocus source code and assets are not included.
 
-[Project brief](docs/PROJECT_BRIEF.md) · [Development setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Testing](docs/TESTING.md) · [Privacy](docs/PRIVACY.md) · [AI handoff](docs/AI_HANDOFF.md)
+[Branding](assets/branding/README.md) · [Project brief](docs/PROJECT_BRIEF.md) · [Development setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Testing](docs/TESTING.md) · [Privacy](docs/PRIVACY.md) · [AI handoff](docs/AI_HANDOFF.md)

@@ -1,7 +1,6 @@
-// Deterministic PNG exports of the ScreenFry clock mark. Runs on any OS: `npm run icons`.
-// Source of truth is the SVG built below; the committed SVGs in apps/extension/public/icons
-// are written from the same strings so designers can open them directly.
-import { mkdirSync, writeFileSync } from "node:fs";
+// Deterministic exports of the user-supplied ScreenFry melting-monitor artwork.
+// See assets/branding/README.md. Runs on any OS: `npm run icons`.
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Resvg } from "@resvg/resvg-js";
 
@@ -15,82 +14,43 @@ const brandIcon = join(root, "safari/Screentime/Screentime/BrandIcon.png");
 mkdirSync(publicIcons, { recursive: true });
 mkdirSync(appIcons, { recursive: true });
 
-const clock = `
-  <circle cx="512" cy="512" r="236" fill="#fff" fill-opacity=".12"/>
-  <circle cx="512" cy="512" r="236" fill="none" stroke="#fff" stroke-width="58"/>
-  <g fill="#fff">
-    <circle cx="512" cy="338" r="15"/><circle cx="686" cy="512" r="15"/>
-    <circle cx="512" cy="686" r="15"/><circle cx="338" cy="512" r="15"/>
-  </g>
-  <path d="M512 382V512l104 62" fill="none" stroke="#fff" stroke-width="54"
-        stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="512" cy="512" r="34" fill="#fff"/>`;
-
-const defs = `
-  <defs>
-    <linearGradient id="ember" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ff9a3c"/>
-      <stop offset=".55" stop-color="#f4621f"/>
-      <stop offset="1" stop-color="#d63a16"/>
-    </linearGradient>
-    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff" stop-opacity=".28"/>
-      <stop offset=".5" stop-color="#fff" stop-opacity="0"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity=".28"/>
-    </filter>
-  </defs>`;
-
-/** Apple's macOS grid: an 824pt rounded square centered on a 1024pt canvas, with a soft shadow. */
-const gridIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">${defs}
-  <g filter="url(#shadow)">
-    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#ember)"/>
-  </g>
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#gloss)"/>
-  <g transform="translate(512 512) scale(.86) translate(-512 -512)">${clock}</g>
+const artwork = readFileSync(join(root, "assets/branding/screenfry-source.png"));
+// Center the solid mark in a square, trimming only the outer, near-transparent glow.
+// The supplied PNG stays intact; every color export uses this same framing.
+const logo = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="250 0 1024 1024">
+  <image width="1536" height="1024" xlink:href="data:image/png;base64,${artwork.toString("base64")}"/>
 </svg>`;
 
-/** Full-bleed version for 16 and 32 px, where the grid margin would make the mark unreadable. */
-const smallIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">${defs}
-  <rect width="1024" height="1024" rx="230" fill="url(#ember)"/>
-  <g transform="translate(512 512) scale(1.12) translate(-512 -512)">${clock
-    .replace(/stroke-width="58"/, 'stroke-width="80"')
-    .replace(/stroke-width="54"/, 'stroke-width="76"')
-    .replace(/<g fill="#fff">[\s\S]*?<\/g>/, "")}</g>
-</svg>`;
-
-/** Monochrome toolbar mark; unchanged shape so the pinned Safari/Chrome button keeps its look. */
-const toolbarIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <g fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="32" cy="32" r="24"/>
-    <path d="M32 17v16l11 6"/>
+// Safari tints toolbar icons using their alpha channel. An outline counterpart keeps
+// the melting monitor and clock legible at 16 px, in both light and dark toolbars.
+const toolbar = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <g fill="none" stroke="#000" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M15 9h34a7 7 0 0 1 7 7v21c0 4-3 6-5 6v7a3 3 0 0 1-6 0v-6c0-3-5-3-5 0v8a3 3 0 0 1-6 0v-5c0-4-4-5-8-5H15a7 7 0 0 1-7-7V16a7 7 0 0 1 7-7Z"/>
+    <path d="M20 43v10h-5m5 0h10M32 18v9l8 5"/>
+    <path d="M17 27h2m26 0h2m-15 9v1" stroke-width="3"/>
   </g>
 </svg>`;
 
 const png = (svg, size) =>
   new Resvg(svg, { fitTo: { mode: "width", value: size } }).render().asPng();
-const iconFor = (size) => png(size <= 32 ? smallIcon : gridIcon, size);
-
-writeFileSync(join(publicIcons, "logo.svg"), gridIcon.trim() + "\n");
-writeFileSync(join(publicIcons, "toolbar.svg"), toolbarIcon.trim() + "\n");
+writeFileSync(join(publicIcons, "logo.svg"), logo.trim() + "\n");
+writeFileSync(join(publicIcons, "toolbar.svg"), toolbar.trim() + "\n");
 for (const size of [16, 32, 48, 64, 96, 128, 256, 512, 1024])
-  writeFileSync(join(publicIcons, `icon-${size}.png`), iconFor(size));
+  writeFileSync(join(publicIcons, `icon-${size}.png`), png(logo, size));
 for (const size of [16, 19, 24, 32, 38, 48, 64])
-  writeFileSync(join(publicIcons, `toolbar-${size}.png`), png(toolbarIcon, size));
+  writeFileSync(join(publicIcons, `toolbar-${size}.png`), png(toolbar, size));
 
 const images = [];
 for (const points of [16, 32, 128, 256, 512])
   for (const scale of [1, 2]) {
     const filename = `appicon-${points}@${scale}x.png`;
-    writeFileSync(join(appIcons, filename), iconFor(points * scale));
+    writeFileSync(join(appIcons, filename), png(logo, points * scale));
     images.push({ filename, idiom: "mac", scale: `${scale}x`, size: `${points}x${points}` });
   }
 writeFileSync(
   join(appIcons, "Contents.json"),
   JSON.stringify({ images, info: { author: "xcode", version: 1 } }, null, 2) + "\n",
 );
-// Bundled copy the containing app sets as its Dock icon at launch, so a stale
-// LaunchServices icon cache can't leave the Dock showing the generic placeholder.
-writeFileSync(brandIcon, png(gridIcon, 1024));
-console.log("Generated extension, toolbar and macOS app icons.");
+// Dock and setup-window fallback for installations with a stale LaunchServices cache.
+writeFileSync(brandIcon, png(logo, 1024));
+console.log("Generated ScreenFry melting-monitor extension, toolbar and macOS icons.");

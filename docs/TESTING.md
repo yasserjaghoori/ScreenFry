@@ -16,7 +16,18 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
-## Current verification — 0.4.2, November 7, 2026
+## Current verification — 0.4.6, November 7, 2026
+
+- Reviewed and fast-forwarded Claude's `b8fe2c0`, `41dc7c8` and `390102b`: coalesced background work, skipped unchanged state writes/rule installs, idle unrelated frames, faster boundary-based forecasts, Safari top-level blocked-page messaging, rule-only usage and the shared site registry. These changes have automated coverage; their live Safari behavior is still unverified.
+- Replaced the earlier clock logo with Sam's supplied melting-monitor artwork. The metadata-cleaned source has exactly the same RGBA pixels as the attachment. Regenerated color extension/UI/favicon assets, native AppIcon and Dock/setup fallback, plus the corresponding monochrome toolbar mark. Visually checked exports against light/dark backgrounds and the installed native setup window.
+- Node **24.14.0**, `npm ci` (zero vulnerabilities), `npm run check`: **84 unit tests**, typecheck and verified build passed. `npm run test:e2e`: **44 passed, zero failed**, including style-removal responsiveness, direct/SPA/modal short-form blocking, limits/windows, background muted playback and password authorization.
+- Signed **ScreenFry.app 0.4.6, build 15** built successfully and was installed in place. Built and installed bundles passed strict recursive signature and Safari package verification. One persistent Safari extension registration remains; unrelated duplicate Xcode projects were preserved.
+- Chrome's native extension-management page confirmed **0.4.6 enabled** after Reload. Live YouTube search returned result headings, and a direct Shorts URL reached the blocked destination with the original URL preserved. Only navigation metadata was inspected at the blocked extension page. The test tab was closed.
+- **Safari remains disabled**, confirmed by the installed containing app. This update did not repeat the earlier everyday-profile Safari performance test. The corrected packaging and automated coverage do not prove live Safari responsiveness or blocked-page routing; those remain acceptance work in an isolated environment first.
+
+The 0.4.2 and earlier results below are historical. For current source behavior see the architecture and privacy documents; do not infer a live Safari pass from a successful build.
+
+## Historical verification — 0.4.2, November 7, 2026
 
 - Synced Claude's `877f8f7` and `2e78a48`: the ScreenFry rename, ember theme, Today summaries, popup site buttons, native clock fallback, broader Shorts navigation selectors and isolated-world lookup fix.
 - Node 24.14.0 / `npm ci` succeeded. The final `npm run check` passed **70 unit tests**, typecheck and verified build. The final isolated Chrome suite passed **44 checks**, including a new style-removal responsiveness regression.
