@@ -60,6 +60,13 @@ Evidence (isolated headless Chrome, 1 YouTube fixture + 6 pages with 8 iframes e
 - **Windows picker (user decision):** sites come from the Websites page list, plus custom domains. This is already how it works.
 - **Expansion:** `siteDefinitions` is the single site registry: name, domains, color, symbol, controls and optional `shortForm` (setting, label, path regex, example path, player selectors). `launchSites`, `defaultRules`, feed defaults, network short-form rules, content-script player detection and the blocked page all derive from it. Migration adds a default rule for any registry site missing from saved state. Adding a site needs the `FeedSite` id plus one entry; see `docs/ADDING_A_SITE.md`. A dry run that added TikTok this way built and rendered correctly (reverted). `tests/site-registry.test.ts` guards completeness.
 
+## 0.4.7 Toolbar icon, block windows, Safari popup, README
+
+- **Chrome toolbar icon:** Chrome draws icons exactly as supplied, so the black outline vanished on dark or colored toolbars. Chrome's manifest now uses `toolbar-color-*.png` (solid ember fill, white outline and clock). `prepare-safari.mjs` switches Safari back to the monochrome `toolbar-*.png` it tints, and `verify-safari.mjs` enforces that.
+- **Block windows (user request):** `AccessWindow.mode` is `"allow"` (default; existing windows migrate to it) or `"block"`. Block windows add the `block-window` reason while active; block wins over allow. The editor has an Allow/Block choice and cards show the mode. Policy tests cover overnight, overlap and boundaries.
+- **Safari popup:** it now draws immediately from `storage.local`, then refreshes from the background, at a fixed 380x580 size. Previously it waited for the background to wake, so the popover opened tiny and then jumped. When `<all_urls>` access isn't granted, it shows how to grant it. Safari otherwise shows its own permission prompt on every toolbar click, which matches the user's "permissions window" report. Not yet verified in live Safari.
+- **README** rewritten for readability, with accurate controls (taken from the registry), allow/block windows, and the Safari "Other Websites → Allow" step.
+
 ## Historical requirements and assessment record
 
 The retained snapshot below describes earlier 0.3.x work. Its requirements and reference-extension assessment remain useful; its version/path/test-status statements are superseded by the current section, README and Testing document.

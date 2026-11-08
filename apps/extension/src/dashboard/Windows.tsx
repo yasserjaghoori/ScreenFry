@@ -58,10 +58,11 @@ export function Windows({
     <>
       <div className="window-intro">
         <p>
-          Whitelist websites inside a window. Those websites are{" "}
-          <strong>blocked outside all their enabled windows</strong>, even with
-          time left. Daily limits still apply inside. Websites not listed in a
-          window keep their usual settings.
+          An <strong>allow window</strong> is the only time its websites can be
+          used: outside it they are blocked, even with time left. A{" "}
+          <strong>block window</strong> blocks its websites while it is on.
+          Block windows win when both apply, and daily limits always still
+          count. Websites in no window keep their usual settings.
         </p>
         <button
           className="button"
@@ -74,6 +75,7 @@ export function Windows({
               days: [...ALL_DAYS],
               startMinute: 12 * 60,
               endMinute: 18 * 60,
+              mode: "allow",
             })
           }
         >
@@ -91,7 +93,14 @@ export function Windows({
           <article className="card window-card" key={w.id}>
             <div className="row spread">
               <div>
-                <h2>{w.label}</h2>
+                <h2>
+                  {w.label}{" "}
+                  <span
+                    className={`pill ${w.mode === "block" ? "warn" : "good"}`}
+                  >
+                    {w.mode === "block" ? "Block window" : "Allow window"}
+                  </span>
+                </h2>
                 <p className="window-time">
                   {w.startMinute === w.endMinute ||
                   (w.startMinute === 0 && w.endMinute === 1440)
@@ -171,9 +180,39 @@ export function Windows({
                   ? "Edit window"
                   : "New window"}
               </h2>
-              <p className="muted">
-                Allowed times for the websites you choose below.
-              </p>
+              <fieldset className="group">
+                <legend>During this window</legend>
+                <div className="segmented" role="radiogroup">
+                  {(
+                    [
+                      [
+                        "allow",
+                        "Allow these websites",
+                        "Blocked at all other times",
+                      ],
+                      [
+                        "block",
+                        "Block these websites",
+                        "Usable at other times",
+                      ],
+                    ] as const
+                  ).map(([mode, title, hint]) => (
+                    <button
+                      type="button"
+                      key={mode}
+                      role="radio"
+                      aria-checked={(editing.mode ?? "allow") === mode}
+                      className={
+                        (editing.mode ?? "allow") === mode ? "selected" : ""
+                      }
+                      onClick={() => setEditing({ ...editing, mode })}
+                    >
+                      <strong>{title}</strong>
+                      <span>{hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
               <div className="field">
                 <label htmlFor="window-name">Window name</label>
                 <input
@@ -248,7 +287,11 @@ export function Windows({
                 day.
               </p>
               <fieldset className="group">
-                <legend>Website whitelist</legend>
+                <legend>
+                  {editing.mode === "block"
+                    ? "Websites to block"
+                    : "Websites to allow"}
+                </legend>
                 <div className="whitelist">
                   {launchSites.map((s) => {
                     const selected = editing.domains.some((d) =>

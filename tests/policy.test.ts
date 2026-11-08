@@ -202,3 +202,48 @@ describe("complete short-form blocking", () => {
     ).toBe("allowed");
   });
 });
+describe("block windows", () => {
+  // 2026-11-03 is a Tuesday.
+  const block = (patch: Partial<AccessWindow> = {}) =>
+    window({ id: "focus", label: "Focus", mode: "block", ...patch });
+  it("blocks listed websites only while the window is on", () => {
+    const s = stateWith([rule()]);
+    s.windows = [block()];
+    const inside = evaluatePolicy(s, url, at(2026, 10, 3, 13));
+    expect(inside.status).toBe("blocked");
+    expect(inside.reasons).toEqual(["block-window"]);
+    expect(inside.nextAccessAt).toBe(at(2026, 10, 3, 18));
+    expect(evaluatePolicy(s, url, at(2026, 10, 3, 19)).status).toBe("allowed");
+    expect(
+      evaluatePolicy(s, "https://reddit.com/", at(2026, 10, 3, 13)).status,
+    ).toBe("allowed");
+  });
+  it("crosses midnight", () => {
+    const s = stateWith([rule()]);
+    s.windows = [block({ days: [2], startMinute: 22 * 60, endMinute: 6 * 60 })];
+    expect(evaluatePolicy(s, url, at(2026, 10, 3, 23)).status).toBe("blocked");
+    expect(evaluatePolicy(s, url, at(2026, 10, 4, 5)).status).toBe("blocked");
+    expect(evaluatePolicy(s, url, at(2026, 10, 4, 7)).status).toBe("allowed");
+  });
+  it("wins over an overlapping allow window", () => {
+    const s = stateWith([rule()]);
+    s.windows = [
+      window({ startMinute: 9 * 60, endMinute: 20 * 60 }),
+      block({ startMinute: 12 * 60, endMinute: 13 * 60 }),
+    ];
+    expect(evaluatePolicy(s, url, at(2026, 10, 3, 10)).status).toBe("allowed");
+    const lunch = evaluatePolicy(s, url, at(2026, 10, 3, 12, 30));
+    expect(lunch.reasons).toEqual(["block-window"]);
+    expect(lunch.nextAccessAt).toBe(at(2026, 10, 3, 13));
+    expect(evaluatePolicy(s, url, at(2026, 10, 3, 21)).reasons).toEqual([
+      "outside-window",
+    ]);
+  });
+  it("has no effect when disabled, and schedules a boundary at its start", () => {
+    const s = stateWith([rule()]);
+    s.windows = [block({ enabled: false })];
+    expect(evaluatePolicy(s, url, at(2026, 10, 3, 13)).status).toBe("allowed");
+    s.windows = [block()];
+    expect(nextPolicyBoundary(s, at(2026, 10, 3, 9))).toBe(at(2026, 10, 3, 12));
+  });
+});

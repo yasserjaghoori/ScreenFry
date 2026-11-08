@@ -81,11 +81,26 @@ export function outsideWindow(
   now: number,
 ): boolean {
   const windows = state.windows.filter(
-    (w) => w.enabled && urlMatchesDomains(url, w.domains),
+    (w) =>
+      w.enabled && w.mode !== "block" && urlMatchesDomains(url, w.domains),
   );
   return (
     windows.length > 0 &&
     !windows.some((w) => isScheduleActive(w, new Date(now)))
+  );
+}
+/** True while any enabled block window listing this website is active. */
+export function insideBlockWindow(
+  state: AppState,
+  url: string,
+  now: number,
+): boolean {
+  return state.windows.some(
+    (w) =>
+      w.enabled &&
+      w.mode === "block" &&
+      urlMatchesDomains(url, w.domains) &&
+      isScheduleActive(w, new Date(now)),
   );
 }
 function decisionAt(
@@ -114,6 +129,7 @@ function decisionAt(
   });
   reasons.push(...decisions.flatMap((d) => d.reasons));
   if (outsideWindow(state, url, at)) reasons.push("outside-window");
+  if (insideBlockWindow(state, url, at)) reasons.push("block-window");
   const short = shortFormBlock(state.feedSettings, url);
   if (short) reasons.push("short-form");
   const primary =

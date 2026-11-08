@@ -53,6 +53,9 @@ function Blocked() {
             notifications follow the same setting.
           </p>
         )}
+        {decision?.reasons.includes("block-window") && (
+          <p className="muted">One of your block windows is on right now.</p>
+        )}
         {decision?.reasons.includes("outside-window") && (
           <p className="muted">This website is outside its allowed windows.</p>
         )}

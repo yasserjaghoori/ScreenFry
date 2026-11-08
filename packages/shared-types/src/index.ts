@@ -17,6 +17,12 @@ export interface AccessWindow extends WeeklySchedule {
   label: string;
   enabled: boolean;
   domains: string[];
+  /**
+   * "allow" (default): the listed websites are usable only inside this window (or another
+   * allow window). "block": the listed websites are blocked while this window is active.
+   * When both apply, blocking wins.
+   */
+  mode?: "allow" | "block";
 }
 export interface WebsiteRule {
   id: string;
@@ -73,6 +79,7 @@ export interface AppState {
 export type PolicyReason =
   | "daily-limit"
   | "outside-window"
+  | "block-window"
   | "site-blocked"
   | "short-form";
 export interface PolicyDecision {

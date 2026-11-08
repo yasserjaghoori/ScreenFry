@@ -581,3 +581,32 @@
   min-height: 60vh;
   color: var(--muted);
 }
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.segmented button {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.segmented button span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.segmented button.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.window-card h2 .pill {
+  vertical-align: middle;
+  font-size: 11px;
+  margin-left: 6px;
+}

@@ -1,8 +1,15 @@
+/* A fixed size keeps Safari's popover from resizing as content loads. */
 .popup {
   width: 380px;
+  height: 580px;
   padding: 16px 18px 20px;
-  max-height: 590px;
   overflow-y: auto;
+}
+.popup-access {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 12px;
+  font-size: 12.5px;
 }
 .popup-head {
   display: flex;
@@ -51,7 +58,7 @@
 }
 .site-picker {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
   gap: 6px;
   margin: 0 0 12px;
 }
@@ -140,4 +147,9 @@
 }
 .popup .control-row .button {
   padding: 7px 10px;
+}
+.notice.warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 30%, transparent);
 }

@@ -61,6 +61,12 @@ if (!errors.length) {
     )
   )
     errors.push("missing packaged Safari nonpersistent module background page");
+  if (
+    Object.values(manifest.action.default_icon ?? {}).some(
+      (path) => !/^icons\/toolbar-\d+\.png$/.test(path),
+    )
+  )
+    errors.push("Safari toolbar must use the monochrome outline icons it tints");
   for (const iconMap of [manifest.icons, manifest.action.default_icon]) {
     if (!iconMap?.["16"] || !iconMap?.["32"])
       errors.push("missing embedded icon declarations");

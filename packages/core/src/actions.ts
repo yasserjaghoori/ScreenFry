@@ -194,6 +194,7 @@ export async function saveWindow(
     days,
     startMinute: input.startMinute,
     endMinute: input.endMinute,
+    mode: input.mode === "block" ? "block" : "allow",
   };
   return protectedUpdate(ctx, (s) => ({
     ...s,

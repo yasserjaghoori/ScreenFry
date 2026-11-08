@@ -98,7 +98,10 @@ export function migrateState(
   if (typeof raw.usageAsOf === "number") state.usageAsOf = raw.usageAsOf;
   state.windows =
     !legacy && Array.isArray(raw.windows)
-      ? (raw.windows as AccessWindow[])
+      ? (raw.windows as AccessWindow[]).map((w) => ({
+          ...w,
+          mode: w.mode === "block" ? "block" : "allow",
+        }))
       : [];
   state.rules = Array.isArray(raw.rules)
     ? (raw.rules as Record<string, unknown>[])

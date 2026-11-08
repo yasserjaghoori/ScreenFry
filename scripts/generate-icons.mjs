@@ -31,14 +31,28 @@ const toolbar = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   </g>
 </svg>`;
 
+// Chrome draws toolbar icons exactly as supplied, so a black outline vanishes on dark or
+// colored toolbars. Chrome gets this solid ember version; Safari keeps the tinted outline.
+const toolbarColor = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><linearGradient id="ember" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a3c"/><stop offset="1" stop-color="#e2461a"/></linearGradient></defs>
+  <path d="M15 9h34a7 7 0 0 1 7 7v21c0 4-3 6-5 6v7a3 3 0 0 1-6 0v-6c0-3-5-3-5 0v8a3 3 0 0 1-6 0v-5c0-4-4-5-8-5H15a7 7 0 0 1-7-7V16a7 7 0 0 1 7-7Z" fill="url(#ember)" stroke="#fff" stroke-width="2.5" stroke-linejoin="round" paint-order="stroke"/>
+  <path d="M20 43v10h-5m5 0h10" fill="none" stroke="#e2461a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 17v10l8 5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M17 27h2m26 0h2" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+</svg>`;
+
 const png = (svg, size) =>
   new Resvg(svg, { fitTo: { mode: "width", value: size } }).render().asPng();
 writeFileSync(join(publicIcons, "logo.svg"), logo.trim() + "\n");
 writeFileSync(join(publicIcons, "toolbar.svg"), toolbar.trim() + "\n");
+writeFileSync(join(publicIcons, "toolbar-color.svg"), toolbarColor.trim() + "\n");
 for (const size of [16, 32, 48, 64, 96, 128, 256, 512, 1024])
   writeFileSync(join(publicIcons, `icon-${size}.png`), png(logo, size));
 for (const size of [16, 19, 24, 32, 38, 48, 64])
+{
   writeFileSync(join(publicIcons, `toolbar-${size}.png`), png(toolbar, size));
+  writeFileSync(join(publicIcons, `toolbar-color-${size}.png`), png(toolbarColor, size));
+}
 
 const images = [];
 for (const points of [16, 32, 128, 256, 512])

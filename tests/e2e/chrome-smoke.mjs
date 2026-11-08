@@ -237,8 +237,8 @@ try {
   );
   await sleep(150);
   check(
-    "separate Windows page explains whitelist semantics",
-    /Whitelist websites inside a window/.test(await body()),
+    "separate Windows page explains allow and block windows",
+    /allow window/i.test(await body()) && /block window/i.test(await body()),
   );
   await evaluate(
     controller.session,

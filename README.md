@@ -1,73 +1,118 @@
 # ScreenFry
 
-<img src="apps/extension/public/icons/icon-128.png" width="96" height="96" alt="ScreenFry melting clock monitor logo" />
+<img src="apps/extension/public/icons/icon-128.png" width="96" height="96" alt="ScreenFry logo: a melting monitor with a clock face" />
 
-ScreenFry is a Chrome and Safari extension for using social websites with fewer distractions. It combines feed and button controls with per-website daily allowances and recurring allowed-time windows.
+**Less feed. More day.** ScreenFry is a Chrome and Safari extension that strips the distracting parts out of social websites and limits how long you spend on them, without taking away the useful parts.
 
-This is a development build. Chrome fixture coverage and Safari runtime acceptance are tracked separately in [Testing](docs/TESTING.md); Safari acceptance is not complete.
+> **Status:** development build, version 0.4.7. Chrome is covered by automated browser tests. Safari builds, installs and passes packaging checks, but its live behavior is still being verified. See [Testing](docs/TESTING.md).
 
-The GitHub repository, npm package, Xcode scheme and internal browser identifiers retain the name **Screentime**. The user-facing product and macOS app are **ScreenFry**.
+## What it does
 
-## Website controls
+| | |
+| --- | --- |
+| **Hide distractions** | Turn off feeds, recommendations, comments and navigation buttons, site by site. Search, direct links, profiles and messages keep working. |
+| **Block Shorts and Reels** | Blocks them completely, not just the button: direct links, notifications and in-page players are all caught. |
+| **Daily limits** | Give each website its own daily allowance, or none. When it runs out, the whole site is blocked, including tabs already open. Resets at midnight. |
+| **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
+| **Optional password** | Protect your settings from impulsive changes. It never grants extra time. |
+| **Private** | Everything stays on your device. No account, server or analytics, and no record of the sites you visit. |
 
-The initial sites are **YouTube, Instagram, X, Reddit and Substack**. Choose a website to adjust its own feed, navigation, playback and time-limit controls. The popup provides the same site controls; the dashboard adds a Today usage summary and separate Windows and Settings pages. Light and dark themes are available.
+### Supported websites
 
-- Hide selected feeds, recommendations, comments or navigation buttons. Search, messages, profiles and direct content remain available unless another selected control restricts them.
-- Set a separate daily allowance for each website, or choose no limit. Exhausting the allowance blocks the entire website, including already-open tabs.
-- Enable **Block Shorts entirely** for YouTube or **Block Reels entirely** for Instagram. Recognized direct routes and in-page players are blocked and playback is paused. X, Reddit and Substack also have independent video-playback controls.
-- Optionally protect changes with a settings password. The password authorizes edits; it does not grant additional browsing time. A fresh installation starts unrestricted.
+| Website | Controls |
+| --- | --- |
+| **YouTube** | Home and subscriptions feeds · recommendations, comments and end screens · **block Shorts entirely** · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
+| **Instagram** | Home feed and Stories · Explore feed · **block Reels entirely** · Home, Search, Explore, Reels, Messages, Notifications and Create buttons · suggested accounts |
+| **X** | For You and Following feeds (separately) · Create Post box · trends, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback |
+| **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
+| **Substack** | Home and Notes feeds · Home, Notes, Explore, Notifications and Chat buttons · video playback |
 
-## How time and windows work
+Every control starts **off**: a fresh install changes nothing until you choose. More websites can be added with one entry each; see [Adding a website](docs/ADDING_A_SITE.md).
 
-Time counts while a website is the active tab in the focused browser window, and while its audio or video actually plays in a background tab, including muted video. An inactive, non-playing tab does not count. Simultaneous tabs on the same website count once per elapsed second. Each browser keeps its own daily usage, resetting at local midnight.
+## How time is counted
 
-On the **Windows** page, create one or more recurring windows and whitelist websites for each. Listed websites are blocked outside all their enabled windows, even with unused daily time. Unlisted websites retain their normal controls. Multiple matching windows combine and share the website's single daily allowance; overnight windows are supported.
+- A website's time counts while it's the **active tab** in the focused window, and while its **audio or video is playing** in the background, even muted.
+- A background tab that isn't playing doesn't count.
+- Several tabs of the same website count once, not once each.
+- Chrome and Safari keep separate settings and separate time.
 
-For example, YouTube with a 10-minute allowance and noon–1 p.m. plus 6–8 p.m. windows gets **10 minutes total per day**, usable in either window. It is blocked at 3 p.m.
+## Windows
 
-## Build and install
+The **Windows** page has two kinds of schedule. Each has a name, days, a start and end time (overnight works), and a list of websites, chosen from the supported sites or typed in.
 
-Use the Node version in `.nvmrc`:
+- **Allow window:** the listed websites work *only* during the window. Outside every allow window they're blocked, even with time left.
+- **Block window:** the listed websites are blocked *during* the window and work normally otherwise.
+
+If an allow window and a block window overlap, **blocking wins**. Daily limits always still apply.
+
+*Example:* YouTube has a 10-minute limit and allow windows at 12–1 pm and 6–8 pm. That's 10 minutes total for the day, usable in either window, and YouTube is blocked at 3 pm even if none of it was used. A block window from 9 am to 5 pm on weekdays would instead keep YouTube off during work hours.
+
+## Install
+
+You'll need [Node.js](https://nodejs.org) (the version in `.nvmrc`).
 
 ```bash
-nvm use
 npm ci
 npm run build
 ```
 
 ### Chrome
 
-Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `dist/chrome`. Enable ScreenFry and grant the website access needed for its controls. After rebuilding, use **Reload** on its extension card to load the new files. Enable **Allow in Incognito** separately if desired.
+1. Open `chrome://extensions` and turn on **Developer mode**.
+2. Click **Load unpacked** and choose the `dist/chrome` folder.
+3. Pin ScreenFry from the puzzle-piece menu.
+4. *Optional:* under **Details**, turn on **Allow in Incognito**.
 
-### Safari on macOS
+After rebuilding, click **Reload** on the ScreenFry card.
 
-Install Xcode and XcodeGen, then run from the repository root:
+### Safari (macOS)
+
+You'll also need Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+
+1. Build and generate the project:
+   ```bash
+   npm run build:safari
+   xcodegen generate --spec safari/Screentime/project.yml
+   ```
+2. Open `safari/Screentime/Screentime.xcodeproj`, pick a signing team for both targets, and run the **Screentime** scheme. This builds **ScreenFry.app**.
+3. In Safari → **Settings → Extensions**, turn on **ScreenFry**.
+4. Still there, click **Edit Websites** and set **Other Websites** to **Allow**. Without this, Safari asks for permission every time you click the icon, and ScreenFry can't work on most pages.
+5. *Optional:* turn on **Allow in Private Browsing**.
+
+Keep a single copy of ScreenFry.app installed; two copies register two extensions. More detail is in [Safari setup](docs/SAFARI.md).
+
+## Development
 
 ```bash
-npm run build:safari
-xcodegen generate --spec safari/Screentime/project.yml
+npm run check       # unit tests, type check and a verified Chrome build
+npm run test:e2e    # Chrome integration tests in a throwaway profile
+npm run icons       # regenerate every icon from the source artwork
 ```
 
-Open `safari/Screentime/Screentime.xcodeproj`, select the **Screentime** scheme, configure signing for both targets and build. The containing app is **ScreenFry.app**, with an embedded **ScreenFry Extension.appex**. Enable ScreenFry in Safari Settings → Extensions and grant website access. Private Browsing access is a separate Safari setting.
+Run builds and integration tests one at a time, since both use `dist/chrome`.
 
-See [Safari setup](docs/SAFARI.md) for command-line builds and packaging checks. Keep one installed containing app. When upgrading from Screentime.app, preserve the internal bundle identifiers, quit the old containing app, back it up and replace/rename the installation safely rather than leaving two registered copies.
+| Folder | What's in it |
+| --- | --- |
+| `apps/extension` | Dashboard, popup, blocked page, background and content scripts |
+| `packages/feed-blockers` | **The site registry:** every website's domains, controls and Shorts-style blocking |
+| `packages/policy-engine` | Decides whether a page is allowed right now |
+| `packages/core` | Settings, password checks, time tracking and data migration |
+| `packages/browser-adapters` | Messaging, storage and Chrome/Safari differences |
+| `safari/Screentime` | The Mac app that packages the Safari extension |
 
-## Development and verification
+> The repository, npm package, Xcode scheme and bundle IDs still use the old name **Screentime**. The product is **ScreenFry**.
 
-```bash
-npm run check       # unit tests, typecheck and verified Chrome build
-npm run test:e2e    # isolated Chrome browser integration tests
-npm run icons       # regenerate extension and native app icons
-```
+## Limitations
 
-Builds and integration tests share `dist/chrome`; run them sequentially. The browser tests use local fixtures and disposable profiles. They do not establish that every selector works on today's signed-in websites or that Safari runtime behavior passes. Current results and unfinished acceptance checks belong in [Testing](docs/TESTING.md), rather than installation-specific claims in this README.
+- Websites change their layouts, which can break individual controls until they're updated.
+- A regular video link with nothing marking it as a Short can't always be recognized as one.
+- The password protects settings inside ScreenFry. It can't stop someone from turning the extension off or removing it.
+- Chrome and Safari don't share settings, time or passwords.
 
-## Privacy and limitations
+More in [Enforcement limits](docs/THREAT_MODEL.md) and [Privacy](docs/PRIVACY.md).
 
-The extension stores settings and usage locally. It measures time only on sites with rules; it does not keep general browsing history. It has no account, backend, analytics or API key. Chrome and Safari do not share settings, passwords or allowances.
+## Credits
 
-Website markup changes can break selectors. A video reached through a normal watch/embed URL without short-form signals cannot always be identified as a Short. Opaque media players may need additional support. Browser permissions must remain enabled, and the extension cannot prevent disabling or removal. See [Enforcement limits](docs/THREAT_MODEL.md).
+The interface is inspired by [SocialFocus](https://socialfocus.app); none of its code or artwork is used. Some feed selectors are adapted from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia) under the MIT license, whose full notice ships with both builds.
 
-The interface is informed by [SocialFocus](https://socialfocus.app). Selected feed selectors are adapted from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia), with its full MIT notice bundled in both browser builds. SocialFocus source code and assets are not included.
-
-[Branding](assets/branding/README.md) · [Project brief](docs/PROJECT_BRIEF.md) · [Development setup](docs/SETUP.md) · [Architecture](docs/ARCHITECTURE.md) · [Testing](docs/TESTING.md) · [Privacy](docs/PRIVACY.md) · [AI handoff](docs/AI_HANDOFF.md)
+**Docs:** [Project brief](docs/PROJECT_BRIEF.md) · [Architecture](docs/ARCHITECTURE.md) · [Development setup](docs/SETUP.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Adding a website](docs/ADDING_A_SITE.md) · [Branding](assets/branding/README.md) · [AI handoff](docs/AI_HANDOFF.md)
