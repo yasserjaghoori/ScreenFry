@@ -20,7 +20,11 @@ import {
 } from "@browser/platform";
 import { chromeStateStore } from "@browser/storage";
 import { extensionPageUrl, networkBlockAction } from "@browser/urls";
-import { evaluatePolicy, nextPolicyBoundary } from "@policy/index";
+import {
+  evaluatePolicy,
+  matchingRules,
+  nextPolicyBoundary,
+} from "@policy/index";
 import type { AppState, PolicyDecision } from "@shared/index";
 const ctx: actions.ActionContext = {
   store: chromeStateStore,
@@ -65,7 +69,13 @@ async function enforceAllTabs(state: AppState) {
 }
 const escapeRegex = (text: string) =>
   text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-let lastNetworkRules = "";
+/**
+ * Signature of the installed dynamic rules. Safari recompiles its whole content-rule list on
+ * every updateDynamicRules call and stalls page loads meanwhile, and its nonpersistent
+ * background page reloads often, so the signature is persisted rather than kept in memory.
+ */
+const NETWORK_RULES_KEY = "screenfry.networkRules";
+let lastNetworkRules: string | undefined;
 async function syncNetworkRules(state: AppState) {
   if (!chrome.declarativeNetRequest?.updateDynamicRules) return;
   const addRules: chrome.declarativeNetRequest.Rule[] = [];
@@ -112,14 +122,28 @@ async function syncNetworkRules(state: AppState) {
       );
   }
   const signature = JSON.stringify(addRules);
-  if (signature === lastNetworkRules) return;
   try {
     const existing = await chrome.declarativeNetRequest.getDynamicRules();
+    const ours = existing.filter((r) => r.id >= 10_000);
+    const installedIds = ours
+      .map((r) => r.id)
+      .sort((a, b) => a - b)
+      .join();
+    const wantedIds = addRules
+      .map((r) => r.id)
+      .sort((a, b) => a - b)
+      .join();
+    lastNetworkRules ??= String(
+      (await chrome.storage.local.get(NETWORK_RULES_KEY))[NETWORK_RULES_KEY] ??
+        "",
+    );
+    if (signature === lastNetworkRules && installedIds === wantedIds) return;
     await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: existing.filter((r) => r.id >= 10_000).map((r) => r.id),
+      removeRuleIds: ours.map((r) => r.id),
       addRules,
     });
     lastNetworkRules = signature;
+    await chrome.storage.local.set({ [NETWORK_RULES_KEY]: signature });
   } catch (error) {
     console.warn("ScreenFry: using tab/content enforcement", String(error));
   }
@@ -134,8 +158,7 @@ async function loadSessions(): Promise<TrackingSession[]> {
   try {
     return (
       ((await sessionArea()?.get(SESSION_KEY))?.[SESSION_KEY] as
-        | TrackingSession[]
-        | undefined) ?? memorySessions
+        TrackingSession[] | undefined) ?? memorySessions
     );
   } catch {
     return memorySessions;
@@ -178,9 +201,19 @@ async function findTrackableTabs() {
     idle,
   );
 }
-async function checkpointTracking() {
+const sameTabs = (a: TrackingSession[], b: { id?: number; url?: string }[]) =>
+  a.length === b.length &&
+  a.every((s) => b.some((t) => t.id === s.tabId && t.url === s.url));
+/**
+ * Credits elapsed time and restarts sessions. Event-driven calls (tab activation, page loads,
+ * media reports) skip the write when the tracked tabs haven't changed: sessions keep their
+ * start time, so the heartbeat and boundary timers (which pass `force`) still credit it.
+ */
+async function checkpointTracking(force: boolean) {
   const now = Date.now(),
     sessions = await loadSessions();
+  const tabs = await findTrackableTabs();
+  if (!force && sessions.length && sameTabs(sessions, tabs)) return;
   if (sessions.length) {
     let warnings: {
       ruleId: string;
@@ -188,9 +221,17 @@ async function checkpointTracking() {
       minutesRemaining: number;
     }[] = [];
     await chromeStateStore.update((state) => {
+      const before = JSON.stringify(state.usage);
       const r = creditSessions(state, sessions, now);
       warnings = r.warnings;
-      r.state.usageAsOf = now;
+      // Time on untracked websites credits nothing; leaving usageAsOf alone then lets the
+      // store skip the write instead of broadcasting a change to every open tab.
+      // A newly tracked rule site also needs a fresh start for its on-page timer.
+      if (
+        JSON.stringify(r.state.usage) !== before ||
+        tabs.some((t) => matchingRules(r.state, t.url ?? "").length)
+      )
+        r.state.usageAsOf = now;
       return r.state;
     });
     for (const warning of warnings) {
@@ -207,7 +248,6 @@ async function checkpointTracking() {
         }
     }
   }
-  const tabs = await findTrackableTabs();
   await saveSessions(
     tabs.map((t) => ({
       tabId: t.id!,
@@ -233,24 +273,39 @@ async function scheduleNextBoundary(state: AppState) {
   if (when - now < 60_000)
     timer = setTimeout(
       () => {
-        void reevaluate();
+        void reevaluate(true);
       },
       when - now + 20,
     );
 }
 let chain: Promise<unknown> = Promise.resolve();
-function reevaluate(): Promise<void> {
-  const run = chain.then(async () => {
-    await checkpointTracking();
-    const state = await actions.maintain(ctx);
-    await syncNetworkRules(state);
-    await enforceAllTabs(state);
-    await scheduleNextBoundary(state);
-  });
-  chain = run.catch((error) =>
-    console.warn("ScreenFry: reevaluation failed", String(error)),
-  );
-  return chain as Promise<void>;
+let queued: { promise: Promise<void>; force: boolean } | undefined;
+/**
+ * Runs are serialized, and any requests that arrive while one is waiting merge into that
+ * single queued run. Bursts of tab, focus and media events therefore cost one pass, not one
+ * pass each. `force` credits tracked time even when the tracked tabs are unchanged.
+ */
+function reevaluate(force = false): Promise<void> {
+  if (queued) {
+    queued.force ||= force;
+    return queued.promise;
+  }
+  const entry = { force, promise: Promise.resolve() };
+  entry.promise = chain
+    .then(async () => {
+      queued = undefined;
+      await checkpointTracking(entry.force);
+      const state = await actions.maintain(ctx);
+      await syncNetworkRules(state);
+      await enforceAllTabs(state);
+      await scheduleNextBoundary(state);
+    })
+    .catch((error) =>
+      console.warn("ScreenFry: reevaluation failed", String(error)),
+    );
+  queued = entry;
+  chain = entry.promise;
+  return entry.promise;
 }
 let observedPrivate = false;
 async function noteObservedPrivateTab() {
@@ -282,7 +337,7 @@ async function handle(
   const auth = { ...ctx, password: request.password };
   switch (request.type) {
     case "GET_STATE":
-      await reevaluate();
+      await reevaluate(true);
       return { ok: true, data: await chromeStateStore.get() };
     case "GET_POLICY":
       return {
@@ -312,9 +367,9 @@ async function handle(
       } catch {
         /* memory fallback */
       }
-      // Fresh reports also wake persisted tracking after worker suspension.
-      if (previous?.playing !== request.playing || request.playing)
-        await reevaluate();
+      // Only a change in playback matters. Repeated "still playing" reports refresh the
+      // timestamp above; reevaluating on each one made video pages churn every frame.
+      if (previous?.playing !== request.playing) await reevaluate(true);
       return { ok: true, data: null };
     }
     case "UNLOCK_SETTINGS":
@@ -322,30 +377,30 @@ async function handle(
     case "SET_SETTINGS_PASSWORD":
       return actions.setSettingsPassword(auth, request.newPassword);
     case "SAVE_RULE": {
-      await reevaluate();
+      await reevaluate(true);
       const r = await actions.saveRule(auth, request.rule);
-      await reevaluate();
+      await reevaluate(true);
       return r;
     }
     case "DELETE_RULE": {
       const r = await actions.deleteRule(auth, request.ruleId);
-      await reevaluate();
+      await reevaluate(true);
       return r;
     }
     case "SAVE_WINDOW": {
-      await reevaluate();
+      await reevaluate(true);
       const r = await actions.saveWindow(auth, request.window);
-      await reevaluate();
+      await reevaluate(true);
       return r;
     }
     case "DELETE_WINDOW": {
       const r = await actions.deleteWindow(auth, request.windowId);
-      await reevaluate();
+      await reevaluate(true);
       return r;
     }
     case "SET_FEEDS": {
       const r = await actions.setFeeds(auth, request.feedSettings);
-      await reevaluate();
+      await reevaluate(true);
       return r;
     }
     case "SET_PREFERENCES":
@@ -358,7 +413,7 @@ async function handle(
       return actions.deleteHistory(auth);
     case "RESET_ALL": {
       const r = await actions.resetAll(auth);
-      await reevaluate();
+      await reevaluate(true);
       return r;
     }
     default:
@@ -410,7 +465,8 @@ if (hasIdleApi()) {
   });
 }
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === HEARTBEAT || alarm.name === BOUNDARY) void reevaluate();
+  if (alarm.name === HEARTBEAT || alarm.name === BOUNDARY)
+    void reevaluate(true);
 });
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await ensureAlarms();
@@ -420,14 +476,15 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await reevaluate();
 });
 chrome.runtime.onStartup.addListener(() => {
-  void ensureAlarms().then(refreshProtection).then(reevaluate);
+  void ensureAlarms()
+    .then(refreshProtection)
+    .then(() => reevaluate(true));
 });
 async function start() {
   try {
     media =
       ((await sessionArea()?.get(MEDIA_KEY))?.[MEDIA_KEY] as
-        | MediaFrames
-        | undefined) ?? {};
+        MediaFrames | undefined) ?? {};
   } catch {
     /* memory fallback */
   }

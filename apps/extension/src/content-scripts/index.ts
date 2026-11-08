@@ -8,6 +8,7 @@ import {
 } from "@feeds/index";
 import type { TabMessage } from "@browser/messages";
 import { STATE_KEY } from "@browser/storage";
+import { hostMatchesDomain } from "@core/domains";
 import { extensionPageUrl } from "@browser/urls";
 import { createBatchedTask } from "@browser/scheduling";
 import { evaluatePolicy, matchingRules } from "@policy/index";
@@ -189,83 +190,123 @@ const overlay = (() => {
     },
   };
 })();
+/** True when ScreenFry has anything to do on this page: a launch site, or a rule/window domain. */
+function relevantHost(s: AppState | undefined): boolean {
+  const host = location.hostname;
+  if (siteFor(host)) return true;
+  if (!s) return false;
+  const covers = (domains: string[]) =>
+    domains.some((d) => hostMatchesDomain(host, d));
+  return (
+    s.rules.some((r) => r.enabled && covers(r.domains)) ||
+    s.windows.some((w) => w.enabled && covers(w.domains))
+  );
+}
+/**
+ * The script is injected into every page and frame, so unrelated pages must stay idle: after
+ * one state read they register no timer, observer or listener. Blocking on those pages is
+ * still enforced by the background's network rules and tab redirects.
+ */
+let started = false;
+function start() {
+  if (started) return;
+  started = true;
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[STATE_KEY]) {
+      state = migrateState(changes[STATE_KEY].newValue);
+      queueEvaluation();
+    }
+  });
+  startPageWatchers();
+}
 async function load() {
   try {
     state = migrateState(
       (await chrome.storage.local.get(STATE_KEY))[STATE_KEY],
     );
+    if (!relevantHost(state)) return;
+    start();
     evaluate();
   } catch {
     /* unavailable context */
   }
 }
+// Launch sites start watching at document_start, before state arrives, so Shorts/Reels
+// entry points can't slip through; everything else waits for the state check.
+if (siteFor(location.hostname)) start();
 void load();
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes[STATE_KEY]) {
-    state = migrateState(changes[STATE_KEY].newValue);
-    evaluate();
-  }
-});
-// CSS already applies to new elements. Only supported social sites need DOM checks
-// for player/modal and selected-tab changes; unrelated pages keep timer/media tracking.
-// A website may repeatedly remove our style, so never respond in a microtask loop.
-if (siteFor(location.hostname)) {
-  const observer = new MutationObserver((records) => {
-    if (
-      records.some(
-        (record) => !(record.target instanceof Element && record.target.id === STYLE),
+function startPageWatchers() {
+  // CSS already applies to new elements. Only supported social sites need DOM checks
+  // for player/modal and selected-tab changes; unrelated pages keep timer/media tracking.
+  // A website may repeatedly remove our style, so never respond in a microtask loop.
+  if (siteFor(location.hostname)) {
+    const observer = new MutationObserver((records) => {
+      if (
+        records.some(
+          (record) =>
+            !(record.target instanceof Element && record.target.id === STYLE),
+        )
       )
-    )
-      queueEvaluation();
-  });
-  const observe = () => {
-    if (document.documentElement)
-      observer.observe(document.documentElement, {
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeFilter: ["href", "src", "aria-selected", "is-active", "hidden"],
-      });
-  };
-  if (document.documentElement) observe();
-  else document.addEventListener("DOMContentLoaded", observe, { once: true });
-}
-for (const event of [
-  "play",
-  "playing",
-  "pause",
-  "ended",
-  "emptied",
-  "loadeddata",
-])
-  document.addEventListener(
-    event,
-    (e) => {
-      if (e.target instanceof HTMLMediaElement && blockedMedia(e.target))
-        e.target.pause();
-      queueEvaluation();
-      reportMedia(true);
-    },
-    true,
-  );
-for (const event of [
-  "popstate",
-  "hashchange",
-  "yt-navigate-start",
-  "yt-navigate-finish",
-])
-  window.addEventListener(event, queueEvaluation, true);
-setInterval(evaluate, 1000);
-document.addEventListener("DOMContentLoaded", evaluate, { once: true });
-window.addEventListener("pagehide", () => {
-  try {
-    void chrome.runtime
-      .sendMessage({ type: "MEDIA_STATE", playing: false })
-      .catch(() => undefined);
-  } catch {
-    /* unloaded */
+        queueEvaluation();
+    });
+    const observe = () => {
+      if (document.documentElement)
+        observer.observe(document.documentElement, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          attributeFilter: [
+            "href",
+            "src",
+            "aria-selected",
+            "is-active",
+            "hidden",
+          ],
+        });
+    };
+    if (document.documentElement) observe();
+    else document.addEventListener("DOMContentLoaded", observe, { once: true });
   }
-});
+  for (const event of [
+    "play",
+    "playing",
+    "pause",
+    "ended",
+    "emptied",
+    "loadeddata",
+  ])
+    document.addEventListener(
+      event,
+      (e) => {
+        if (e.target instanceof HTMLMediaElement && blockedMedia(e.target))
+          e.target.pause();
+        queueEvaluation();
+        reportMedia(true);
+      },
+      true,
+    );
+  for (const event of [
+    "popstate",
+    "hashchange",
+    "yt-navigate-start",
+    "yt-navigate-finish",
+  ])
+    window.addEventListener(event, queueEvaluation, true);
+  // Top frames refresh every second for the on-page timer; embedded frames only need
+  // occasional checks because media events and the background cover the rest.
+  setInterval(evaluate, isTop ? 1000 : 5000);
+  document.addEventListener("DOMContentLoaded", evaluate, { once: true });
+  window.addEventListener("pagehide", () => {
+    if (!lastReportedPlaying) return;
+    try {
+      void chrome.runtime
+        .sendMessage({ type: "MEDIA_STATE", playing: false })
+        .catch(() => undefined);
+    } catch {
+      /* unloaded */
+    }
+  });
+}
 if (isTop)
   chrome.runtime.onMessage.addListener((message: TabMessage) => {
     if (message?.type === "SCREENTIME_WARNING")

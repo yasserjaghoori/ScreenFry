@@ -18,6 +18,24 @@ The README was rewritten around actual product behavior, current names and insta
 
 The fixes preserve original blocked destination URLs. The speculative canonical-URL network redirect experiment was removed. No hidden settings-storage bypass or blocked extension-controls automation was used. Keep all current requirements below, including optional password only and separate allowed windows; do not reintroduce PIN visits or commitments.
 
+## 0.4.3 Safari performance fix (supersedes the performance notes above)
+
+Diagnosis of the Safari freezes: a load feedback loop that Safari tolerates far worse than Chrome.
+
+1. The content script is injected into every page and frame (`<all_urls>`, `all_frames`, including ad iframes), ran `evaluate()` every second, and re-evaluated synchronously on every state change.
+2. Every `play`/`playing`/`pause` report triggered a full background `reevaluate()`, and concurrent requests queued one full run each.
+3. Every run wrote the whole state twice (usage checkpoint with a fresh `usageAsOf`, plus `maintain`), even when nothing changed. Each write is broadcast to every frame in every tab.
+4. The network-rule signature lived in memory only. Safari's nonpersistent background page reloads often, so dynamic rules were reinstalled on most wakes; Safari recompiles its content-rule list on each install and stalls loads meanwhile.
+
+Fixes:
+- Pages and frames that are not a launch site and match no rule/window read state once and then stay idle (no interval, observer or listeners); background network rules and tab redirects still enforce there. Embedded frames on relevant sites poll every 5 s instead of 1 s; state changes are batched.
+- `reevaluate()` merges requests into one queued run. Event-driven runs skip the usage checkpoint when the tracked tabs are unchanged; heartbeat, boundary timers, settings changes and dashboard reads pass `force`.
+- Media reports reevaluate only when playback state changes.
+- The store skips writes when the serialized state is unchanged (compared against the stored raw value so migrations still persist). `usageAsOf` only changes when usage was credited or a rule site is tracked.
+- The installed network-rule signature is persisted in `storage.local` and compared with installed rule IDs, so rules are reinstalled only when they change.
+
+Evidence (isolated headless Chrome, 1 YouTube fixture + 6 pages with 8 iframes each, switching tabs every second for 30 s): page script time fell from roughly 360-470 ms to about 35 ms. State writes stay at about one per tab switch, because per-site history legitimately records time on every website, but they now reach only relevant frames. 73 unit tests (including new write-skipping tests) and 44 integration checks pass. **Not yet verified in live Safari.** Retest there, starting with a few tabs.
+
 ## Historical requirements and assessment record
 
 The retained snapshot below describes earlier 0.3.x work. Its requirements and reference-extension assessment remain useful; its version/path/test-status statements are superseded by the current section, README and Testing document.
