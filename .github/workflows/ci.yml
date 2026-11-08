@@ -47,11 +47,11 @@ jobs:
       - run: npm ci
       - run: brew install xcodegen
       - run: npm run build:safari
-      - run: xcodegen generate --spec safari/Screentime/project.yml
+      - run: xcodegen generate --spec safari/ScreenFry/project.yml
       - name: Compile app and extension without signing
         run: >-
-          xcodebuild -project safari/Screentime/Screentime.xcodeproj
-          -scheme Screentime -configuration Debug -derivedDataPath dist/safari
+          xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj
+          -scheme ScreenFry -configuration Debug -derivedDataPath dist/safari
           CODE_SIGNING_ALLOWED=NO build
       - name: Verify Safari package and generated entitlements
         run: node scripts/verify-safari.mjs dist/safari/Build/Products/Debug/ScreenFry.app
@@ -72,11 +72,11 @@ jobs:
       - run: npm ci
       - run: brew install xcodegen
       - run: npm run build:safari
-      - run: xcodegen generate --spec safari/Screentime/project.yml
+      - run: xcodegen generate --spec safari/ScreenFry/project.yml
       - name: Build an ad-hoc signed Release app (what a test download contains)
         run: >-
-          xcodebuild -project safari/Screentime/Screentime.xcodeproj
-          -scheme Screentime -configuration Release -derivedDataPath dist/safari
+          xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj
+          -scheme ScreenFry -configuration Release -derivedDataPath dist/safari
           CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=
           ENABLE_HARDENED_RUNTIME=NO build
       - run: node scripts/verify-safari.mjs dist/safari/Build/Products/Release/ScreenFry.app

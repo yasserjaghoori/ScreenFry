@@ -32,11 +32,11 @@ The app also warns if another copy of ScreenFry is installed. Two copies registe
 
 ## Making a release (maintainers)
 
-1. Bump the version: `package.json`, `package-lock.json`, `apps/extension/public/manifest.json`, `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `safari/Screentime/project.yml` (and the generated `project.pbxproj`).
+1. Bump the version: `package.json`, `package-lock.json`, `apps/extension/public/manifest.json`, `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `safari/ScreenFry/project.yml` (and the generated `project.pbxproj`).
 2. Push a tag `v<version>`, or run the **Release** workflow manually from the Actions tab.
 3. The workflow tests, builds, signs (ad-hoc or Developer ID), packages the DMG, writes `appcast.xml` when an update key exists, and publishes the GitHub Release.
 
-To build a disk image locally on a Mac: `npm run build:safari`, `xcodegen generate --spec safari/Screentime/project.yml`, build the **Screentime** scheme in Release, then `npm run dmg -- <path to ScreenFry.app>`.
+To build a disk image locally on a Mac: `npm run build:safari`, `xcodegen generate --spec safari/ScreenFry/project.yml`, build the **ScreenFry** scheme in Release, then `npm run dmg -- <path to ScreenFry.app>`.
 
 ## Turning on in-app updates (one time)
 

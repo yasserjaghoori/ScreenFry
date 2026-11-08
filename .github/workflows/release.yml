@@ -52,9 +52,9 @@ jobs:
         if: env.HAS_SPARKLE_KEY == 'true'
         run: |
           test -n "${{ vars.SPARKLE_PUBLIC_KEY }}" || { echo "Set the SPARKLE_PUBLIC_KEY repository variable"; exit 1; }
-          sed -i '' 's|SUPublicEDKey: ""|SUPublicEDKey: "${{ vars.SPARKLE_PUBLIC_KEY }}"|' safari/Screentime/project.yml
+          sed -i '' 's|SUPublicEDKey: ""|SUPublicEDKey: "${{ vars.SPARKLE_PUBLIC_KEY }}"|' safari/ScreenFry/project.yml
 
-      - run: xcodegen generate --spec safari/Screentime/project.yml
+      - run: xcodegen generate --spec safari/ScreenFry/project.yml
 
       - name: Import Developer ID certificate
         if: env.HAS_DEVELOPER_ID == 'true'
@@ -81,7 +81,7 @@ jobs:
             # signed Sparkle framework, so test builds leave it off.
             SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= ENABLE_HARDENED_RUNTIME=NO)
           fi
-          xcodebuild -project safari/Screentime/Screentime.xcodeproj -scheme Screentime \
+          xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj -scheme ScreenFry \
             -configuration Release -derivedDataPath dist/safari "${SIGNING[@]}" build
           node scripts/verify-safari.mjs dist/safari/Build/Products/Release/ScreenFry.app
           node scripts/verify-macos-signing.mjs dist/safari/Build/Products/Release/ScreenFry.app

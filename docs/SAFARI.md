@@ -1,23 +1,23 @@
 # Safari Web Extension packaging
 
-`safari/Screentime` holds a minimal macOS containing app plus a Safari Web Extension target, described by `project.yml` (XcodeGen). The ScreenFry containing app only tells the user how to enable the extension and shows whether Safari reports it as enabled. It is not the Phase 2 macOS app.
+`safari/ScreenFry` holds a minimal macOS containing app plus a Safari Web Extension target, described by `project.yml` (XcodeGen). The ScreenFry containing app only tells the user how to enable the extension and shows whether Safari reports it as enabled. It is not the Phase 2 macOS app.
 
 Requirements: macOS 13+, Xcode 16+, [XcodeGen](https://github.com/yonaskolb/XcodeGen), and an Apple Developer team for signed builds.
 
 ```bash
 npm ci
-npm run build:safari                 # copies dist/chrome into "Screentime Extension/Resources"
-cd safari/Screentime
+npm run build:safari                 # copies dist/chrome into "ScreenFry Extension/Resources"
+cd safari/ScreenFry
 xcodegen generate                    # only needed after changing project.yml or top-level resource files
-open Screentime.xcodeproj
+open ScreenFry.xcodeproj
 ```
 
-Choose a signing team for both targets, then run the **Screentime** scheme, which produces **ScreenFry.app**. For unsigned local testing, turn on Safari ▸ Settings ▸ Advanced ▸ _Show features for web developers_, then Develop ▸ _Allow Unsigned Extensions_.
+Choose a signing team for both targets, then run the **ScreenFry** scheme, which produces **ScreenFry.app**. For unsigned local testing, turn on Safari ▸ Settings ▸ Advanced ▸ _Show features for web developers_, then Develop ▸ _Allow Unsigned Extensions_.
 
 To check it compiles without signing:
 
 ```bash
-xcodebuild -project Screentime.xcodeproj -scheme Screentime CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project ScreenFry.xcodeproj -scheme ScreenFry CODE_SIGNING_ALLOWED=NO build
 ```
 
 The generated extension `Resources/` directory is not versioned. Always run `npm run build:safari` before generating or opening a fresh checkout in Xcode.
@@ -45,7 +45,7 @@ For local updates, quit the containing app and update the installed bundle in pl
 
 | Area                   | Safari behaviour                                                                                                                                  |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Private Browsing check | No API. Coverage is confirmed only after Screentime sees one of its tabs in a Private window. It can't detect the setting being turned off later. |
+| Private Browsing check | No API. Coverage is confirmed only after ScreenFry sees one of its tabs in a Private window. It can't detect the setting being turned off later. |
 | Usage                  | Focused active tab plus reported background audio/video playback. Safari has no `idle` API.                                                       |
 | Network blocking       | Network rules cover embedded frames only. Whole pages (blocked sites, Shorts/Reels links) go to the ScreenFry blocked page through the background's tab navigation, requested by tab updates and the content script, to avoid the browser's network-block error page. This routing has isolated Chrome coverage with page rules disabled, but is not yet verified in live Safari. |
 | State                  | Separate from Chrome. Usage, rules and optional settings password aren't shared in Phase 1.                                                       |

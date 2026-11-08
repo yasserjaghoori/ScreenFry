@@ -1,0 +1,529 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		012774A73DF3B8D1F80A9899 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = 6B320C01D1AFCD23386C016F /* popup.html */; };
+		054B44A70CD9CAC4E3F8D230 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F7764F4144C5BF12FE8CC4D /* SafariWebExtensionHandler.swift */; };
+		08DE7B8A364B331969B20072 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 25E50A404B134A8532C38AE2 /* assets */; };
+		0CADFFC55AFA64CB5D4A44AE /* ChromeExtension in Resources */ = {isa = PBXBuildFile; fileRef = 933EF357D5DC2A800F3FCF4D /* ChromeExtension */; };
+		1CDA9A502B6369A6C18A7A02 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7BBAB925D3D0E711CCD25DB6 /* Assets.xcassets */; };
+		22924DC8EE89BD8FECD31CF2 /* ScreenFry Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2E4ABC2320A75A09C1B57FA2 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 6D34DFAD7E4751437B0FC818 /* manifest.json */; };
+		4A8E9F697CA30E3002F3EB6B /* ChromeInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */; };
+		52BF8BD282EE58DEA6604CC8 /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 4560C22C5C494F3794B2222A /* blocked.html */; };
+		6B98191F35B7C6F95CCCAA01 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DFC9DF5528FD9C921B13900 /* AppDelegate.swift */; };
+		83C821571D01DDD1A3C86AAC /* onboarding.html in Resources */ = {isa = PBXBuildFile; fileRef = 6A872869A26315B6CA5A3829 /* onboarding.html */; };
+		8A11629CC6373EA687D70AF4 /* dashboard.html in Resources */ = {isa = PBXBuildFile; fileRef = 634461876F5BA4A4523DEAF4 /* dashboard.html */; };
+		A1F212153BD6405065CD1419 /* THIRD_PARTY_NOTICES.txt in Resources */ = {isa = PBXBuildFile; fileRef = A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */; };
+		A68510093D81B64776D1E8A9 /* BrandIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = C926A87187A450660B765193 /* BrandIcon.png */; };
+		C8202B37D9A752224882ECE6 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 6D8C84935FDC19DEE7CB7022 /* icons */; };
+		CFBD9EBF436945B78D4F1E0E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 31F6C3047F6D176D12CEFD03 /* Sparkle */; };
+		EF8305E4F9966B5108923EE2 /* DragTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480527D94926FC7DE12C154E /* DragTile.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		FF2AACED1A7CA3DD79EED014 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3FF733F45E83ABD580298798 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1E09D4D919DABA0C1BAE55DE;
+			remoteInfo = "ScreenFry Extension";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		494239CAE4B6DB561C10D37A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				22924DC8EE89BD8FECD31CF2 /* ScreenFry Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0DFC9DF5528FD9C921B13900 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		25E50A404B134A8532C38AE2 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = "ScreenFry Extension/Resources/assets"; sourceTree = SOURCE_ROOT; };
+		35F2D751243FE4853323CEDF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		3F7764F4144C5BF12FE8CC4D /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		402E7C1E81DFB3C5CA197A4E /* ScreenFry.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenFry.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4560C22C5C494F3794B2222A /* blocked.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = blocked.html; sourceTree = "<group>"; };
+		480527D94926FC7DE12C154E /* DragTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragTile.swift; sourceTree = "<group>"; };
+		634461876F5BA4A4523DEAF4 /* dashboard.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = dashboard.html; sourceTree = "<group>"; };
+		6A872869A26315B6CA5A3829 /* onboarding.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = onboarding.html; sourceTree = "<group>"; };
+		6B320C01D1AFCD23386C016F /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = popup.html; sourceTree = "<group>"; };
+		6D34DFAD7E4751437B0FC818 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
+		6D8C84935FDC19DEE7CB7022 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = "ScreenFry Extension/Resources/icons"; sourceTree = SOURCE_ROOT; };
+		7822C9B140D38DF445003C12 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7BBAB925D3D0E711CCD25DB6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		933EF357D5DC2A800F3FCF4D /* ChromeExtension */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ChromeExtension; path = ScreenFry/ChromeExtension; sourceTree = SOURCE_ROOT; };
+		A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES.txt; sourceTree = "<group>"; };
+		C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeInstaller.swift; sourceTree = "<group>"; };
+		C926A87187A450660B765193 /* BrandIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = BrandIcon.png; sourceTree = "<group>"; };
+		EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "ScreenFry Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		B5CA7F17FE02A395B5AC6A72 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CFBD9EBF436945B78D4F1E0E /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2072657851172A73E9A1D365 /* ScreenFry Extension */ = {
+			isa = PBXGroup;
+			children = (
+				35F2D751243FE4853323CEDF /* Info.plist */,
+				3F7764F4144C5BF12FE8CC4D /* SafariWebExtensionHandler.swift */,
+			);
+			path = "ScreenFry Extension";
+			sourceTree = "<group>";
+		};
+		7CBCFBBF0BD18266B6933AB1 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				4560C22C5C494F3794B2222A /* blocked.html */,
+				634461876F5BA4A4523DEAF4 /* dashboard.html */,
+				6D34DFAD7E4751437B0FC818 /* manifest.json */,
+				6A872869A26315B6CA5A3829 /* onboarding.html */,
+				6B320C01D1AFCD23386C016F /* popup.html */,
+				A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */,
+			);
+			name = Resources;
+			path = "ScreenFry Extension/Resources";
+			sourceTree = "<group>";
+		};
+		8745BBE8BE3D5AD541B95C89 /* ScreenFry */ = {
+			isa = PBXGroup;
+			children = (
+				0DFC9DF5528FD9C921B13900 /* AppDelegate.swift */,
+				7BBAB925D3D0E711CCD25DB6 /* Assets.xcassets */,
+				C926A87187A450660B765193 /* BrandIcon.png */,
+				C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */,
+				480527D94926FC7DE12C154E /* DragTile.swift */,
+				7822C9B140D38DF445003C12 /* Info.plist */,
+			);
+			path = ScreenFry;
+			sourceTree = "<group>";
+		};
+		9B6BF7470BFA511E39E11550 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */,
+				402E7C1E81DFB3C5CA197A4E /* ScreenFry.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CA0505EE60B34D6213307B47 = {
+			isa = PBXGroup;
+			children = (
+				25E50A404B134A8532C38AE2 /* assets */,
+				933EF357D5DC2A800F3FCF4D /* ChromeExtension */,
+				6D8C84935FDC19DEE7CB7022 /* icons */,
+				7CBCFBBF0BD18266B6933AB1 /* Resources */,
+				8745BBE8BE3D5AD541B95C89 /* ScreenFry */,
+				2072657851172A73E9A1D365 /* ScreenFry Extension */,
+				9B6BF7470BFA511E39E11550 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1E09D4D919DABA0C1BAE55DE /* ScreenFry Extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E5B7DB0FB92140773C0A32F /* Build configuration list for PBXNativeTarget "ScreenFry Extension" */;
+			buildPhases = (
+				723B33AD3A1A0A733C758BFB /* Sources */,
+				F7DD6E3C7157A397794921B5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "ScreenFry Extension";
+			packageProductDependencies = (
+			);
+			productName = "ScreenFry Extension";
+			productReference = EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		FDB35ADC9E337A2FC9E96FD3 /* ScreenFry */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 409BF335203B9940AA0395EA /* Build configuration list for PBXNativeTarget "ScreenFry" */;
+			buildPhases = (
+				F62E752604A8C1314498CFE1 /* Sources */,
+				C1E151AF63D5F31DDDCE58EA /* Resources */,
+				B5CA7F17FE02A395B5AC6A72 /* Frameworks */,
+				494239CAE4B6DB561C10D37A /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				37E89A7C3E2EBC6F8D014484 /* PBXTargetDependency */,
+			);
+			name = ScreenFry;
+			packageProductDependencies = (
+				31F6C3047F6D176D12CEFD03 /* Sparkle */,
+			);
+			productName = ScreenFry;
+			productReference = 402E7C1E81DFB3C5CA197A4E /* ScreenFry.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3FF733F45E83ABD580298798 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 5EF376FB7B9A91D6F419AC86 /* Build configuration list for PBXProject "ScreenFry" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = CA0505EE60B34D6213307B47;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B32767CE77ADAD953D928DF8 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 9B6BF7470BFA511E39E11550 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FDB35ADC9E337A2FC9E96FD3 /* ScreenFry */,
+				1E09D4D919DABA0C1BAE55DE /* ScreenFry Extension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C1E151AF63D5F31DDDCE58EA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1CDA9A502B6369A6C18A7A02 /* Assets.xcassets in Resources */,
+				A68510093D81B64776D1E8A9 /* BrandIcon.png in Resources */,
+				0CADFFC55AFA64CB5D4A44AE /* ChromeExtension in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F7DD6E3C7157A397794921B5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1F212153BD6405065CD1419 /* THIRD_PARTY_NOTICES.txt in Resources */,
+				08DE7B8A364B331969B20072 /* assets in Resources */,
+				52BF8BD282EE58DEA6604CC8 /* blocked.html in Resources */,
+				8A11629CC6373EA687D70AF4 /* dashboard.html in Resources */,
+				C8202B37D9A752224882ECE6 /* icons in Resources */,
+				2E4ABC2320A75A09C1B57FA2 /* manifest.json in Resources */,
+				83C821571D01DDD1A3C86AAC /* onboarding.html in Resources */,
+				012774A73DF3B8D1F80A9899 /* popup.html in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		723B33AD3A1A0A733C758BFB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				054B44A70CD9CAC4E3F8D230 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F62E752604A8C1314498CFE1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6B98191F35B7C6F95CCCAA01 /* AppDelegate.swift in Sources */,
+				4A8E9F697CA30E3002F3EB6B /* ChromeInstaller.swift in Sources */,
+				EF8305E4F9966B5108923EE2 /* DragTile.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		37E89A7C3E2EBC6F8D014484 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1E09D4D919DABA0C1BAE55DE /* ScreenFry Extension */;
+			targetProxy = FF2AACED1A7CA3DD79EED014 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		10345F8AAC220DE8353ECC08 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ScreenFry/ScreenFry.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 20;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = ScreenFry/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screentime.Screentime;
+				PRODUCT_NAME = ScreenFry;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		25F71F561F9DECFDC46FD81E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ScreenFry/ScreenFry.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 20;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = ScreenFry/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screentime.Screentime;
+				PRODUCT_NAME = ScreenFry;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		69C66B2EB7D2B10233F42003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		9922278B64E226069809BC78 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "ScreenFry Extension/ScreenFry Extension.entitlements";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 20;
+				INFOPLIST_FILE = "ScreenFry Extension/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 0.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screentime.Screentime.Extension;
+				PRODUCT_NAME = "ScreenFry Extension";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		DB8B45FE60F93075A68E77AA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		E5E7DF36722906F363EEF501 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "ScreenFry Extension/ScreenFry Extension.entitlements";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 20;
+				INFOPLIST_FILE = "ScreenFry Extension/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 0.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screentime.Screentime.Extension;
+				PRODUCT_NAME = "ScreenFry Extension";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		409BF335203B9940AA0395EA /* Build configuration list for PBXNativeTarget "ScreenFry" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10345F8AAC220DE8353ECC08 /* Debug */,
+				25F71F561F9DECFDC46FD81E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5E5B7DB0FB92140773C0A32F /* Build configuration list for PBXNativeTarget "ScreenFry Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9922278B64E226069809BC78 /* Debug */,
+				E5E7DF36722906F363EEF501 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5EF376FB7B9A91D6F419AC86 /* Build configuration list for PBXProject "ScreenFry" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				69C66B2EB7D2B10233F42003 /* Debug */,
+				DB8B45FE60F93075A68E77AA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B32767CE77ADAD953D928DF8 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		31F6C3047F6D176D12CEFD03 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B32767CE77ADAD953D928DF8 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 3FF733F45E83ABD580298798 /* Project object */;
+}

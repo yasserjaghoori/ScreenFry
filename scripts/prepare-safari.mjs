@@ -4,7 +4,7 @@ import { resolve, dirname } from "node:path";
 
 const manifestPath = resolve(
   import.meta.dirname,
-  "../safari/Screentime/Screentime Extension/Resources/manifest.json",
+  "../safari/ScreenFry/ScreenFry Extension/Resources/manifest.json",
 );
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const entry = manifest.background.service_worker;

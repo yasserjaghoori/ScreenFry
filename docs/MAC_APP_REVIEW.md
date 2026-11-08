@@ -28,7 +28,7 @@ This matches [Sparkle's documented development-signing requirement](https://spar
 
 ## Installation cleanup
 
-Moved the two old Screentime 0.3.0 application bundles and two standalone extension bundles from `dist/safari` and `dist/safari-signed` to Trash, after unregistering their application/extension paths. No app bundles remain in the ChatGPT project folder. Source and the user's duplicate Xcode projects were preserved.
+Moved the two old ScreenFry 0.3.0 application bundles and two standalone extension bundles from `dist/safari` and `dist/safari-signed` to Trash, after unregistering their application/extension paths. No app bundles remain in the ChatGPT project folder. Source and the user's duplicate Xcode projects were preserved.
 
 Ejected the mounted `ScreenFry-0.5.0.dmg` after installing the app. The app's duplicate-copy notice then disappeared. The installed Safari extension has one registered copy at `/Applications/ScreenFry.app`.
 

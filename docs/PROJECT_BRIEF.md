@@ -1,6 +1,6 @@
 # ScreenFry project brief
 
-The user-facing product is now **ScreenFry**, following Claude's 0.4.0 rename and ember redesign. The repository, package, Xcode scheme and stable bundle identifiers retain Screentime. The functional scope below is unchanged.
+The user-facing product is now **ScreenFry**, following Claude's 0.4.0 rename and ember redesign. The local folder and Xcode project/scheme use ScreenFry, and the npm package uses screenfry. The GitHub repository URL and stable browser bundle/storage identifiers retain their legacy values for compatibility. The functional scope below is unchanged.
 
 ## Approved scope — November 7, 2026
 
@@ -32,7 +32,7 @@ Old daily usage is retained. Old mandatory PINs, commitments and visits are remo
 
 ## References
 
-- [Screentime](https://github.com/yasserjaghoori/Screentime)
+- [ScreenFry](https://github.com/yasserjaghoori/Screentime)
 - [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia) — MIT-licensed selectors adapted with attribution.
 - [SocialFocus](https://socialfocus.app) — product reference, also inspected locally in Chrome.
 

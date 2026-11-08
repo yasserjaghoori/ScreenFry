@@ -14,7 +14,7 @@ export default defineConfig({
     lib: {
       entry: resolve(root, 'src/content-scripts/index.ts'),
       formats: ['iife'],
-      name: 'ScreentimeContent',
+      name: 'ScreenFryContent',
       fileName: () => 'assets/content.js'
     }
   }

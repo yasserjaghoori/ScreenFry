@@ -8,9 +8,9 @@ const root = resolve(import.meta.dirname, "..");
 const publicIcons = join(root, "apps/extension/public/icons");
 const appIcons = join(
   root,
-  "safari/Screentime/Screentime/Assets.xcassets/AppIcon.appiconset",
+  "safari/ScreenFry/ScreenFry/Assets.xcassets/AppIcon.appiconset",
 );
-const brandIcon = join(root, "safari/Screentime/Screentime/BrandIcon.png");
+const brandIcon = join(root, "safari/ScreenFry/ScreenFry/BrandIcon.png");
 mkdirSync(publicIcons, { recursive: true });
 mkdirSync(appIcons, { recursive: true });
 

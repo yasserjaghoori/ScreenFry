@@ -1,4 +1,4 @@
-# Screentime
+# ScreenFry
 
 Read `docs/PROJECT_BRIEF.md`, `README.md`, and the relevant architecture/testing docs before changing behavior.
 

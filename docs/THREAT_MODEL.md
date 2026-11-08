@@ -1,6 +1,6 @@
 # Enforcement limits
 
-Screentime is a browser productivity tool. It applies selected controls while the extension is enabled and has website access.
+ScreenFry is a browser productivity tool. It applies selected controls while the extension is enabled and has website access.
 
 ## Enforced in the product
 

@@ -3,8 +3,8 @@
 ## Repository and dependencies
 
 ```bash
-git clone https://github.com/yasserjaghoori/Screentime.git
-cd Screentime
+git clone https://github.com/yasserjaghoori/Screentime.git ScreenFry
+cd ScreenFry
 nvm install
 nvm use
 npm ci
@@ -33,18 +33,18 @@ From the repository root:
 
 ```bash
 npm run build:safari
-xcodegen generate --spec safari/Screentime/project.yml
-xcodebuild -project safari/Screentime/Screentime.xcodeproj \
-  -scheme Screentime -configuration Debug -derivedDataPath dist/safari \
+xcodegen generate --spec safari/ScreenFry/project.yml
+xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj \
+  -scheme ScreenFry -configuration Debug -derivedDataPath dist/safari \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-The compiled app is `dist/safari/Build/Products/Debug/ScreenFry.app`. The Xcode scheme and source directories retain the Screentime name. An unsigned build proves compilation and packaging; it does not prove the extension is enabled in Safari. For local runtime testing, follow `SAFARI.md` to allow unsigned extensions, or choose your signing team for both targets in Xcode and run the app. Enable ScreenFry, website access, and (if desired) Private Browsing access in Safari. You can optionally protect settings with your own password.
+The compiled app is `dist/safari/Build/Products/Debug/ScreenFry.app`. The Xcode scheme and source directories retain the ScreenFry name. An unsigned build proves compilation and packaging; it does not prove the extension is enabled in Safari. For local runtime testing, follow `SAFARI.md` to allow unsigned extensions, or choose your signing team for both targets in Xcode and run the app. Enable ScreenFry, website access, and (if desired) Private Browsing access in Safari. You can optionally protect settings with your own password.
 
 For signed development, open the project:
 
 ```bash
-open safari/Screentime/Screentime.xcodeproj
+open safari/ScreenFry/ScreenFry.xcodeproj
 ```
 
 Browser permission and private-browsing switches belong to each browser profile. Chrome and Safari do not share their settings, usage or passwords.

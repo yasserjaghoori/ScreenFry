@@ -83,9 +83,9 @@ You'll also need Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 1. Build and generate the project:
    ```bash
    npm run build:safari
-   xcodegen generate --spec safari/Screentime/project.yml
+   xcodegen generate --spec safari/ScreenFry/project.yml
    ```
-2. Open `safari/Screentime/Screentime.xcodeproj`, pick a signing team for both targets, and run the **Screentime** scheme. This builds **ScreenFry.app**.
+2. Open `safari/ScreenFry/ScreenFry.xcodeproj`, pick a signing team for both targets, and run the **ScreenFry** scheme. This builds **ScreenFry.app**.
 3. In Safari → **Settings → Extensions**, turn on **ScreenFry**.
 4. Still there, click **Edit Websites** and set **Other Websites** to **Allow**. Safari can otherwise request access separately on individual websites. Website permissions and ScreenFry's controls are separate: granting access does not enable any blocking choices.
 5. *Optional:* turn on **Allow in Private Browsing**.
@@ -109,9 +109,9 @@ Run builds and integration tests one at a time, since both use `dist/chrome`.
 | `packages/policy-engine` | Decides whether a page is allowed right now |
 | `packages/core` | Settings, password checks, time tracking and data migration |
 | `packages/browser-adapters` | Messaging, storage and Chrome/Safari differences |
-| `safari/Screentime` | The Mac app that packages the Safari extension |
+| `safari/ScreenFry` | The Mac app that packages the Safari extension |
 
-> The repository, npm package, Xcode scheme and bundle IDs still use the old name **Screentime**. The product is **ScreenFry**.
+> The local project folder and Xcode project/scheme are **ScreenFry**; the npm package is **screenfry**. The GitHub URL and existing browser bundle/storage identifiers keep their legacy values for compatibility.
 
 ## Limitations
 

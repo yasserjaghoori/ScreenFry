@@ -23,7 +23,7 @@ if (
   plist(
     join(
       projectRoot,
-      "safari/Screentime/Screentime Extension/Screentime Extension.entitlements",
+      "safari/ScreenFry/ScreenFry Extension/ScreenFry Extension.entitlements",
     ),
   )["com.apple.security.app-sandbox"] !== true
 )

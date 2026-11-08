@@ -4,8 +4,8 @@
 npm run check
 npm run test:e2e
 npm run build:safari
-xcodegen generate --spec safari/Screentime/project.yml
-xcodebuild -project safari/Screentime/Screentime.xcodeproj -scheme Screentime \
+xcodegen generate --spec safari/ScreenFry/project.yml
+xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj -scheme ScreenFry \
   -configuration Debug -derivedDataPath dist/safari CODE_SIGNING_ALLOWED=NO build
 node scripts/verify-safari.mjs dist/safari/Build/Products/Debug/ScreenFry.app
 ```
@@ -16,7 +16,13 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
-## Current Mac app review — 0.5.0/build 20, November 7, 2026
+## Project naming verification — November 8, 2026
+
+The checkout and Safari project paths now use ScreenFry, including the Xcode targets/scheme and entitlement file names. The npm package is screenfry. CI, icon generation, packaging scripts and setup instructions use the new paths. The GitHub URL and persisted browser identifiers are retained for compatibility; see the current handoff.
+
+`npm ci`, `npm run check` (**89 unit tests**, typecheck and verified build), and `npm run test:e2e` (**46 checks**) pass. From the renamed checkout, `npm run build:safari`, XcodeGen, the **ScreenFry** scheme's unsigned Debug build and Safari package verification all pass. Existing untracked duplicate project files were renamed and preserved, and duplicate Info plists are excluded from generated target sources. No installed app or browser settings were changed as part of this rename.
+
+## Historical Mac app review — 0.5.0/build 20, November 7, 2026
 
 - Reviewed Claude's installer/updater and launch-fix changes through `b541dd3`. The previous 0.4.x snapshots below remain historical.
 - `npm ci` (zero vulnerabilities), `npm run check`: **89 unit tests**, typecheck and verified build pass. `npm run test:e2e`: **46 checks passed, zero failed**, including popup startup, permission-limited site selection, playback, limits/windows and settings authorization.
@@ -44,7 +50,7 @@ The 0.4.2 and earlier results below are historical. For current source behavior 
 - Synced Claude's `877f8f7` and `2e78a48`: the ScreenFry rename, ember theme, Today summaries, popup site buttons, native clock fallback, broader Shorts navigation selectors and isolated-world lookup fix.
 - Node 24.14.0 / `npm ci` succeeded. The final `npm run check` passed **70 unit tests**, typecheck and verified build. The final isolated Chrome suite passed **44 checks**, including a new style-removal responsiveness regression.
 - **Freeze reproduced and regression-tested:** against the old 0.4.1 content script, a fixture repeatedly removing the injected style prevented a normal page timer from firing; the integration call timed out after 20 seconds. The 0.4.2 content script coalesces mutations into 50 ms macrotasks, ignores its own style-text changes and observes DOM mutations only on supported social sites. The same fixture's 200 ms timer now completes below the 1.5-second limit. Playback-event pausing remains synchronous; policy/storage/timer enforcement remains active on other domains.
-- The signed **ScreenFry.app 0.4.2, build 11** was built and installed at `~/Applications/ScreenFry.app`. Both built and installed bundles pass strict recursive signature and package verification. The original Screentime.app was renamed/replaced with a backup; unrelated duplicate Xcode projects were preserved.
+- The signed **ScreenFry.app 0.4.2, build 11** was built and installed at `~/Applications/ScreenFry.app`. Both built and installed bundles pass strict recursive signature and package verification. The original ScreenFry.app was renamed/replaced with a backup; unrelated duplicate Xcode projects were preserved.
 - Chrome's extension-management page confirms **0.4.2 enabled** after the final Reload. Live YouTube search returned result headings, the homepage remained usable with no Shorts/Notifications entry in its accessibility tree, and a direct Shorts URL reached the blocked URL with its original destination preserved. Only URL metadata was inspected at that extension-page destination. Test tabs were closed.
 - Safari 0.4.0 showed hidden home/Notifications/Shorts controls and ordinary search results. A direct Shorts route produced a user-confirmed invalid-address error. Later extension reloads exposed a background-content load failure. Safari packaging now selects a nonpersistent module background page, and network rules use portable schema strings. Safari was observed enabled with background content loaded during 0.4.1 testing.
 - **Safari performance acceptance failed:** the user reported a very slow browser, had to force quit it, then disabled ScreenFry and reported a substantial recovery. Safari is intentionally **left disabled** after installing 0.4.2. The isolated regression validates the specific starvation fix, but does not establish that all Safari performance/redirect issues are resolved. The user authorized a controlled one-page retest. On build 10, YouTube home and ordinary search became responsive (roughly 3.5 and 2.7 seconds), but the direct Shorts route remained unverified. Build 11 changes Safari network actions to block requests rather than cross-scheme regex redirects, retaining tab/content notice routing. During the final direct-route retest, Safari stayed in a loading state without a confirmed blocked destination; native input was also interrupted by detected interaction. Reloading the extension did not establish a successful result. ScreenFry was disabled again, its native setup app confirmed it off, and our test tabs were closed. Do not treat limited normal-page improvement as complete Safari recovery.
@@ -70,20 +76,20 @@ Chrome loaded version 0.3.0 and displayed its welcome and website controls. Safa
 
 This check found and fixed XcodeGen clearing the sandbox entitlement dictionaries. The corrected bundle passes strict recursive signature verification and the packaging verifier. A single persistent Safari installation remains registered.
 
-After the user enabled YouTube controls, Chrome's real signed-in homepage reported `display: none` for both the home feed and Notifications renderer. A direct `/shorts/` navigation redirected to Screentime's blocked URL (URL metadata only; extension contents were not inspected).
+After the user enabled YouTube controls, Chrome's real signed-in homepage reported `display: none` for both the home feed and Notifications renderer. A direct `/shorts/` navigation redirected to ScreenFry's blocked URL (URL metadata only; extension contents were not inspected).
 
-Safari was updated to a locally signed 0.3.1 with a native app icon and monochrome toolbar clock. The installed app passed strict signature and packaging checks, reported enabled, and the toolbar exposed a visible button named Screentime. On the public YouTube homepage, the home feed and Notifications button were absent after the update. A subsequent direct Shorts test reached a blank loading tab without a verifiable destination, so Safari's live short-form redirect remains unverified.
+Safari was updated to a locally signed 0.3.1 with a native app icon and monochrome toolbar clock. The installed app passed strict signature and packaging checks, reported enabled, and the toolbar exposed a visible button named ScreenFry. On the public YouTube homepage, the home feed and Notifications button were absent after the update. A subsequent direct Shorts test reached a blank loading tab without a verifiable destination, so Safari's live short-form redirect remains unverified.
 
 The automation tool rejected access to extension-internal settings pages, so settings were enabled manually by the user. Live time-limit exhaustion, Windows and the remaining site controls still need manual acceptance. The isolated Chrome integration checks above are separate evidence. The toolbar icon does not change the tool's extension-page access restriction.
 
 ## Paused follow-up — source 0.3.2
 
-Before the user's restart request, `npm run check` passed all 63 unit tests and the build. A subsequent isolated Chrome run against 0.3.2 finished with 43 passed, zero failed. The signed Safari 0.3.2 build also completed successfully in `/tmp/screentime-safari-icons`; it was not installed, and that build's signature/package verification and live acceptance were not completed.
+Before the user's restart request, `npm run check` passed all 63 unit tests and the build. A subsequent isolated Chrome run against 0.3.2 finished with 43 passed, zero failed. The signed Safari 0.3.2 build also completed successfully in `/tmp/screenfry-safari-icons`; it was not installed, and that build's signature/package verification and live acceptance were not completed.
 
 The local change uses `declarativeNetRequestWithHostAccess`, required by Apple for Safari redirects, and adds permission checks to both packaging verifiers. This is a confirmed manifest/documentation mismatch, not a confirmed diagnosis of the blank Safari tab. Further native Safari attempts were interrupted by concurrent input, a lost window connection and the user's pause. Do not infer successful navigation or blocking from those attempts. Resume from `AI_HANDOFF.md` after the restart when requested.
 
 ## Post-restart follow-up — November 7, 2026
 
-Node 24.14.0 and `npm ci` succeeded. `npm run check` passed 63 tests, typecheck and build; the isolated Chrome suite finished 43 passed, zero failed. Safari 0.3.2 was rebuilt under `/tmp/screentime-safari-032`, signature/package-verified, installed in place and verified again. Its containing app reported enabled; one persistent 0.3.2 extension copy was registered.
+Node 24.14.0 and `npm ci` succeeded. `npm run check` passed 63 tests, typecheck and build; the isolated Chrome suite finished 43 passed, zero failed. Safari 0.3.2 was rebuilt under `/tmp/screenfry-safari-032`, signature/package-verified, installed in place and verified again. Its containing app reported enabled; one persistent 0.3.2 extension copy was registered.
 
 Live Chrome showed the hidden YouTube feed/Notifications. Clicking the still-visible Shorts navigation entry reached a blocked URL labeled YouTube Shorts. The bare `/shorts` navigation selector remains a follow-up. Safari's clock and homepage hiding survived reboot before the update. After the update, direct Shorts and ordinary search attempts stayed in loading states without verified destination/content; these checks remain inconclusive. Test tabs were closed. No automated access to the previously denied installed-extension settings was attempted.

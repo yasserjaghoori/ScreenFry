@@ -1,4 +1,4 @@
-name: Screentime
+name: ScreenFry
 options:
   bundleIdPrefix: com.screentime
   deploymentTarget:
@@ -12,22 +12,23 @@ packages:
     url: https://github.com/sparkle-project/Sparkle
     from: "2.6.4"
 targets:
-  Screentime:
+  ScreenFry:
     type: application
     platform: macOS
     sources:
-      - path: Screentime
+      - path: ScreenFry
         excludes:
           - "*.entitlements"
+          - "Info *.plist"
           - ChromeExtension
           - "ChromeExtension/**"
       # The Chrome build, copied by `npm run build:safari`. The app installs it into
       # ~/Library/Application Support/ScreenFry/Chrome Extension for Chrome to load.
-      - path: Screentime/ChromeExtension
+      - path: ScreenFry/ChromeExtension
         type: folder
         buildPhase: resources
     info:
-      path: Screentime/Info.plist
+      path: ScreenFry/Info.plist
       properties:
         CFBundleDisplayName: ScreenFry
         CFBundleShortVersionString: $(MARKETING_VERSION)
@@ -42,7 +43,7 @@ targets:
     # The app is not sandboxed: it writes the Chrome folder where Chrome can read it and lets
     # Sparkle replace the app. The Safari extension inside it stays sandboxed.
     entitlements:
-      path: Screentime/Screentime.entitlements
+      path: ScreenFry/ScreenFry.entitlements
       properties:
         com.apple.security.cs.disable-library-validation: false
     settings:
@@ -56,20 +57,20 @@ targets:
         MARKETING_VERSION: "0.5.0"
         CURRENT_PROJECT_VERSION: "20"
     dependencies:
-      - target: Screentime Extension
+      - target: ScreenFry Extension
         embed: true
       - package: Sparkle
-  Screentime Extension:
+  ScreenFry Extension:
     type: app-extension
     platform: macOS
     sources:
-      - path: Screentime Extension
+      - path: ScreenFry Extension
         excludes:
           - Resources
           - "*.entitlements"
       # Safari reads manifest.json from the root of the appex Resources directory, so the
       # top-level files are added individually; assets/ and icons/ retain their folder paths.
-      - path: Screentime Extension/Resources
+      - path: ScreenFry Extension/Resources
         type: group
         buildPhase: resources
         excludes:
@@ -77,14 +78,14 @@ targets:
           - "assets/**"
           - icons
           - "icons/**"
-      - path: Screentime Extension/Resources/assets
+      - path: ScreenFry Extension/Resources/assets
         type: folder
         buildPhase: resources
-      - path: Screentime Extension/Resources/icons
+      - path: ScreenFry Extension/Resources/icons
         type: folder
         buildPhase: resources
     info:
-      path: Screentime Extension/Info.plist
+      path: ScreenFry Extension/Info.plist
       properties:
         CFBundleDisplayName: ScreenFry Extension
         CFBundleShortVersionString: $(MARKETING_VERSION)
@@ -93,7 +94,7 @@ targets:
           NSExtensionPointIdentifier: com.apple.Safari.web-extension
           NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).SafariWebExtensionHandler"
     entitlements:
-      path: Screentime Extension/Screentime Extension.entitlements
+      path: ScreenFry Extension/ScreenFry Extension.entitlements
       properties:
         com.apple.security.app-sandbox: true
     settings:

@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 const root = resolve(import.meta.dirname, "../..");
-const profile = mkdtempSync(join(tmpdir(), "screentime-e2e-"));
+const profile = mkdtempSync(join(tmpdir(), "screenfry-e2e-"));
 const fixture = readFileSync(join(root, "tests/fixtures/playing.webm"));
 const fixtureHtml = `<!doctype html><html><head><title>Local website fixture</title></head><body>
     <h1>Useful content</h1><a href="/shorts/fixture" id="notification">Shorts notification</a>
@@ -496,7 +496,7 @@ try {
       c.auxData?.type === "isolated" &&
       c.origin === `chrome-extension://${extId}`,
   );
-  if (!iso) throw new Error("Screentime content-script world not found");
+  if (!iso) throw new Error("ScreenFry content-script world not found");
   const forbidden = await cdp(
     "Runtime.evaluate",
     {
