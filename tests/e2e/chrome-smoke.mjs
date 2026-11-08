@@ -133,9 +133,19 @@ async function urlOf(id) {
       ?.url ?? ""
   );
 }
-async function open(url) {
+async function open(url, { initScript, scriptsDisabled = false } = {}) {
   const { targetId } = await cdp("Target.createTarget", { url: "about:blank" });
   const session = await attach(targetId);
+  if (initScript) {
+    await cdp("Page.enable", {}, session);
+    await cdp(
+      "Page.addScriptToEvaluateOnNewDocument",
+      { source: initScript },
+      session,
+    );
+  }
+  if (scriptsDisabled)
+    await cdp("Emulation.setScriptExecutionDisabled", { value: true }, session);
   await cdp(
     "Fetch.enable",
     {
@@ -569,6 +579,50 @@ try {
       `document.querySelectorAll('#site-picker [role=option]').length===6`,
     ),
   );
+  const shell = await open(`chrome-extension://${extId}/popup.html`, {
+    scriptsDisabled: true,
+  });
+  const doc = await cdp("DOM.getDocument", {}, shell.session);
+  const rootNode = await cdp(
+    "DOM.querySelector",
+    { nodeId: doc.root.nodeId, selector: "#root" },
+    shell.session,
+  );
+  const shellBox = await cdp(
+    "DOM.getBoxModel",
+    { nodeId: rootNode.nodeId },
+    shell.session,
+  );
+  check(
+    "popup keeps a 380x580 shell before JavaScript loads",
+    shellBox.model.width === 380 && shellBox.model.height === 580,
+  );
+  await cdp("Target.closeTarget", { targetId: shell.id });
+  const coldPopup = await open(`chrome-extension://${extId}/popup.html`, {
+    initScript: `
+      window.startupCalls={refreshes:0,queries:0};
+      const originalSend=chrome.runtime.sendMessage.bind(chrome.runtime);
+      chrome.runtime.sendMessage=(request,...args)=>{
+        if(request.type==='GET_STATE'){startupCalls.refreshes++;return new Promise(()=>{})}
+        return originalSend(request,...args);
+      };
+      chrome.permissions.contains=async()=>false;
+      chrome.tabs.query=()=>{startupCalls.queries++;return new Promise(()=>{})};
+    `,
+  });
+  check(
+    "popup opens saved controls without waking a background refresh or reading ungranted tabs",
+    await evaluate(
+      coldPopup.session,
+      `
+      !!document.querySelector('#daily-limit') &&
+      document.querySelectorAll('#site-picker [role=option]').length===6 &&
+      startupCalls.refreshes===0 && startupCalls.queries===0 &&
+      !!document.querySelector('.popup-access')
+    `,
+    ),
+  );
+  await cdp("Target.closeTarget", { targetId: coldPopup.id });
   const x = await send({
     type: "SAVE_RULE",
     rule: rule("youtube", "youtube.com", 0),

@@ -4,7 +4,7 @@
 
 **Less feed. More day.** ScreenFry is a Chrome and Safari extension that strips the distracting parts out of social websites and limits how long you spend on them, without taking away the useful parts.
 
-> **Status:** development build, version 0.4.9. Chrome is covered by automated browser tests. Safari builds, installs and passes packaging checks, but its live behavior is still being verified. See [Testing](docs/TESTING.md).
+> **Status:** development build, version 0.4.10. Chrome is covered by automated browser tests. Safari builds, installs and passes packaging checks, but its live behavior is still being verified. See [Testing](docs/TESTING.md).
 
 ## What it does
 
@@ -77,7 +77,7 @@ You'll also need Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
    ```
 2. Open `safari/Screentime/Screentime.xcodeproj`, pick a signing team for both targets, and run the **Screentime** scheme. This builds **ScreenFry.app**.
 3. In Safari → **Settings → Extensions**, turn on **ScreenFry**.
-4. Still there, click **Edit Websites** and set **Other Websites** to **Allow**. Without this, Safari asks for permission every time you click the icon, and ScreenFry can't work on most pages.
+4. Still there, click **Edit Websites** and set **Other Websites** to **Allow**. Safari can otherwise request access separately on individual websites. Website permissions and ScreenFry's controls are separate: granting access does not enable any blocking choices.
 5. *Optional:* turn on **Allow in Private Browsing**.
 
 Keep a single copy of ScreenFry.app installed; two copies register two extensions. More detail is in [Safari setup](docs/SAFARI.md).

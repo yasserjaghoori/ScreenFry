@@ -1,7 +1,7 @@
-/* A fixed size keeps Safari's popover from resizing as content loads. */
+/* The HTML establishes the outer size before scripts load. Scroll only the controls. */
 .popup {
-  width: 380px;
-  height: 580px;
+  width: 100%;
+  height: 100%;
   padding: 16px 18px 20px;
   overflow-y: auto;
 }

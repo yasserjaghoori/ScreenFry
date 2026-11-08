@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { send, setSettingsCredential } from "@browser/messages";
+import { setSettingsCredential } from "@browser/messages";
 import { detectBrowser } from "@browser/platform";
 import { STATE_KEY } from "@browser/storage";
 import { extensionPageUrl } from "@browser/urls";
@@ -22,43 +22,59 @@ function Popup() {
     [unlocked, setUnlocked] = useState(false),
     [siteAccess, setSiteAccess] = useState(true);
   useEffect(() => {
-    // Draw immediately from saved settings. Safari has to wake its background page first,
-    // and waiting for it made the popover open tiny and then jump to full size.
+    // Opening controls must not wake a full background sweep through every tab.
+    // Enforcement and usage checkpoints run independently; edits still go through send().
+    let mounted = true;
     void chrome.storage.local
       .get(STATE_KEY)
-      .then((saved) =>
-        setState((current) => current ?? migrateState(saved[STATE_KEY])),
-      )
-      .catch(() => undefined);
-    void send<AppState>({ type: "GET_STATE" }).then((r) =>
-      r.ok ? setState(r.data) : setError(r.error),
-    );
-    // Without access to every website, Safari shows its own permission prompt over the
-    // popup and ScreenFry can't act on most pages, so say so plainly.
-    void Promise.resolve(
-      chrome.permissions?.contains({ origins: ["<all_urls>"] }),
-    )
-      .then((granted) => setSiteAccess(granted !== false))
-      .catch(() => undefined);
-    void chrome.tabs
-      .query({ active: true, currentWindow: true })
-      .then(([tab]) => {
+      .then((saved) => {
+        if (mounted)
+          setState(
+            (current) =>
+              current ?? migrateState(saved[STATE_KEY], detectBrowser()),
+          );
+      })
+      .catch(() => {
+        if (mounted)
+          setError("Saved controls couldn't load. Close and reopen ScreenFry.");
+      });
+    // Host access is not required to draw settings. Only read the current URL when
+    // access is already granted; otherwise Safari may wait for a website permission.
+    void (async () => {
+      try {
+        const granted = await chrome.permissions?.contains({
+          origins: ["<all_urls>"],
+        });
+        if (!mounted) return;
+        setSiteAccess(granted !== false);
+        if (granted !== true) return;
+        const [tab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        if (!mounted) return;
         try {
           const found = siteFor(new URL(tab?.url ?? "").hostname);
           if (found) setSite(found.site);
         } catch {
           /* not a website */
         }
-      });
+      } catch {
+        /* Optional site detection must never prevent opening the controls. */
+      }
+    })();
     const listener = (
       changes: Record<string, chrome.storage.StorageChange>,
       area: string,
     ) => {
       if (area === "local" && changes[STATE_KEY]?.newValue)
-        setState(migrateState(changes[STATE_KEY].newValue));
+        setState(migrateState(changes[STATE_KEY].newValue, detectBrowser()));
     };
     chrome.storage.onChanged.addListener(listener);
-    return () => chrome.storage.onChanged.removeListener(listener);
+    return () => {
+      mounted = false;
+      chrome.storage.onChanged.removeListener(listener);
+    };
   }, []);
   const open = (page: string) =>
     chrome.tabs.create({
@@ -81,7 +97,7 @@ function Popup() {
       </header>
       {!siteAccess && (
         <div className="notice warn popup-access" role="status">
-          <strong>ScreenFry needs access to every website.</strong>
+          <strong>ScreenFry may not have access to some websites.</strong>
           {detectBrowser() === "safari" ? (
             <span>
               In Safari, open Settings → Extensions → ScreenFry, then set{" "}
