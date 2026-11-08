@@ -93,6 +93,17 @@ Codex's 0.4.8 popup work, made on the user's Mac and never pushed, is merged her
 - **Popup dropdown (user request):** `ui/SitePicker.tsx` is an accessible listbox. It shows each site's logo and today's time, supports arrow/Enter/Escape, and has no limit on how many sites it lists. It replaced the chip row.
 - **YouTube sidebar (user request):** "Hide recommended videos beside the player" already existed. Its selectors now also cover current `ytd-watch-flexy #related`, lockup items and the chip bar, while leaving live chat and playlist panels visible. Not verified on live YouTube.
 
+## 0.5.1 Installer fixes and how to verify them (read before changing the Mac app)
+
+- **Working copy:** the user's checkout lives at `~/Documents/Claude/ScreenFry` (earlier copies under `Documents/ChatGPT` are stale).
+- **Verify on the real Mac, not only in CI.** CI proves the app builds and launches; it never clicks the window, drags the Chrome tile or checks Safari's list. The 0.5.0 install bugs (mounted installer counted as a duplicate, unsigned extension hidden in Safari, the tile dragging the window) all passed CI. After any Mac app change: `npm ci && npm run dmg:local`, quit ScreenFry, eject old installers, install the new disk image (Replace), open it from Applications, and check the following on the Mac:
+  1. no "another copy" notice, apart from the Eject Installer offer while the disk image is mounted
+  2. ScreenFry appears in Safari → Settings → Extensions
+  3. dragging the tile onto `chrome://extensions` (Developer mode on) loads the extension
+  4. Uninstall → Keep Settings, then reinstall, then Erase Everything
+- **Unsigned builds:** Safari hides unsigned extensions until Settings → Developer → "Allow unsigned extensions" is on. It needs the user's password, resets when Safari quits, and no app can enable it. `npm run dmg:local` (Apple Development signing) avoids it on the user's Mac. Developer ID signing removes it for everyone.
+- **Open request:** a "show me how" guide or button for new installers on unsigned builds. It can open Safari and show the steps, but can't flip the setting.
+
 ## Historical requirements and assessment record
 
 The retained snapshot below describes earlier 0.3.x work. Its requirements and reference-extension assessment remain useful; its version/path/test-status statements are superseded by the current section, README and Testing document.
