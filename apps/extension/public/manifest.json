@@ -8,7 +8,8 @@
     "tabs",
     "idle",
     "alarms",
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "<all_urls>"

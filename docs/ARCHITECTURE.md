@@ -40,3 +40,7 @@ Selected CSS selectors are adapted from Saner Social Media revision `f795e09d940
 `siteDefinitions` in `packages/feed-blockers` supplies site names, domains, controls and short-form detection. Default rules, site pickers and network rules derive from it; see [Adding a website](ADDING_A_SITE.md).
 
 The supplied melting-monitor PNG in `assets/branding` is the color-logo source. `npm run icons` generates extension/UI/favicon assets, the native AppIcon and Dock fallback, plus a monochrome toolbar counterpart. See [Branding](../assets/branding/README.md).
+
+## Settings export and import
+
+The Mac app can't read browser storage, so export/import goes through native messaging. The background sends `{type: "screenfry-sync", settings}` (from `exportSettings` in `packages/core`) on start, after settings edits and on each heartbeat. Safari delivers it to `SafariWebExtensionHandler`; Chrome launches the app binary as the `com.screenfry.host` native messaging host, which the app registers for the unpacked extension ID derived from its fixed folder path. Both use `Shared/SettingsBridge.swift`: the reply carries any pending import, which the background applies with `importSettings` (validated like individual edits and refused while a settings password is set) and acknowledges with `importResult`. The app's browser cards and footer read and write those bridge files.

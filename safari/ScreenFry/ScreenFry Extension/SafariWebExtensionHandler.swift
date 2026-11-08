@@ -1,11 +1,15 @@
 import Foundation
 import SafariServices
 
-/// Native endpoint for the Safari Web Extension. ScreenFry keeps all state in the
-/// WebExtension's own storage during Phase 1, so native messaging is unused and every
-/// request receives an empty reply. Phase 2 (macOS app) can route messages through here.
+/// Native endpoint for the Safari Web Extension. ScreenFry keeps its state in the extension's
+/// own storage; the only native message is `screenfry-sync`, which hands website settings to
+/// and from the Mac app for export and import (see Shared/SettingsBridge.swift).
 final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
     func beginRequest(with context: NSExtensionContext) {
-        context.completeRequest(returningItems: [NSExtensionItem()], completionHandler: nil)
+        let item = context.inputItems.first as? NSExtensionItem
+        let message = item?.userInfo?[SFExtensionMessageKey] as? [String: Any] ?? [:]
+        let response = NSExtensionItem()
+        response.userInfo = [SFExtensionMessageKey: SettingsBridge.local("Safari").handle(message)]
+        context.completeRequest(returningItems: [response], completionHandler: nil)
     }
 }
