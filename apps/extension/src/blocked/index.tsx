@@ -26,15 +26,28 @@ function Blocked() {
     const timer = setInterval(check, 1000);
     return () => clearInterval(timer);
   }, []);
-  const label = decision?.ruleLabel ?? params.get("label") ?? "This website";
+  const requested = params.get("label") ?? "";
+  // A short-form player found inside an ordinary page: the page itself is allowed, but the
+  // notice must still explain the short-form block rather than invite the user straight back.
+  const shortForm =
+    requested === "YouTube Shorts" || requested === "Instagram Reels";
   const allowed = decision?.status === "allowed";
+  const label =
+    (allowed && shortForm ? requested : decision?.ruleLabel) ??
+    (requested || "This website");
+  const showContinue = allowed && !shortForm;
   return (
     <main className="focus-page">
-      <section className={`card focus-card ${allowed ? "" : "is-blocked"}`}>
+      <section
+        className={`card focus-card ${showContinue ? "" : "is-blocked"}`}
+      >
         <img className="focus-logo" src="icons/icon-128.png" alt="" />
         <span className="eyebrow">ScreenFry</span>
-        <h1>{allowed ? "You can continue." : `${label} is off for now.`}</h1>
-        {decision?.reasons.includes("short-form") && (
+        <h1>
+          {showContinue ? "You can continue." : `${label} is off for now.`}
+        </h1>
+        {(decision?.reasons.includes("short-form") ||
+          (allowed && shortForm)) && (
           <p className="muted">
             Short-form playback is turned off for this website. Direct links and
             notifications follow the same setting.
@@ -65,7 +78,7 @@ function Blocked() {
         <div className="focus-actions">
           {allowed && url && (
             <button className="button" onClick={() => location.replace(url)}>
-              Continue to site
+              {shortForm ? "Back to website" : "Continue to site"}
             </button>
           )}
           <button

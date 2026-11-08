@@ -141,28 +141,52 @@ export function evaluatePolicy(
     result.reasons.includes("site-blocked")
   )
     return result;
-  for (
-    let at = floorToMinute(now) + MINUTE;
-    at <= now + HORIZON;
-    at += MINUTE
-  ) {
+  // Status only changes at local midnight (allowances reset) or at a window's start or end,
+  // so checking those moments finds the same answer as a minute-by-minute scan, far faster.
+  for (const at of candidateTimes(state.windows, now, now + HORIZON))
     if (decisionAt(state, url, at, now).status === "allowed") {
       result.nextAccessAt = at;
       break;
     }
-  }
   return result;
 }
+/**
+ * Sorted, de-duplicated moments after `now` and up to `until` when a decision can change:
+ * every local midnight and every enabled window's start and end minute on each day.
+ */
+function candidateTimes(
+  windows: AppState["windows"],
+  now: number,
+  until: number,
+): number[] {
+  const times = new Set<number>();
+  const enabled = windows.filter((w) => w.enabled);
+  const first = new Date(now);
+  for (let day = -1; ; day++) {
+    const y = first.getFullYear(),
+      m = first.getMonth(),
+      d = first.getDate() + day;
+    const midnight = new Date(y, m, d).getTime();
+    if (midnight > until) break;
+    times.add(midnight);
+    for (const w of enabled)
+      for (const minute of [w.startMinute, w.endMinute])
+        times.add(new Date(y, m, d, 0, minute).getTime());
+  }
+  return [...times]
+    .filter((t) => t > now && t <= until)
+    .sort((a, b) => a - b);
+}
 export function nextPolicyBoundary(state: AppState, now: number): number {
-  let next = nextLocalMidnight(new Date(now));
+  const midnight = nextLocalMidnight(new Date(now));
+  let next = midnight;
   for (const w of state.windows.filter((w) => w.enabled)) {
     const active = isScheduleActive(w, new Date(now));
-    for (let at = floorToMinute(now) + MINUTE; at < next; at += MINUTE) {
-      if (isScheduleActive(w, new Date(at)) !== active) {
+    for (const at of candidateTimes([w], now, midnight))
+      if (at < next && isScheduleActive(w, new Date(at)) !== active) {
         next = at;
         break;
       }
-    }
   }
   return next;
 }

@@ -125,9 +125,20 @@ function evaluate() {
       "video,audio",
     ))
       media.pause();
-    applyCss("video,audio{display:none!important}");
     redirecting = true;
-    location.replace(blockedUrl(short ?? decision.ruleLabel ?? "This website"));
+    const label = short ?? decision.ruleLabel ?? "This website";
+    if (!isTop) {
+      applyCss("video,audio{display:none!important}");
+      location.replace(blockedUrl(label));
+      return;
+    }
+    // Hide and stop the page so a blocked player never loads, then let the background
+    // open the blocked page (reliable in Safari). Navigate ourselves only as a fallback.
+    applyCss(
+      "html{visibility:hidden!important}video,audio{display:none!important}",
+    );
+    window.stop();
+    void showBlockedPage(label);
     return;
   }
   markXTab();
@@ -135,6 +146,21 @@ function evaluate() {
   pauseRestrictedMedia();
   reportMedia();
   if (isTop) overlay.update(decision);
+}
+async function showBlockedPage(label: string) {
+  const fallback = () => location.replace(blockedUrl(label));
+  const timer = setTimeout(fallback, 2000);
+  try {
+    const r = (await chrome.runtime.sendMessage({
+      type: "SHOW_BLOCKED_PAGE",
+      label,
+    })) as { ok?: boolean } | undefined;
+    if (r?.ok) return;
+  } catch {
+    /* background unavailable */
+  }
+  clearTimeout(timer);
+  fallback();
 }
 const queueEvaluation = createBatchedTask(evaluate);
 const overlay = (() => {

@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { extensionPageUrl, networkBlockAction } from "@browser/urls";
+import {
+  extensionPageUrl,
+  networkBlockAction,
+  networkResourceTypes,
+} from "@browser/urls";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -7,12 +11,17 @@ describe("extension navigation addresses", () => {
   it.each(["chrome-extension", "safari-web-extension"])(
     "preserves the blocked target's query and fragment on %s",
     (scheme) => {
-      const getURL = vi.fn((path: string) => `${scheme}://extension-id/${path}`);
+      const getURL = vi.fn(
+        (path: string) => `${scheme}://extension-id/${path}`,
+      );
       vi.stubGlobal("chrome", { runtime: { getURL } });
       const target =
         "https://www.youtube.com/shorts/test?feature=share&name=a%20b#part";
       const result = new URL(
-        extensionPageUrl("blocked.html", { url: target, label: "YouTube Shorts" }),
+        extensionPageUrl("blocked.html", {
+          url: target,
+          label: "YouTube Shorts",
+        }),
       );
       expect(getURL).toHaveBeenCalledExactlyOnceWith("blocked.html");
       expect(result.pathname).toBe("/blocked.html");
@@ -41,9 +50,16 @@ describe("extension navigation addresses", () => {
     });
   });
 
+  it("leaves whole Safari pages to tab enforcement so its error page never appears", () => {
+    expect(networkResourceTypes("safari")).toEqual(["sub_frame"]);
+    expect(networkResourceTypes("chrome")).toEqual(["main_frame", "sub_frame"]);
+  });
+
   it("retains Chrome's complete original-target substitution", () => {
     vi.stubGlobal("chrome", {
-      runtime: { getURL: (path: string) => `chrome-extension://extension-id/${path}` },
+      runtime: {
+        getURL: (path: string) => `chrome-extension://extension-id/${path}`,
+      },
     });
     expect(networkBlockAction("chrome", "YouTube Shorts")).toEqual({
       type: "redirect",

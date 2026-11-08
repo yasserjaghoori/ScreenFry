@@ -47,7 +47,7 @@ For local updates, quit the containing app and update the installed bundle in pl
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Private Browsing check | No API. Coverage is confirmed only after Screentime sees one of its tabs in a Private window. It can't detect the setting being turned off later. |
 | Usage                  | Focused active tab plus reported background audio/video playback. Safari has no `idle` API.                                                       |
-| Network blocking       | Uses `declarativeNetRequest` block actions; tab/content enforcement supplies the notice URL. Live notice routing remains unverified.        |
+| Network blocking       | Network rules cover embedded frames only. Whole pages (blocked sites, Shorts/Reels links) go to the ScreenFry blocked page through the background's tab navigation, requested by tab updates and the content script, so Safari's own error page never appears. Verified in Chrome with page rules disabled; not yet in live Safari. |
 | State                  | Separate from Chrome. Usage, rules and optional settings password aren't shared in Phase 1.                                                       |
 
 Safari runtime behaviour is not verified in CI. The current signed build failed final live Shorts acceptance and is left disabled after a performance incident; see `TESTING.md` before retesting. Use an isolated environment for further diagnosis.

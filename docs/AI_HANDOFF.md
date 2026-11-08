@@ -36,6 +36,13 @@ Fixes:
 
 Evidence (isolated headless Chrome, 1 YouTube fixture + 6 pages with 8 iframes each, switching tabs every second for 30 s): page script time fell from roughly 360-470 ms to about 35 ms. State writes stay at about one per tab switch, because per-site history legitimately records time on every website, but they now reach only relevant frames. 73 unit tests (including new write-skipping tests) and 44 integration checks pass. **Not yet verified in live Safari.** Retest there, starting with a few tabs.
 
+## 0.4.4 Safari blocked page and codebase review
+
+- **Safari error page fixed:** network rules now cover only `sub_frame` on Safari (`networkResourceTypes`). Whole pages reach `blocked.html` through `chrome.tabs.update`, triggered by `tabs.onUpdated` and by a new content-script request, `SHOW_BLOCKED_PAGE`. The background only honours it for the sender's own top frame, and only when policy blocks that URL or the site's own Shorts/Reels setting is on. The content script hides and stops the page first and falls back to self-navigation after 2 s. The blocked page now explains in-page Shorts/Reels detections instead of saying "You can continue". The full Chrome suite passes both normally and with page-level network rules removed (the Safari path). Not yet verified in live Safari.
+- **Forecast speed:** `evaluatePolicy`'s next-access forecast and `nextPolicyBoundary` checked every minute up to 8 days (about 57 ms per blocked call). They now check only midnights and window start/end times; a randomized test proves identical results against the old scan.
+- **Background:** rule installs and boundary alarms are skipped when unchanged.
+- **Open product question:** per-site history (`trackingEnabled`, default on) records time on every website, is never displayed and has no UI toggle, and causes a storage write on every tab switch.
+
 ## Historical requirements and assessment record
 
 The retained snapshot below describes earlier 0.3.x work. Its requirements and reference-extension assessment remain useful; its version/path/test-status statements are superseded by the current section, README and Testing document.

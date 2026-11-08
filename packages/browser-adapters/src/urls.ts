@@ -12,7 +12,21 @@ export function extensionPageUrl(
   return url.href;
 }
 
-/** Safari blocks the request first; tab/content enforcement supplies its notice URL. */
+/**
+ * Resource types the network rules apply to. Safari cannot redirect a page to an extension
+ * URL from a network rule, and a "block" on a whole page shows Safari's own error page, so
+ * on Safari the rules only cover embedded frames. Whole pages are sent to ScreenFry's
+ * blocked page by the background (tab updates) and the content script instead.
+ */
+export function networkResourceTypes(
+  browser: BrowserKind,
+): chrome.declarativeNetRequest.ResourceType[] {
+  return (
+    browser === "safari" ? ["sub_frame"] : ["main_frame", "sub_frame"]
+  ) as chrome.declarativeNetRequest.ResourceType[];
+}
+
+/** Safari blocks embedded frames outright; Chrome redirects to the blocked page. */
 export function networkBlockAction(
   browser: BrowserKind,
   label: string,

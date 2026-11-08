@@ -19,7 +19,12 @@ import {
   sessionArea,
 } from "@browser/platform";
 import { chromeStateStore } from "@browser/storage";
-import { extensionPageUrl, networkBlockAction } from "@browser/urls";
+import { siteFor } from "@feeds/index";
+import {
+  extensionPageUrl,
+  networkBlockAction,
+  networkResourceTypes,
+} from "@browser/urls";
 import {
   evaluatePolicy,
   matchingRules,
@@ -86,10 +91,7 @@ async function syncNetworkRules(state: AppState) {
       action: networkBlockAction(browser, label),
       condition: {
         regexFilter,
-        resourceTypes: [
-          "main_frame" as chrome.declarativeNetRequest.ResourceType,
-          "sub_frame" as chrome.declarativeNetRequest.ResourceType,
-        ],
+        resourceTypes: networkResourceTypes(browser),
       },
     });
   const domains = [
@@ -122,6 +124,8 @@ async function syncNetworkRules(state: AppState) {
       );
   }
   const signature = JSON.stringify(addRules);
+  // Already installed during this background lifetime: skip the browser round trip.
+  if (signature === lastNetworkRules) return;
   try {
     const existing = await chrome.declarativeNetRequest.getDynamicRules();
     const ours = existing.filter((r) => r.id >= 10_000);
@@ -258,6 +262,7 @@ async function checkpointTracking(force: boolean) {
   );
 }
 let timer: ReturnType<typeof setTimeout> | undefined;
+let lastBoundaryAlarm: number | undefined;
 async function scheduleNextBoundary(state: AppState) {
   const now = Date.now(),
     sessions = await loadSessions();
@@ -268,7 +273,10 @@ async function scheduleNextBoundary(state: AppState) {
       .filter((n): n is number => n !== undefined),
   ];
   const when = Math.max(now + 250, Math.min(...boundaries));
-  await chrome.alarms.create(BOUNDARY, { when });
+  if (when !== lastBoundaryAlarm) {
+    await chrome.alarms.create(BOUNDARY, { when });
+    lastBoundaryAlarm = when;
+  }
   if (timer) clearTimeout(timer);
   if (when - now < 60_000)
     timer = setTimeout(
@@ -323,6 +331,28 @@ async function ensureAlarms() {
   if (!(await chrome.alarms.get(HEARTBEAT)))
     await chrome.alarms.create(HEARTBEAT, { periodInMinutes: 1 });
 }
+/** A player detected in the page (not by URL) counts only when that site's own setting is on. */
+function shortFormLabelAllowed(
+  state: AppState,
+  url: string,
+  label: string,
+): string | undefined {
+  const feeds = state.feedSettings;
+  if (!feeds.globalEnabled) return;
+  const site = siteFor(new URL(url).hostname)?.site;
+  if (
+    label === "YouTube Shorts" &&
+    site === "youtube" &&
+    feeds.sites.youtube.shorts
+  )
+    return label;
+  if (
+    label === "Instagram Reels" &&
+    site === "instagram" &&
+    feeds.sites.instagram.reels
+  )
+    return label;
+}
 const isExtensionSender = (sender: chrome.runtime.MessageSender) =>
   sender.id === chrome.runtime.id &&
   Boolean(sender.url?.startsWith(extensionOrigin));
@@ -370,6 +400,30 @@ async function handle(
       // Only a change in playback matters. Repeated "still playing" reports refresh the
       // timestamp above; reevaluating on each one made video pages churn every frame.
       if (previous?.playing !== request.playing) await reevaluate(true);
+      return { ok: true, data: null };
+    }
+    case "SHOW_BLOCKED_PAGE": {
+      // A content script found a blocked page or a short-form player. The extension's own tab
+      // navigation reaches the blocked page reliably in Safari, where a web page navigating
+      // itself to an extension URL can fail. Only the sender's own top frame is redirected.
+      const tabId = sender.tab?.id;
+      const url = parseWebUrl(sender.url ?? "")?.href;
+      // Some Safari versions omit frameId; then the top frame is the one showing the tab's URL.
+      const topFrame =
+        sender.frameId === 0 ||
+        (sender.frameId === undefined && sender.url === sender.tab?.url);
+      if (tabId === undefined || !topFrame || !url)
+        return { ok: false, error: "Invalid sender." };
+      const state = await chromeStateStore.get();
+      const decision = evaluatePolicy(state, url, Date.now());
+      const label =
+        decision.status === "blocked"
+          ? (decision.ruleLabel ?? "This website")
+          : shortFormLabelAllowed(state, url, request.label);
+      if (!label) return { ok: false, error: "Not blocked." };
+      await chrome.tabs.update(tabId, {
+        url: extensionPageUrl("blocked.html", { url, label }),
+      });
       return { ok: true, data: null };
     }
     case "UNLOCK_SETTINGS":
