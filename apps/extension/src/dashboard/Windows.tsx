@@ -16,7 +16,11 @@ import { Switch } from "../ui/SiteControls";
 import { confirmLoosen } from "../ui/ConfirmLoosen";
 import { TimePicker } from "../ui/TimePicker";
 import { passwordGate } from "../ui/PasswordPrompt";
-import { describeConflict, windowConflicts } from "@policy/index";
+import {
+  describeConflict,
+  suspendedWindowIds,
+  windowConflicts,
+} from "@policy/index";
 import type { Notice } from "./index";
 const days: DayOfWeek[] = [1, 2, 3, 4, 5, 6, 0];
 const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -49,11 +53,16 @@ export function Windows({
       w.domains.filter((d) => !supportedDomains.includes(d)).join(", "),
     );
   }
+  const allSelected = (w: AccessWindow) =>
+    launchSites.every((s) =>
+      w.domains.some((d) => hostMatchesDomain(s.domain, d)),
+    );
   /** The editor's websites: ticked sites plus anything typed under Other websites. */
   const editedDomains = (w: AccessWindow) => [
     ...w.domains.filter((d) => supportedDomains.includes(d)),
     ...custom.split(/[\s,]+/).filter(Boolean),
   ];
+  const suspended = suspendedWindowIds(state.windows);
   const editingConflict =
     editing &&
     windowConflicts(state.windows, {
@@ -72,7 +81,15 @@ export function Windows({
     }
     onState(r.data);
     setEditing(undefined);
-    onNotice({ kind: "success", text: "Window saved." });
+    const clash = windowConflicts(r.data.windows, w)[0];
+    onNotice(
+      clash
+        ? {
+            kind: "error",
+            text: `Window saved, but it contradicts “${clash.other.label}”, so both are paused. Edit either window so they don’t overlap and both start working again.`,
+          }
+        : { kind: "success", text: "Window saved." },
+    );
   }
   return (
     <>
@@ -83,9 +100,10 @@ export function Windows({
           <strong>block window</strong> blocks its websites while it is on.{" "}
           <strong>Free time</strong> pauses its websites’ feed blocking while
           it is on, for as many minutes as you give it; when they run out (or
-          the window ends) feeds are hidden again. Block windows win when they
-          apply, and daily limits always still count. Websites in no window
-          keep their usual settings.
+          the window ends) feeds are hidden again. A block window that overlaps
+          an allow or free-time window on the same website contradicts it, so
+          both pause until you change one. Daily limits always still count.
+          Websites in no window keep their usual settings.
         </p>
         <button
           className="button"
@@ -113,7 +131,10 @@ export function Windows({
           </div>
         )}
         {state.windows.map((w) => (
-          <article className="card window-card" key={w.id}>
+          <article
+            className={`card window-card ${suspended.has(w.id) ? "is-paused" : ""}`}
+            key={w.id}
+          >
             <div className="row spread">
               <div>
                 <h2>
@@ -121,6 +142,9 @@ export function Windows({
                   <span className={`pill ${modeTones[w.mode ?? "allow"]}`}>
                     {modeNames[w.mode ?? "allow"]}
                   </span>
+                  {suspended.has(w.id) && (
+                    <span className="pill warn">Paused</span>
+                  )}
                 </h2>
                 <p className="window-time">
                   {w.startMinute === w.endMinute ||
@@ -206,7 +230,6 @@ export function Windows({
               className="window-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (editingConflict) return;
                 void save({ ...editing, domains: editedDomains(editing) });
               }}
             >
@@ -354,6 +377,27 @@ export function Windows({
                       ? "Websites with free time"
                       : "Websites to allow"}
                 </legend>
+                <button
+                  type="button"
+                  className="button secondary all-sites"
+                  aria-pressed={allSelected(editing)}
+                  onClick={() => {
+                    const every = expandDomainAliases(
+                      launchSites.map((s) => s.domain),
+                    );
+                    setEditing({
+                      ...editing,
+                      domains: allSelected(editing)
+                        ? editing.domains.filter((d) => !every.includes(d))
+                        : [
+                            ...editing.domains.filter((d) => !every.includes(d)),
+                            ...every,
+                          ],
+                    });
+                  }}
+                >
+                  {allSelected(editing) ? "Clear all websites" : "All websites"}
+                </button>
                 <div className="whitelist">
                   {launchSites.map((s) => {
                     const selected = editing.domains.some((d) =>
@@ -392,7 +436,10 @@ export function Windows({
               </fieldset>
               {editingConflict ? (
                 <p className="window-conflict" role="alert">
-                  {describeConflict(editing, editingConflict)}
+                  {describeConflict(
+                    { ...editing, label: editing.label.trim() || "This window" },
+                    editingConflict,
+                  )}
                 </p>
               ) : (
                 error && (
@@ -409,10 +456,7 @@ export function Windows({
                 >
                   Cancel
                 </button>
-                <button
-                  className="button"
-                  disabled={busy || Boolean(editingConflict)}
-                >
+                <button className="button" disabled={busy}>
                   {busy ? "Saving…" : "Save window"}
                 </button>
               </div>

@@ -96,9 +96,8 @@ export function outsideWindow(
   url: string,
   now: number,
 ): boolean {
-  const windows = state.windows.filter(
+  const windows = runningWindows(state.windows).filter(
     (w) =>
-      w.enabled &&
       (w.mode ?? "allow") === "allow" &&
       urlMatchesDomains(url, w.domains),
   );
@@ -113,17 +112,16 @@ export function insideBlockWindow(
   url: string,
   now: number,
 ): boolean {
-  return state.windows.some(
+  return runningWindows(state.windows).some(
     (w) =>
-      w.enabled &&
       w.mode === "block" &&
       urlMatchesDomains(url, w.domains) &&
       isScheduleActive(w, new Date(now)),
   );
 }
 export const freeWindowsFor = (state: AppState, url: string) =>
-  state.windows.filter(
-    (w) => w.enabled && w.mode === "free" && urlMatchesDomains(url, w.domains),
+  runningWindows(state.windows).filter(
+    (w) => w.mode === "free" && urlMatchesDomains(url, w.domains),
   );
 /** Free time left today in a free-time window; undefined when it has no budget. */
 export function freeTimeRemaining(
@@ -284,7 +282,7 @@ function candidateTimes(
   until: number,
 ): number[] {
   const times = new Set<number>();
-  const enabled = windows.filter((w) => w.enabled);
+  const enabled = runningWindows(windows);
   const first = new Date(now);
   for (let day = -1; ; day++) {
     const y = first.getFullYear(),
@@ -304,7 +302,7 @@ function candidateTimes(
 export function nextPolicyBoundary(state: AppState, now: number): number {
   const midnight = nextLocalMidnight(new Date(now));
   let next = midnight;
-  for (const w of state.windows.filter((w) => w.enabled)) {
+  for (const w of runningWindows(state.windows)) {
     const active = isScheduleActive(w, new Date(now));
     for (const at of candidateTimes([w], now, midnight))
       if (at < next && isScheduleActive(w, new Date(at)) !== active) {
@@ -366,6 +364,27 @@ export function windowConflicts(
   }
   return conflicts;
 }
+const suspendedCache = new WeakMap<AccessWindow[], Set<string>>();
+/**
+ * Enabled windows that contradict another enabled window. A contradiction is saved (so it
+ * can be fixed by editing either window), but neither side runs until it is reconciled:
+ * ScreenFry never guesses which of two opposite instructions was meant.
+ */
+export function suspendedWindowIds(windows: AccessWindow[]): Set<string> {
+  let ids = suspendedCache.get(windows);
+  if (!ids) {
+    ids = new Set(
+      windows.filter((w) => windowConflicts(windows, w).length).map((w) => w.id),
+    );
+    suspendedCache.set(windows, ids);
+  }
+  return ids;
+}
+/** Windows that are switched on and not paused by a contradiction. */
+export function runningWindows(windows: AccessWindow[]): AccessWindow[] {
+  const suspended = suspendedWindowIds(windows);
+  return windows.filter((w) => w.enabled && !suspended.has(w.id));
+}
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const listSites = (sites: string[]) =>
   sites.length < 3
@@ -386,5 +405,5 @@ export function describeConflict(
     opening.mode === "free"
       ? `opens ${one ? "its" : "their"} feeds`
       : `allows ${one ? "it" : "them"}`;
-  return `“${blocking.label}” blocks ${listSites(conflict.sites)} while “${opening.label}” ${kind} (overlap starts ${DAY_NAMES[conflict.day]} ${time}). Change the times, days or websites so they don’t overlap.`;
+  return `“${blocking.label}” blocks ${listSites(conflict.sites)} while “${opening.label}” ${kind} (overlap starts ${DAY_NAMES[conflict.day]} ${time}). Both are paused until you change the times, days or websites so they don’t overlap.`;
 }

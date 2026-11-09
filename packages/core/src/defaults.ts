@@ -89,8 +89,13 @@ function convertSchedules(
 }
 export function migrateState(
   raw: unknown,
-  browser: BrowserKind = "chrome",
+  /** Defaults to the browser the state was saved in, so a page that doesn't pass one can't relabel it. */
+  requested?: BrowserKind,
 ): AppState {
+  const saved =
+    object(raw) && object(raw.protection) ? raw.protection.browser : undefined;
+  const browser: BrowserKind =
+    requested ?? (saved === "safari" || saved === "chrome" ? saved : "chrome");
   const state = createDefaultState(browser);
   if (!object(raw)) return state;
   const legacy = raw.schemaVersion !== 3;

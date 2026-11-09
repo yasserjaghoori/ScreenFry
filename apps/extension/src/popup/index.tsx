@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { setSettingsCredential } from "@browser/messages";
+import { send, setSettingsCredential } from "@browser/messages";
 import { detectBrowser } from "@browser/platform";
 import { STATE_KEY } from "@browser/storage";
 import { extensionPageUrl } from "@browser/urls";
@@ -61,6 +61,19 @@ function Popup() {
     };
     chrome.tabs.onUpdated.addListener(updated);
     chrome.tabs.onActivated.addListener(activated);
+    // Safari can leave the popup floating after you switch to another app; close it then.
+    // Focus moving inside the popup never blurs the window, so this only fires on leaving.
+    let blurTimer: ReturnType<typeof setTimeout> | undefined;
+    const left = () => {
+      blurTimer = setTimeout(() => {
+        if (!document.hasFocus()) window.close();
+      }, 150);
+    };
+    const returned = () => clearTimeout(blurTimer);
+    if (isSafari) {
+      window.addEventListener("blur", left);
+      window.addEventListener("focus", returned);
+    }
     // The tabs permission allows URL metadata without requesting website access.
     // Safari's broad host-permission answer must not gate current-site selection.
     void chrome.permissions
@@ -109,6 +122,9 @@ function Popup() {
       chrome.storage.onChanged.removeListener(listener);
       chrome.tabs.onUpdated.removeListener(updated);
       chrome.tabs.onActivated.removeListener(activated);
+      window.removeEventListener("blur", left);
+      window.removeEventListener("focus", returned);
+      clearTimeout(blurTimer);
     };
   }, []);
   const open = (page: string) =>
@@ -151,6 +167,21 @@ function Popup() {
               <em>This can read and change site data</em> →{" "}
               <em>On all sites</em>.
             </span>
+          )}
+          {isSafari && (
+            <button
+              className="button popup-open-safari"
+              onClick={async () => {
+                const r = await send({ type: "OPEN_SAFARI_SETTINGS" });
+                if (r.ok) window.close();
+                else
+                  setError(
+                    "Safari didn’t open its settings. Open Safari → Settings → Extensions → ScreenFry.",
+                  );
+              }}
+            >
+              Open ScreenFry in Safari Settings
+            </button>
           )}
           {isSafari && (
             <button

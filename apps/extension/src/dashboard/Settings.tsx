@@ -7,6 +7,7 @@ import { Switch } from "../ui/SiteControls";
 import { confirmLoosen } from "../ui/ConfirmLoosen";
 import { passwordGate } from "../ui/PasswordPrompt";
 import { PrivateAccessGuide } from "../ui/PrivateAccessGuide";
+import { clearTimeFormatPreference } from "../ui/TimePicker";
 import type { Notice } from "./index";
 export function Settings({
   state,
@@ -248,17 +249,42 @@ export function Settings({
           ))}
         </section>
       )}
-      <section className="card settings-block">
-        <h2>On this browser</h2>
+      <section className="card settings-block reset-block">
+        <h2>Restore defaults</h2>
         <p className="muted">
-          Time counts on the focused tab and while audio or video plays in the
-          background. An inactive, non-playing tab does not count. Each website
-          is counted once, even with multiple tabs playing.
+          Erase everything ScreenFry keeps in this browser: websites, limits,
+          windows, feed blocking, usage and the settings password. ScreenFry
+          starts over as if it were just installed. Other browsers keep their
+          own settings; the ScreenFry app can reset all of them at once.
         </p>
-        <p className="muted">
-          Settings and usage stay in this browser. Chrome and Safari have
-          separate allowances. There are no accounts or analytics.
-        </p>
+        <button
+          className="button danger-fill"
+          disabled={busy}
+          onClick={async () => {
+            if (!(await passwordGate(state))) return;
+            if (
+              !(await confirmLoosen(
+                "Reset ScreenFry to its defaults?",
+                "Every website setting, window, limit, all usage and the settings password are erased in this browser. This can’t be undone.",
+              ))
+            )
+              return;
+            setBusy(true);
+            const r = await send<AppState>({ type: "RESET_ALL" });
+            setBusy(false);
+            if (!r.ok) return onNotice({ kind: "error", text: r.error });
+            setSettingsCredential();
+            clearTimeFormatPreference();
+            setEditing(false);
+            onState(r.data);
+            onNotice({
+              kind: "success",
+              text: "ScreenFry is back to its defaults in this browser.",
+            });
+          }}
+        >
+          Reset all data
+        </button>
       </section>
     </div>
   );

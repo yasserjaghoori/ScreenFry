@@ -46,6 +46,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var ejectButton = button("Eject Installer", #selector(ejectInstaller(_:)), primary: false)
     private var installerVolume: URL?
     private var transferStatus: [SettingsBrowser: NSTextField] = [:]
+    /// Chrome's setup steps, folded away once ScreenFry in Chrome has checked in.
+    private let chromeSteps = NSStackView()
+    private lazy var chromeStepsToggle: NSButton = {
+        let b = NSButton(title: "Show setup steps", target: self, action: #selector(toggleChromeSteps(_:)))
+        b.bezelStyle = .inline
+        return b
+    }()
+    private var chromeStepsShownByUser = false
     private var transferTimer: Timer?
     private var extensionIdentifier: String { (Bundle.main.bundleIdentifier ?? "com.screenfry.ScreenFry") + ".Extension" }
     private var version: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
@@ -235,15 +243,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.refreshState()
             }
             chromeConfirmation.state = UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) ? .on : .off
-            chromeRows = [
+            let steps: [NSView] = [
                 stepRow(1, "Open the Extensions page.", action: button("Open Chrome Extensions", #selector(openChromeExtensions(_:)), primary: true)),
                 stepRow(2, "Turn on Developer mode (top-right switch on that page).", bold: "top-right switch"),
                 developerModeScreenshots(),
                 stepRow(3, "Drag this tile onto the Extensions page. Or click it to show the folder, then select that folder with Load unpacked."),
                 tile,
                 chromeConfirmation,
-                helperLabel("Pin ScreenFry from Chrome’s puzzle-piece menu. Setup confirmation is saved here; Chrome doesn’t report whether you later turn it off or remove it."),
-            ] + transferRows(.chrome)
+                helperLabel("Pin ScreenFry from Chrome’s puzzle-piece menu. Once ScreenFry runs in Chrome it checks in with this app, and this card shows it’s connected."),
+            ]
+            chromeSteps.orientation = .vertical
+            chromeSteps.alignment = .leading
+            chromeSteps.spacing = 10
+            steps.forEach { chromeSteps.addArrangedSubview($0) }
+            steps.forEach { row in
+                if row is NSStackView || row is DragTile || row is NSTextField {
+                    row.widthAnchor.constraint(equalTo: chromeSteps.widthAnchor).isActive = true
+                }
+            }
+            chromeRows = [chromeStepsToggle, chromeSteps] + transferRows(.chrome)
         } else {
             chromeRows = [helperLabel("Google Chrome isn’t installed. Install it, then reopen ScreenFry to set it up.")]
         }
@@ -274,13 +292,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         noticeRow.spacing = 10
         let uninstallButton = NSButton(title: "Uninstall…", target: self, action: #selector(uninstall(_:)))
         uninstallButton.bezelStyle = .inline
-        let exportAll = NSButton(title: "Export All Settings…", target: self, action: #selector(exportAllSettings(_:)))
+        let exportAll = NSButton(title: "Export All Presets…", target: self, action: #selector(exportAllSettings(_:)))
         exportAll.bezelStyle = .inline
-        exportAll.toolTip = "Save every browser’s website settings in one file."
-        let importAll = NSButton(title: "Import All Settings…", target: self, action: #selector(importAllSettings(_:)))
+        exportAll.toolTip = "Save every browser’s ScreenFry Presets in one file."
+        let importAll = NSButton(title: "Import All Presets…", target: self, action: #selector(importAllSettings(_:)))
         importAll.bezelStyle = .inline
-        importAll.toolTip = "Apply a settings file to ScreenFry in every browser."
-        let footer = NSStackView(views: [uninstallButton, exportAll, importAll])
+        importAll.toolTip = "Apply a ScreenFry Presets file to every browser."
+        let resetAll = NSButton(title: "Reset All Data…", target: self, action: #selector(resetAllData(_:)))
+        resetAll.bezelStyle = .inline
+        resetAll.toolTip = "Restore ScreenFry’s defaults in every browser: presets, usage and settings passwords."
+        let footer = NSStackView(views: [uninstallButton, exportAll, importAll, resetAll])
         footer.orientation = .horizontal
         footer.spacing = 10
         let stack = NSStackView(views: [header, noticeRow, browsers, footer])
@@ -379,27 +400,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return label
     }
 
+    /// Developer mode off → on, as Chrome shows it. Both pictures open Chrome's Extensions page.
     private func developerModeScreenshots() -> NSView {
-        func screenshot(_ name: String, caption: String) -> NSView {
-            let image = NSImageView()
-            image.image = NSImage(named: name)
-            image.imageScaling = .scaleProportionallyUpOrDown
-            image.setAccessibilityLabel("Chrome Extensions: Developer mode \(caption.lowercased())")
-            image.widthAnchor.constraint(equalToConstant: 220).isActive = true
-            image.heightAnchor.constraint(equalToConstant: 56).isActive = true
-            let stack = NSStackView(views: [image, helperLabel(caption)])
-            stack.orientation = .vertical
-            stack.spacing = 3
-            return stack
+        func screenshot(_ name: String, caption: String) -> NSButton {
+            let b = NSButton(image: NSImage(named: name) ?? NSImage(), target: self, action: #selector(openChromeExtensions(_:)))
+            b.isBordered = false
+            b.imageScaling = .scaleProportionallyUpOrDown
+            b.toolTip = "Open Chrome’s Extensions page"
+            b.setAccessibilityLabel("Chrome Extensions: Developer mode \(caption.lowercased()). Opens Chrome’s Extensions page.")
+            b.wantsLayer = true
+            b.layer?.cornerRadius = 8
+            b.layer?.borderWidth = 1
+            b.layer?.borderColor = NSColor.separatorColor.cgColor
+            b.layer?.masksToBounds = true
+            b.translatesAutoresizingMaskIntoConstraints = false
+            b.widthAnchor.constraint(equalToConstant: 220).isActive = true
+            b.heightAnchor.constraint(equalToConstant: 56).isActive = true
+            return b
         }
-        let arrow = NSTextField(labelWithString: "→")
-        arrow.font = .systemFont(ofSize: 24, weight: .medium)
-        arrow.textColor = Self.ember
-        let row = NSStackView(views: [screenshot("ChromeDeveloperModeOff", caption: "Before: off"), arrow, screenshot("ChromeDeveloperModeOn", caption: "After: on")])
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.spacing = 12
-        return row
+        let arrow = NSImageView()
+        let config = NSImage.SymbolConfiguration(pointSize: 30, weight: .semibold)
+            .applying(.init(paletteColors: [.white, Self.ember]))
+        arrow.image = NSImage(systemSymbolName: "arrow.right.circle.fill", accessibilityDescription: "then")?
+            .withSymbolConfiguration(config)
+        arrow.shadow = {
+            let shadow = NSShadow()
+            shadow.shadowColor = Self.ember.withAlphaComponent(0.35)
+            shadow.shadowBlurRadius = 6
+            shadow.shadowOffset = NSSize(width: 0, height: -1)
+            return shadow
+        }()
+        let grid = NSGridView(views: [
+            [screenshot("ChromeDeveloperModeOff", caption: "Before: off"), arrow, screenshot("ChromeDeveloperModeOn", caption: "After: on")],
+            [helperLabel("Before: off"), NSGridCell.emptyContentView, helperLabel("After: on")],
+        ])
+        grid.columnSpacing = 14
+        grid.rowSpacing = 4
+        grid.column(at: 1).xPlacement = .center
+        grid.row(at: 0).yPlacement = .center
+        return grid
     }
 
     private func stepRow(_ number: Int, _ text: String, bold: String? = nil, action: NSView? = nil) -> NSView {
@@ -442,9 +481,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// A successful file drop is not proof of installation. Keep user confirmation explicit.
     private func refreshState() {
         refreshTransferStatus()
+        let chromeCheckIn = SettingsTransfer.checkIn(.chrome)
+        chromeSteps.isHidden = chromeCheckIn != nil && !chromeStepsShownByUser
+        chromeStepsToggle.isHidden = chromeCheckIn == nil
+        chromeStepsToggle.title = chromeSteps.isHidden ? "Show setup steps" : "Hide setup steps"
         if let error = chromePreparationError {
             chromeStatus.stringValue = "Couldn’t prepare Chrome: \(error)"
             chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
+        } else if let checkIn = chromeCheckIn {
+            // Proof from Chrome itself. An app update lands in Chrome on its own: the extension
+            // reloads when it sees the new build, so there's nothing to redo here.
+            let current = checkIn.version.isEmpty || checkIn.version == version
+            chromeStatus.stringValue = current
+                ? "Connected · ScreenFry \(checkIn.version.isEmpty ? version : checkIn.version)"
+                : "Connected · updating to \(version) (within a minute)"
+            chromeDot.layer?.backgroundColor = (current ? NSColor.systemGreen : NSColor.systemOrange).cgColor
         } else if UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) {
             chromeStatus.stringValue = "Setup confirmed by you"
             chromeDot.layer?.backgroundColor = NSColor.systemGreen.cgColor
@@ -491,6 +542,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func toggleChromeSteps(_ sender: Any?) {
+        chromeStepsShownByUser = chromeSteps.isHidden
+        refreshState()
+    }
+
     @objc private func confirmChromeSetup(_ sender: NSButton) {
         UserDefaults.standard.set(sender.state == .on, forKey: Self.chromeConfirmedKey)
         refreshState()
@@ -516,16 +572,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The bottom rows of a browser card: Export / Import buttons and their status.
     private func transferRows(_ browser: SettingsBrowser) -> [NSView] {
-        let title = NSTextField(labelWithString: "Website settings")
+        let title = NSTextField(labelWithString: "ScreenFry Presets")
         title.font = .systemFont(ofSize: 13, weight: .semibold)
         let export = NSButton(title: "Export…", target: self, action: #selector(exportBrowserSettings(_:)))
         export.bezelStyle = .rounded
         export.identifier = NSUserInterfaceItemIdentifier(browser.rawValue)
-        export.toolTip = "Save ScreenFry’s websites, limits, windows and feed blocking from \(browser.name) to a file."
+        export.toolTip = "Save ScreenFry’s websites, limits, windows and feed blocking from \(browser.name) as a presets file."
         let importButton = NSButton(title: "Import…", target: self, action: #selector(importBrowserSettings(_:)))
         importButton.bezelStyle = .rounded
         importButton.identifier = NSUserInterfaceItemIdentifier(browser.rawValue)
-        importButton.toolTip = "Replace ScreenFry’s website settings in \(browser.name) with a saved file."
+        importButton.toolTip = "Replace ScreenFry’s presets in \(browser.name) with a saved presets file."
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let row = NSStackView(views: [title, spacer, export, importButton])
@@ -547,10 +603,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         for (browser, label) in transferStatus {
             var lines: [String] = []
-            if let snapshot = SettingsTransfer.snapshot(browser) {
-                lines.append("Settings last received from \(browser.name) \(ago(snapshot.receivedAt)).")
+            if let checkIn = SettingsTransfer.checkIn(browser) {
+                lines.append("ScreenFry in \(browser.name) last checked in \(ago(checkIn.at)).")
             } else {
-                lines.append("\(browser.name) hasn’t sent its settings yet. Open \(browser.name) with ScreenFry turned on; it checks in about once a minute.")
+                lines.append("Not connected yet. Open \(browser.name) with ScreenFry turned on; it checks in with this app about once a minute.")
+            }
+            if SettingsTransfer.pendingReset(browser) {
+                lines.append("Reset waiting: ScreenFry in \(browser.name) restores its defaults the next time it checks in.")
+            } else if let result = SettingsTransfer.lastResetResult(browser), let at = result.at,
+                      Date().timeIntervalSince(at) < 3600 {
+                lines.append(result.ok
+                    ? "Reset to defaults \(ago(at))."
+                    : "\(browser.name) didn’t reset: \(result.error ?? "unknown error")")
             }
             if SettingsTransfer.pendingImport(browser) {
                 lines.append("Import waiting: ScreenFry in \(browser.name) applies it the next time it checks in.")
@@ -570,17 +634,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func exportBrowserSettings(_ sender: Any?) {
         guard let browser = browser(of: sender) else { return }
-        saveSettings([browser], suggestedName: "ScreenFry \(browser.name) Settings.json")
+        saveSettings([browser], suggestedName: "ScreenFry \(browser.name) Presets.json")
     }
 
     @objc private func exportAllSettings(_ sender: Any?) {
-        saveSettings(transferBrowsers, suggestedName: "ScreenFry Settings.json")
+        saveSettings(transferBrowsers, suggestedName: "ScreenFry Presets.json")
     }
 
     private func saveSettings(_ browsers: [SettingsBrowser], suggestedName: String) {
         guard let data = SettingsTransfer.exportData(browsers) else {
             let names = browsers.map(\.name).joined(separator: " or ")
-            showAlert("No settings to export yet", "ScreenFry hasn’t received settings from \(names). Open the browser with ScreenFry turned on, wait a minute, then try again.")
+            showAlert("No presets to export yet", "ScreenFry hasn’t heard from \(names) yet. Open the browser with ScreenFry turned on, wait a minute, then try again.")
             return
         }
         let panel = NSSavePanel()
@@ -592,7 +656,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             do {
                 try data.write(to: url, options: .atomic)
             } catch {
-                self?.showAlert("Couldn’t save the settings", error.localizedDescription)
+                self?.showAlert("Couldn’t save the presets", error.localizedDescription)
             }
         }
     }
@@ -610,7 +674,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
-        panel.message = "Choose a ScreenFry settings file."
+        panel.message = "Choose a ScreenFry Presets file."
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let url = panel.url else { return }
             DispatchQueue.main.async { self?.importSettings(from: url, into: browsers) }
@@ -627,7 +691,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let names = browsers.map(\.name).joined(separator: " and ")
         let confirm = NSAlert()
-        confirm.messageText = "Replace ScreenFry’s website settings in \(names)?"
+        confirm.messageText = "Replace ScreenFry’s presets in \(names)?"
         confirm.informativeText = "Websites, limits, windows and feed blocking will match “\(url.lastPathComponent)”. Usage history and any settings password stay as they are. If a settings password is on, turn it off first."
         confirm.addButton(withTitle: "Import")
         confirm.addButton(withTitle: "Cancel")
@@ -647,6 +711,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // MARK: Reset
+
+    /// Restores ScreenFry's defaults in every connected browser, through each browser's own
+    /// copy (only it can change its storage). A browser with a settings password refuses, so
+    /// the password keeps protecting it: reset that one from its own Settings page instead.
+    @objc private func resetAllData(_ sender: Any?) {
+        let connected = transferBrowsers.filter { SettingsTransfer.checkIn($0) != nil }
+        guard !connected.isEmpty else {
+            showAlert("Nothing to reset yet", "No browser has connected to ScreenFry on this Mac. Open a browser with ScreenFry turned on, wait a minute, then try again.")
+            return
+        }
+        let protected = connected.filter { SettingsTransfer.checkIn($0)?.passwordProtected == true }
+        let names = connected.map(\.name).joined(separator: " and ")
+        let confirm = NSAlert()
+        confirm.messageText = "Reset ScreenFry in \(names)?"
+        var detail = "Every website setting, window, limit and feed switch, all usage and any settings password are erased, as if ScreenFry were just installed. This can’t be undone. Export your presets first if you want to keep them."
+        if !protected.isEmpty {
+            detail += "\n\n\(protected.map(\.name).joined(separator: " and ")) has a settings password, so it won’t reset from here. Use Restore defaults in ScreenFry’s Settings there; it asks for the password."
+        }
+        confirm.informativeText = detail
+        confirm.addButton(withTitle: "Reset All Data")
+        confirm.addButton(withTitle: "Cancel")
+        confirm.buttons[0].hasDestructiveAction = true
+        guard confirm.runModal() == .alertFirstButtonReturn else { return }
+        var failures: [String] = []
+        for browser in connected {
+            do {
+                try SettingsTransfer.queueReset(browser)
+            } catch {
+                failures.append("\(browser.name): \(error.localizedDescription)")
+            }
+        }
+        refreshTransferStatus()
+        if !failures.isEmpty { showAlert("Couldn’t ask for a reset", failures.joined(separator: "\n")) }
+    }
+
     private func showAlert(_ title: String, _ message: String) {
         let alert = NSAlert()
         alert.messageText = title
@@ -664,9 +764,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Chrome keeps ScreenFry’s settings until you click Remove on its Extensions page, so \
         reinstalling picks them up again.
 
-        Erase Everything also deletes ScreenFry’s files and preferences on this Mac, then opens \
-        Chrome’s Extensions page so you can click Remove, which deletes Chrome’s copy of the \
-        settings. Safari removes its extension with the app.
+        Erase Everything removes every trace: ScreenFry removes itself from Chrome along with \
+        its settings there (opening Chrome in the background if it’s closed), then deletes \
+        ScreenFry’s files and preferences on this Mac. Safari removes its extension and its \
+        settings with the app.
         """
         alert.addButton(withTitle: "Keep Settings")
         alert.addButton(withTitle: "Erase Everything")
@@ -674,10 +775,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.buttons[1].hasDestructiveAction = true
         let choice = alert.runModal()
         guard choice != .alertThirdButtonReturn else { return }
-        performUninstall(erase: choice == .alertSecondButtonReturn)
+        let erase = choice == .alertSecondButtonReturn
+        guard erase, chromeIsInstalled, SettingsTransfer.checkIn(.chrome) != nil else {
+            performUninstall(erase: erase, chromeRemoved: false)
+            return
+        }
+        removeFromChrome { [weak self] removed in
+            self?.performUninstall(erase: true, chromeRemoved: removed)
+        }
     }
 
-    private func performUninstall(erase: Bool) {
+    /// Hands Chrome's copy of ScreenFry the request to remove itself, then waits (up to a
+    /// minute and a half) for it to pick that up at its next check-in. Chrome deletes the
+    /// extension and its storage; nothing stays behind on its Extensions page.
+    private func removeFromChrome(_ done: @escaping (Bool) -> Void) {
+        SettingsTransfer.requestUninstall(.chrome)
+        if NSRunningApplication.runningApplications(withBundleIdentifier: Self.chromeBundleID).isEmpty,
+           let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.chromeBundleID) {
+            // A closed Chrome is started in the background; ScreenFry checks in as it starts.
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = false
+            configuration.hides = true
+            NSWorkspace.shared.openApplication(at: chrome, configuration: configuration) { _, _ in }
+        }
+        let progress = NSAlert()
+        progress.messageText = "Removing ScreenFry from Chrome…"
+        progress.informativeText = "ScreenFry in Chrome removes itself and its settings the next time it checks in, within about a minute."
+        let spinner = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 24, height: 24))
+        spinner.style = .spinning
+        spinner.startAnimation(nil)
+        progress.accessoryView = spinner
+        progress.addButton(withTitle: "Skip")
+        let started = Date()
+        let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
+            guard let self else { return }
+            if SettingsTransfer.uninstallSent(.chrome) {
+                timer.invalidate()
+                // Give Chrome a moment to finish removing it before the app goes away.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.window.endSheet(progress.window) }
+            } else if Date().timeIntervalSince(started) > 90 {
+                timer.invalidate()
+                self.window.endSheet(progress.window)
+            }
+        }
+        progress.beginSheetModal(for: window) { _ in
+            timer.invalidate()
+            done(SettingsTransfer.uninstallSent(.chrome))
+        }
+    }
+
+    private func performUninstall(erase: Bool, chromeRemoved: Bool) {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
         let id = Bundle.main.bundleIdentifier ?? "com.screenfry.ScreenFry"
@@ -699,15 +846,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 home.appendingPathComponent("Library/HTTPStorages/\(id)"),
                 home.appendingPathComponent("Library/Saved Application State/\(id).savedState"),
                 SettingsBrowser.safari.bridge.directory.deletingLastPathComponent(), // Safari's settings handoff
+                // macOS may keep these extension folders; remove what it allows.
+                home.appendingPathComponent("Library/Containers/\(extensionIdentifier)"),
+                home.appendingPathComponent("Library/Application Scripts/\(extensionIdentifier)"),
             ]
             UserDefaults.standard.removePersistentDomain(forName: id)
         }
         for path in paths where fm.fileExists(atPath: path.path) {
             try? fm.removeItem(at: path)
         }
-        if erase, NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.chromeBundleID) != nil {
-            openChromeExtensions(nil)
-        }
+        let chromeLeft = erase && !chromeRemoved && chromeIsInstalled
+        if chromeLeft { openChromeExtensions(nil) }
         NSWorkspace.shared.recycle([Bundle.main.bundleURL]) { _, error in
             DispatchQueue.main.async {
                 let done = NSAlert()
@@ -716,9 +865,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     done.informativeText = "ScreenFry’s data was removed, but the app couldn’t move itself to the Trash (\(error.localizedDescription)). Drag ScreenFry from Applications to the Trash."
                 } else {
                     done.messageText = "ScreenFry is uninstalled"
-                    done.informativeText = erase
-                        ? "In Chrome’s Extensions page, click Remove on ScreenFry to delete its settings there."
-                        : "Reinstall any time; Chrome keeps your ScreenFry settings until you remove it there."
+                    done.informativeText = !erase
+                        ? "Reinstall any time; Chrome keeps your ScreenFry settings until you remove it there."
+                        : chromeLeft
+                            ? "Chrome didn’t answer in time. On Chrome’s Extensions page, click Remove on ScreenFry to delete its settings there."
+                            : "Every trace of ScreenFry is gone from this Mac\(chromeRemoved ? ", including Chrome" : "")."
                 }
                 done.runModal()
                 NSApp.terminate(nil)

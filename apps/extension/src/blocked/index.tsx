@@ -6,7 +6,7 @@ import { evaluatePolicy } from "@policy/index";
 import { parseWebUrl } from "@core/domains";
 import { shortFormLabels } from "@feeds/index";
 import type { PolicyDecision } from "@shared/index";
-import { blockedCopy } from "../ui/blocked-copy";
+import { blockedCopy, formatCountdown } from "../ui/blocked-copy";
 import "../styles/global.css";
 import "../styles/focus.css";
 import "../styles/fry-animation.css";
@@ -18,7 +18,8 @@ const rawUrl =
 const url = parseWebUrl(rawUrl)?.href;
 function Blocked() {
   const [decision, setDecision] = useState<PolicyDecision>(),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [now, setNow] = useState(Date.now());
   useEffect(() => {
     let mounted = true;
     let state: ReturnType<typeof migrateState> | undefined;
@@ -50,7 +51,10 @@ function Blocked() {
         if (mounted)
           setError("Open ScreenFry in the toolbar to check settings.");
       });
-    const timer = setInterval(check, 1000);
+    const timer = setInterval(() => {
+      setNow(Date.now());
+      check();
+    }, 1000);
     return () => {
       mounted = false;
       clearInterval(timer);
@@ -94,6 +98,12 @@ function Blocked() {
           ))}
         {!decision && <p className="muted">Checking website settings…</p>}
         {!allowed && copy?.next && <p className="next-access">{copy.next}</p>}
+        {!allowed && copy?.nextAt !== undefined && (
+          <p className="countdown" aria-live="off">
+            <span>Time until</span>
+            <strong>{formatCountdown(copy.nextAt - now)}</strong>
+          </p>
+        )}
         {error && (
           <p className="error" role="alert">
             {error}

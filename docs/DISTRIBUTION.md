@@ -19,7 +19,7 @@ Both are one-time steps. Apple requires the user to turn a Safari extension on t
 
 **ScreenFry → Uninstall…** (also a button at the bottom of the window) offers:
 - **Keep Settings:** removes the app, its Safari extension and the Chrome extension folder. Chrome keeps ScreenFry's settings until you click Remove on its Extensions page, so a reinstall picks them up.
-- **Erase Everything:** also deletes ScreenFry's caches and preferences, then opens Chrome's Extensions page so you can click Remove, which deletes Chrome's copy of the settings.
+- **Erase Everything:** first asks ScreenFry in Chrome to remove itself, which deletes Chrome's copy of the settings (the request waits in the Chrome bridge folder; the extension picks it up at its next check-in and calls `chrome.management.uninstallSelf()`, and the app starts Chrome in the background if it's closed). It then deletes ScreenFry's files, caches and preferences. If Chrome doesn't answer within 90 seconds, or the user skips, it opens Chrome's Extensions page so they can click Remove.
 
 ### Test builds (no Developer ID)
 

@@ -29,3 +29,5 @@
   .pin-box { width: 40px; height: 50px; }
   .pin-boxes { gap: 6px; }
 }
+.countdown { display: grid; gap: 2px; margin: 14px 0 4px; color: var(--muted); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; }
+.countdown strong { font: 700 30px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0; text-transform: none; color: var(--ink, inherit); font-variant-numeric: tabular-nums; }
