@@ -63,12 +63,20 @@ export function createBlockedScreen() {
         tick();
         ticker = setInterval(tick, 1000);
       }
-      resume.hidden = !allowed && !singleVideoUrl;
+      // An earn-locked website offers a way to its goal website instead.
+      const earnAt = !allowed && !singleVideoUrl ? copy.earnAt : undefined;
+      resume.hidden = !allowed && !singleVideoUrl && !earnAt;
       resume.textContent = singleVideoUrl
         ? "Back to the linked video"
-        : "Continue to site";
+        : earnAt
+          ? `Go to ${earnAt}`
+          : "Continue to site";
       resume.onclick = () =>
-        singleVideoUrl ? location.replace(singleVideoUrl) : location.reload();
+        singleVideoUrl
+          ? location.replace(singleVideoUrl)
+          : earnAt
+            ? location.assign(`https://${earnAt}/`)
+            : location.reload();
     },
     hide() {
       if (!host) return;

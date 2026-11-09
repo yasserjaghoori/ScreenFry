@@ -10,6 +10,7 @@ const paths: Record<string, string> = {
   shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   check: 'M5 12l5 5 9-10',
   plus: 'M12 5v14M5 12h14',
+  lab: 'M9 3h6M10 3v6L4.6 18.2A1.9 1.9 0 0 0 6.2 21h11.6a1.9 1.9 0 0 0 1.6-2.8L14 9V3M7.5 14h9',
   external: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6'
 };
 

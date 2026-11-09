@@ -25,7 +25,7 @@ enum SettingsBrowser: String, CaseIterable {
 enum SettingsTransfer {
     static let settingsFormat = "screenfry-settings-v1"
     static let bundleFormat = "screenfry-settings-bundle-v1"
-    private static let settingsKeys = ["format", "exportedAt", "rules", "windows", "feedSettings", "warningsEnabled"]
+    private static let settingsKeys = ["format", "exportedAt", "rules", "windows", "earnGoals", "feedSettings", "warningsEnabled"]
 
     /// The browser's last check-in: proof ScreenFry runs there, its version, and whether a
     /// settings password is on.

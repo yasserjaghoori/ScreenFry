@@ -16,6 +16,7 @@ import type {
   AccessWindow,
   AppState,
   DayOfWeek,
+  EarnGoal,
   FeedSettings,
   PolicyDecision,
   PolicyReason,
@@ -119,6 +120,25 @@ export function insideBlockWindow(
       isScheduleActive(w, new Date(now)),
   );
 }
+/** Enabled earn goals whose goal website this URL is on (its time counts toward them). */
+export const earnGoalsFor = (state: AppState, url: string) =>
+  (state.earnGoals ?? []).filter(
+    (g) => g.enabled && urlMatchesDomains(url, g.goalDomains),
+  );
+/** Time still needed today on an earn goal's website; 0 once it is earned. */
+export function earnRemaining(state: AppState, goal: EarnGoal, now: number): number {
+  const used =
+    state.usage[localDateKey(new Date(now))]?.millisecondsByGoal?.[goal.id] ?? 0;
+  return Math.max(0, goal.minutes * MINUTE - used);
+}
+/** Enabled earn goals keeping this website locked right now (goal not met today). */
+export const earnGoalsLocking = (state: AppState, url: string, now: number) =>
+  (state.earnGoals ?? []).filter(
+    (g) =>
+      g.enabled &&
+      urlMatchesDomains(url, g.lockedDomains) &&
+      earnRemaining(state, g, now) > 0,
+  );
 export const freeWindowsFor = (state: AppState, url: string) =>
   runningWindows(state.windows).filter(
     (w) => w.mode === "free" && urlMatchesDomains(url, w.domains),
@@ -260,6 +280,7 @@ function decisionAt(
   reasons.push(...decisions.flatMap((d) => d.reasons));
   if (outsideWindow(state, url, at)) reasons.push("outside-window");
   if (insideBlockWindow(state, url, at)) reasons.push("block-window");
+  if (earnGoalsLocking(state, url, at).length) reasons.push("earn-locked");
   const short = shortFormBlock(effectiveFeedSettings(state, url, at), url);
   if (short) reasons.push("short-form");
   const primary =
@@ -285,10 +306,27 @@ export function evaluatePolicy(
   if (freeTime) result.freeTime = freeTime;
   const off = freeTimeOff(state, url, now);
   if (off) result.freeTimeOff = off;
+  const locking = earnGoalsLocking(state, url, now);
+  if (locking.length) {
+    // Every goal must be met; show the one furthest from done.
+    const goal = locking
+      .map((g) => ({ g, left: earnRemaining(state, g, now) }))
+      .sort((a, b) => b.left - a.left)[0];
+    result.earn = {
+      goalId: goal.g.id,
+      label: goal.g.label,
+      goalDomain: goal.g.goalDomains[0],
+      minutes: goal.g.minutes,
+      remainingMilliseconds: goal.left,
+    };
+    result.ruleLabel ??= lockedLabel(goal.g, url);
+  }
   if (
     result.status !== "blocked" ||
     result.reasons.includes("short-form") ||
-    result.reasons.includes("site-blocked")
+    result.reasons.includes("site-blocked") ||
+    // Only time on the goal website unlocks it, never the clock (midnight locks it again).
+    locking.length
   )
     return result;
   // Status only changes at local midnight (allowances reset) or at a window's start or end,
@@ -299,6 +337,20 @@ export function evaluatePolicy(
       break;
     }
   return result;
+}
+/** A locked website's name for block screens: its registry name, else its domain. */
+function lockedLabel(goal: EarnGoal, url: string): string {
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    /* not a web address */
+  }
+  return (
+    siteFor(host)?.name ??
+    goal.lockedDomains.find((d) => hostMatchesDomain(host, d)) ??
+    host
+  );
 }
 /**
  * Sorted, de-duplicated moments after `now` and up to `until` when a decision can change:

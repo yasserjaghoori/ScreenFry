@@ -40,6 +40,22 @@ export interface AccessWindow extends WeeklySchedule {
    */
   freeMinutesBySite?: Record<string, number>;
 }
+/**
+ * Earn your website time (experimental): each day, the locked websites stay blocked until
+ * the goal minutes have been spent on the goal website. Time on the goal website counts the
+ * same way allowances do (focused tab or actual playback, once per website).
+ */
+export interface EarnGoal {
+  id: string;
+  label: string;
+  enabled: boolean;
+  /** The website where time earns access (with its aliases). */
+  goalDomains: string[];
+  /** Minutes on the goal website needed each day, 1–1440. */
+  minutes: number;
+  /** Websites blocked each day until the goal is met. */
+  lockedDomains: string[];
+}
 export interface WebsiteRule {
   id: string;
   label: string;
@@ -58,6 +74,8 @@ export interface UsageDay {
   warningsSent: Record<string, number[]>;
   /** Free time used per free-time window. */
   millisecondsByWindow: Record<string, number>;
+  /** Time spent on each earn goal's website, capped at the goal. */
+  millisecondsByGoal?: Record<string, number>;
 }
 export interface PasswordVerifier {
   algorithm: "PBKDF2-SHA-256";
@@ -87,6 +105,8 @@ export interface AppState {
   passwordAttempts: PasswordAttempts;
   rules: WebsiteRule[];
   windows: AccessWindow[];
+  /** Earn your website time goals (experimental). */
+  earnGoals?: EarnGoal[];
   usage: Record<string, UsageDay>;
   usageAsOf?: number;
   feedSettings: FeedSettings;
@@ -101,7 +121,8 @@ export type PolicyReason =
   | "outside-window"
   | "block-window"
   | "site-blocked"
-  | "short-form";
+  | "short-form"
+  | "earn-locked";
 export interface PolicyDecision {
   status: "allowed" | "blocked";
   ruleId?: string;
@@ -117,4 +138,12 @@ export interface PolicyDecision {
    * "used-up" while a window is on but today's minutes are spent, "not-started" outside them.
    */
   freeTimeOff?: { state: "used-up" | "not-started"; label: string; nextAt?: number };
+  /** Set while an earn goal keeps this website locked: time still needed on its goal website. */
+  earn?: {
+    goalId: string;
+    label: string;
+    goalDomain: string;
+    minutes: number;
+    remainingMilliseconds: number;
+  };
 }

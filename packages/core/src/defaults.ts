@@ -3,6 +3,7 @@ import type {
   AppState,
   BrowserKind,
   DayOfWeek,
+  EarnGoal,
   FeedSettings,
   FeedSite,
   UsageDay,
@@ -40,6 +41,7 @@ export function emptyUsageDay(dateKey: string): UsageDay {
     millisecondsByRule: {},
     warningsSent: {},
     millisecondsByWindow: {},
+    millisecondsByGoal: {},
   };
 }
 const object = (x: unknown): x is Record<string, unknown> =>
@@ -128,6 +130,29 @@ export function migrateState(
           };
         })
       : [];
+  const strings = (x: unknown): x is string[] =>
+    Array.isArray(x) && x.length > 0 && x.every((d) => typeof d === "string");
+  const goals = Array.isArray(raw.earnGoals)
+    ? (raw.earnGoals as unknown[]).filter(object).flatMap((g): EarnGoal[] =>
+        typeof g.id === "string" &&
+        strings(g.goalDomains) &&
+        strings(g.lockedDomains) &&
+        typeof g.minutes === "number" &&
+        g.minutes > 0
+          ? [
+              {
+                id: g.id,
+                label: String(g.label ?? "Earn your time"),
+                enabled: g.enabled !== false,
+                goalDomains: g.goalDomains,
+                minutes: g.minutes,
+                lockedDomains: g.lockedDomains,
+              },
+            ]
+          : [],
+      )
+    : [];
+  if (goals.length) state.earnGoals = goals;
   state.rules = Array.isArray(raw.rules)
     ? (raw.rules as Record<string, unknown>[]).filter(object).map(
         (r): WebsiteRule => ({
@@ -188,6 +213,9 @@ export function migrateState(
           : {},
         millisecondsByWindow: object(value.millisecondsByWindow)
           ? (value.millisecondsByWindow as Record<string, number>)
+          : {},
+        millisecondsByGoal: object(value.millisecondsByGoal)
+          ? (value.millisecondsByGoal as Record<string, number>)
           : {},
       };
     }
