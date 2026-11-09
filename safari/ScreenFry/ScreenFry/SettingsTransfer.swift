@@ -7,6 +7,7 @@ enum SettingsBrowser: String, CaseIterable {
     case safari, chrome
 
     var name: String { self == .safari ? "Safari" : "Chrome" }
+    var bundleID: String { self == .safari ? "com.apple.Safari" : "com.google.Chrome" }
 
     var bridge: SettingsBridge {
         switch self {
@@ -54,16 +55,17 @@ enum SettingsTransfer {
         return (result["ok"] as? Bool ?? false, result["error"] as? String, at)
     }
 
-    /// Asks Chrome's copy of ScreenFry to remove itself (with its storage) at its next check-in.
-    static func requestUninstall(_ browser: SettingsBrowser) {
+    /// Asks the browser's copy of ScreenFry to erase everything it keeps (and, in Chrome, to
+    /// remove itself) at its next check-in.
+    static func requestErase(_ browser: SettingsBrowser) {
         let bridge = browser.bridge
         try? FileManager.default.createDirectory(at: bridge.directory, withIntermediateDirectories: true)
-        try? FileManager.default.removeItem(at: bridge.uninstallSentURL)
-        SettingsBridge.write(["requestedAt": ISO8601DateFormatter().string(from: Date())], to: bridge.uninstallURL)
+        try? FileManager.default.removeItem(at: bridge.eraseSentURL)
+        SettingsBridge.write(["requestedAt": ISO8601DateFormatter().string(from: Date())], to: bridge.eraseURL)
     }
 
-    static func uninstallSent(_ browser: SettingsBrowser) -> Bool {
-        FileManager.default.fileExists(atPath: browser.bridge.uninstallSentURL.path)
+    static func eraseSent(_ browser: SettingsBrowser) -> Bool {
+        FileManager.default.fileExists(atPath: browser.bridge.eraseSentURL.path)
     }
 
     /// Settings the browser last sent, and when.
