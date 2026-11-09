@@ -7,8 +7,9 @@ import Foundation
 /// `settings.json`). Requests chosen in the app wait in files until the next check-in:
 ///   - `pending-import.json`  → the extension applies the settings, answers in `import-result.json`
 ///   - `pending-reset.json`   → the extension restores its defaults, answers in `reset-result.json`
-///   - `pending-uninstall.json` → Chrome removes the extension; `uninstall-sent.json` records
-///     that the request was handed over.
+///   - `pending-erase.json` → Erase Everything: the extension wipes its storage (Safari keeps an
+///     extension's storage after the app is deleted) and Chrome's also removes itself;
+///     `erase-sent.json` records that the request was handed over.
 ///
 /// Safari: the sandboxed extension handler uses its own container. Chrome: the app binary,
 /// launched by Chrome as a native messaging host, uses Application Support/ScreenFry.
@@ -19,8 +20,8 @@ struct SettingsBridge {
     static let resultName = "import-result.json"
     static let resetName = "pending-reset.json"
     static let resetResultName = "reset-result.json"
-    static let uninstallName = "pending-uninstall.json"
-    static let uninstallSentName = "uninstall-sent.json"
+    static let eraseName = "pending-erase.json"
+    static let eraseSentName = "erase-sent.json"
 
     let directory: URL
     var snapshotURL: URL { directory.appendingPathComponent(Self.snapshotName) }
@@ -29,8 +30,8 @@ struct SettingsBridge {
     var resultURL: URL { directory.appendingPathComponent(Self.resultName) }
     var resetURL: URL { directory.appendingPathComponent(Self.resetName) }
     var resetResultURL: URL { directory.appendingPathComponent(Self.resetResultName) }
-    var uninstallURL: URL { directory.appendingPathComponent(Self.uninstallName) }
-    var uninstallSentURL: URL { directory.appendingPathComponent(Self.uninstallSentName) }
+    var eraseURL: URL { directory.appendingPathComponent(Self.eraseName) }
+    var eraseSentURL: URL { directory.appendingPathComponent(Self.eraseSentName) }
 
     /// `<Application Support>/ScreenFry/Bridge/<name>` for the running process (inside a
     /// sandbox this resolves within the container).
@@ -68,10 +69,11 @@ struct SettingsBridge {
             Self.write(settings, to: snapshotURL)
         }
         var reply: [String: Any] = ["ok": true]
-        if fm.fileExists(atPath: uninstallURL.path) {
-            reply["uninstall"] = true
-            Self.write(["at": now], to: uninstallSentURL)
-            try? fm.removeItem(at: uninstallURL)
+        if fm.fileExists(atPath: eraseURL.path) {
+            reply["erase"] = true
+            reply["uninstall"] = true // what 0.6.4–0.6.5 Chrome extensions understand
+            Self.write(["at": now], to: eraseSentURL)
+            try? fm.removeItem(at: eraseURL)
         } else if let reset = Self.read(resetURL), reset["id"] is String {
             reply["reset"] = reset
         } else if let pending = Self.read(pendingURL), pending["id"] is String {

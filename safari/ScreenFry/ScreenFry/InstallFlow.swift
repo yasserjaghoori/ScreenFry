@@ -27,34 +27,60 @@ enum InstallFlow {
         return (original(url as CFURL, nil)?.takeRetainedValue() as URL?) ?? url
     }
 
-    /// Copies this app into Applications (an older copy goes to the Trash), lets macOS run
-    /// it there, opens it and quits this copy. The new copy then ejects the installer.
+    enum MoveError: LocalizedError {
+        case stillQuarantined
+        var errorDescription: String? {
+            "macOS kept treating the copy in Applications as a fresh download."
+        }
+    }
+
+    /// Whether macOS still marks a file as downloaded (which makes it run apps from a
+    /// temporary, "translocated" location).
+    static func isQuarantined(_ url: URL) -> Bool {
+        getxattr(url.path, "com.apple.quarantine", nil, 0, 0, 0) >= 0
+    }
+
+    private static func run(_ tool: String, _ arguments: [String]) -> Int32 {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: tool)
+        process.arguments = arguments
+        guard (try? process.run()) != nil else { return -1 }
+        process.waitUntilExit()
+        return process.terminationStatus
+    }
+
+    /// Copies this app into Applications (an older copy goes to the Trash), opens it from
+    /// there and quits this copy. The new copy then ejects the installer.
+    ///
+    /// A copy that keeps the download flag would be run from a temporary location and ask to
+    /// be installed again, so the copy leaves the flag behind (`ditto --noqtn`); this copy was
+    /// already checked by Gatekeeper, as Finder's move would have. If macOS still flags it,
+    /// the copy is removed and this throws, so the user drags it in Finder instead.
     static func moveToApplications() throws {
         let fm = FileManager.default
         let source = originalURL(of: Bundle.main.bundleURL)
+        let me = ProcessInfo.processInfo.processIdentifier
+        let id = Bundle.main.bundleIdentifier ?? ""
         // Quit an older ScreenFry that's still running so its copy can be replaced.
-        for app in NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
-        where app.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+        for app in NSRunningApplication.runningApplications(withBundleIdentifier: id) where app.processIdentifier != me {
             app.terminate()
         }
         let deadline = Date().addingTimeInterval(5)
         while Date() < deadline,
-              NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
-                .contains(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
+              NSRunningApplication.runningApplications(withBundleIdentifier: id).contains(where: { $0.processIdentifier != me }) {
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         }
         if fm.fileExists(atPath: applicationsCopy.path) {
             try fm.trashItem(at: applicationsCopy, resultingItemURL: nil)
         }
-        try fm.copyItem(at: source, to: applicationsCopy)
-        // A copy made by an app (rather than dragged in Finder) keeps the download flag, and
-        // macOS would run it from a temporary location again. This copy was already checked
-        // by Gatekeeper (it's running), so clear the flag as Finder's move would.
-        let xattr = Process()
-        xattr.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
-        xattr.arguments = ["-dr", "com.apple.quarantine", applicationsCopy.path]
-        try? xattr.run()
-        xattr.waitUntilExit()
+        guard run("/usr/bin/ditto", ["--noqtn", source.path, applicationsCopy.path]) == 0 else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        _ = run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", applicationsCopy.path])
+        if isQuarantined(applicationsCopy) {
+            try? fm.removeItem(at: applicationsCopy)
+            throw MoveError.stillQuarantined
+        }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
         NSWorkspace.shared.openApplication(at: applicationsCopy, configuration: configuration) { _, _ in

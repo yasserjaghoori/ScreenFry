@@ -108,10 +108,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func runningFromDiskImage() -> Bool {
         guard InstallFlow.runningFromDownload else { return false }
         NSApp.activate(ignoringOtherApps: true)
+        // Already in Applications, but macOS still runs it from a temporary copy (it was put
+        // there by a program, not dragged). Installing again would loop, so ask for the drag.
+        if InstallFlow.originalURL(of: Bundle.main.bundleURL).standardizedFileURL == InstallFlow.applicationsCopy.standardizedFileURL {
+            showDragInstructions("macOS is running ScreenFry from a temporary copy because it wasn’t moved into Applications in Finder.")
+            return true
+        }
         let alert = NSAlert()
-        alert.messageText = "Move ScreenFry to Applications?"
-        alert.informativeText = "ScreenFry runs from your Applications folder. It can move itself there now, open from there, and close the installer for you. Updating? Your settings are kept."
-        alert.addButton(withTitle: "Move to Applications")
+        alert.messageText = "Install ScreenFry"
+        alert.informativeText = "ScreenFry puts itself in your Applications folder, opens from there and closes the installer. Updating? An older ScreenFry is replaced, and your settings are kept."
+        alert.addButton(withTitle: "Install")
         alert.addButton(withTitle: "Quit")
         alert.buttons[0].bezelColor = Self.ember
         guard alert.runModal() == .alertFirstButtonReturn else {
@@ -121,14 +127,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             try InstallFlow.moveToApplications()
         } catch {
-            let failed = NSAlert()
-            failed.messageText = "Couldn’t move ScreenFry"
-            failed.informativeText = "\(error.localizedDescription)\n\nDrag ScreenFry onto the Applications folder in the installer window instead, then open it from Applications."
-            failed.addButton(withTitle: "Quit")
-            failed.runModal()
-            NSApp.terminate(nil)
+            showDragInstructions("ScreenFry couldn’t install itself: \(error.localizedDescription)")
         }
         return true
+    }
+
+    /// The fallback: drag ScreenFry onto Applications in the installer window, then open it.
+    private func showDragInstructions(_ reason: String) {
+        if let installer = InstallFlow.mountedInstallers().first {
+            NSWorkspace.shared.open(installer.volume)
+        }
+        let alert = NSAlert()
+        alert.messageText = "Drag ScreenFry onto Applications"
+        alert.informativeText = "\(reason)\n\nIn the installer window, drag ScreenFry onto the Applications folder (choose Replace if asked), then open ScreenFry from Applications. ScreenFry closes the installer for you."
+        alert.addButton(withTitle: "Quit")
+        alert.runModal()
+        NSApp.terminate(nil)
     }
 
     /// Two installed copies register two Safari extensions with the same identity, which makes
@@ -485,8 +499,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             b.layer?.borderColor = NSColor.separatorColor.cgColor
             b.layer?.masksToBounds = true
             b.translatesAutoresizingMaskIntoConstraints = false
-            b.widthAnchor.constraint(equalToConstant: 220).isActive = true
-            b.heightAnchor.constraint(equalToConstant: 56).isActive = true
+            // Sized to the picture itself, so the border hugs it with no grey margins.
+            let size = b.image?.size ?? NSSize(width: 340, height: 112)
+            let height: CGFloat = 60
+            b.imageScaling = .scaleAxesIndependently
+            b.widthAnchor.constraint(equalToConstant: (height * size.width / max(size.height, 1)).rounded()).isActive = true
+            b.heightAnchor.constraint(equalToConstant: height).isActive = true
             return b
         }
         let arrow = NSImageView()
@@ -844,14 +862,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = "Uninstall ScreenFry?"
         alert.informativeText = """
-        Keep Settings removes the app, its Safari extension and the Chrome extension folder. \
-        Chrome keeps ScreenFry’s settings until you click Remove on its Extensions page, so \
-        reinstalling picks them up again.
+        Keep Settings removes the app and its extensions’ files. Safari and Chrome keep \
+        ScreenFry’s settings, so reinstalling picks them up again.
 
-        Erase Everything removes every trace: ScreenFry removes itself from Chrome along with \
-        its settings there (opening Chrome in the background if it’s closed), then deletes \
-        ScreenFry’s files and preferences on this Mac. Safari removes its extension and its \
-        settings with the app.
+        Erase Everything removes every trace: ScreenFry in Safari and Chrome first wipes \
+        its settings, windows, usage and password (each browser is opened in the background \
+        if it’s closed, and Chrome also removes the extension), then ScreenFry’s files and \
+        preferences on this Mac are deleted.
         """
         alert.addButton(withTitle: "Keep Settings")
         alert.addButton(withTitle: "Erase Everything")
@@ -859,43 +876,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.buttons[1].hasDestructiveAction = true
         let choice = alert.runModal()
         guard choice != .alertThirdButtonReturn else { return }
-        let erase = choice == .alertSecondButtonReturn
-        guard erase, chromeIsInstalled, SettingsTransfer.checkIn(.chrome) != nil else {
-            performUninstall(erase: erase, chromeRemoved: false)
+        guard choice == .alertSecondButtonReturn else {
+            performUninstall(erase: false, erased: [])
             return
         }
-        removeFromChrome { [weak self] removed in
-            self?.performUninstall(erase: true, chromeRemoved: removed)
+        // Only ScreenFry inside each browser can clear that browser's storage, so ask every
+        // browser it has connected from.
+        let connected = transferBrowsers.filter { SettingsTransfer.checkIn($0) != nil }
+        guard !connected.isEmpty else {
+            performUninstall(erase: true, erased: [])
+            return
+        }
+        eraseInBrowsers(connected) { [weak self] erased in
+            guard let self else { return }
+            let missing = connected.filter { !erased.contains($0) }
+            guard !missing.isEmpty else { return self.performUninstall(erase: true, erased: erased) }
+            let names = missing.map(\.name).joined(separator: " and ")
+            let ask = NSAlert()
+            ask.messageText = "\(names) didn’t answer"
+            ask.informativeText = "ScreenFry’s settings in \(names) are only cleared by ScreenFry there, and it didn’t check in. Open \(names) with ScreenFry turned on and try again, or uninstall anyway and use Restore defaults in ScreenFry’s Settings there first next time."
+            ask.addButton(withTitle: "Try Again")
+            ask.addButton(withTitle: "Uninstall Anyway")
+            ask.addButton(withTitle: "Cancel")
+            switch ask.runModal() {
+            case .alertFirstButtonReturn: self.uninstallEraseRetry(erased: erased, remaining: missing)
+            case .alertSecondButtonReturn: self.performUninstall(erase: true, erased: erased)
+            default: break
+            }
         }
     }
 
-    /// Hands Chrome's copy of ScreenFry the request to remove itself, then waits (up to a
-    /// minute and a half) for it to pick that up at its next check-in. Chrome deletes the
-    /// extension and its storage; nothing stays behind on its Extensions page.
-    private func removeFromChrome(_ done: @escaping (Bool) -> Void) {
-        SettingsTransfer.requestUninstall(.chrome)
-        if NSRunningApplication.runningApplications(withBundleIdentifier: Self.chromeBundleID).isEmpty,
-           let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.chromeBundleID) {
-            // A closed Chrome is started in the background; ScreenFry checks in as it starts.
-            let configuration = NSWorkspace.OpenConfiguration()
-            configuration.activates = false
-            configuration.hides = true
-            NSWorkspace.shared.openApplication(at: chrome, configuration: configuration) { _, _ in }
+    private func uninstallEraseRetry(erased: Set<SettingsBrowser>, remaining: [SettingsBrowser]) {
+        // A second try uninstalls either way; the closing note says what was left.
+        eraseInBrowsers(remaining) { [weak self] more in
+            self?.performUninstall(erase: true, erased: erased.union(more))
         }
+    }
+
+    /// Hands each browser's ScreenFry the request to erase itself, starting a closed browser in
+    /// the background so it checks in, then waits (up to a minute and a half) for each to pick
+    /// it up. Chrome also removes the extension, so nothing stays on its Extensions page.
+    private func eraseInBrowsers(_ browsers: [SettingsBrowser], _ done: @escaping (Set<SettingsBrowser>) -> Void) {
+        for browser in browsers {
+            SettingsTransfer.requestErase(browser)
+            if NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID).isEmpty,
+               let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: browser.bundleID) {
+                let configuration = NSWorkspace.OpenConfiguration()
+                configuration.activates = false
+                configuration.hides = true
+                NSWorkspace.shared.openApplication(at: app, configuration: configuration) { _, _ in }
+            }
+        }
+        let names = browsers.map(\.name).joined(separator: " and ")
         let progress = NSAlert()
-        progress.messageText = "Removing ScreenFry from Chrome…"
-        progress.informativeText = "ScreenFry in Chrome removes itself and its settings the next time it checks in, within about a minute."
+        progress.messageText = "Erasing ScreenFry in \(names)…"
+        progress.informativeText = "ScreenFry in each browser wipes its settings the next time it checks in, within about a minute."
         let spinner = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 24, height: 24))
         spinner.style = .spinning
         spinner.startAnimation(nil)
         progress.accessoryView = spinner
         progress.addButton(withTitle: "Skip")
         let started = Date()
+        let answered = { Set(browsers.filter(SettingsTransfer.eraseSent)) }
         let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
             guard let self else { return }
-            if SettingsTransfer.uninstallSent(.chrome) {
+            if answered().count == browsers.count {
                 timer.invalidate()
-                // Give Chrome a moment to finish removing it before the app goes away.
+                // Give each browser a moment to finish before the app goes away.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.window.endSheet(progress.window) }
             } else if Date().timeIntervalSince(started) > 90 {
                 timer.invalidate()
@@ -904,11 +951,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         progress.beginSheetModal(for: window) { _ in
             timer.invalidate()
-            done(SettingsTransfer.uninstallSent(.chrome))
+            done(answered())
         }
     }
 
-    private func performUninstall(erase: Bool, chromeRemoved: Bool) {
+    private func performUninstall(erase: Bool, erased: Set<SettingsBrowser>) {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
         let id = Bundle.main.bundleIdentifier ?? "com.screenfry.ScreenFry"
@@ -950,8 +997,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for path in paths where fm.fileExists(atPath: path.path) {
             try? fm.removeItem(at: path)
         }
-        let chromeLeft = erase && !chromeRemoved && chromeIsInstalled
+        let chromeLeft = erase && !erased.contains(.chrome) && chromeIsInstalled
         if chromeLeft { openChromeExtensions(nil) }
+        let erasedNames = erased.map(\.name).sorted().joined(separator: " and ")
         // macOS protects the Safari extension's own folder from every app; only Finder can
         // move it. Show it so the user can drag it to the Trash.
         let container = home.appendingPathComponent("Library/Containers/\(extensionIdentifier)")
@@ -969,12 +1017,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else {
                     done.messageText = containerLeft ? "Almost done" : "ScreenFry is uninstalled"
                     done.informativeText = !erase
-                        ? "Reinstall any time; Chrome keeps your ScreenFry settings until you remove it there."
+                        ? "Reinstall any time; Safari and Chrome keep your ScreenFry settings."
                         : chromeLeft
-                            ? "Chrome didn’t answer in time. On Chrome’s Extensions page, click Remove on ScreenFry to delete its settings there.\(finder)"
-                            : containerLeft
-                                ? "ScreenFry was removed from this Mac\(chromeRemoved ? ", including Chrome" : "").\(finder)"
-                                : "Every trace of ScreenFry is gone from this Mac\(chromeRemoved ? ", including Chrome" : "")."
+                            ? "If ScreenFry is still on Chrome’s Extensions page, click Remove to delete its settings there.\(finder)"
+                            : "ScreenFry was removed from this Mac\(erased.isEmpty ? "" : ", and its settings were wiped in \(erasedNames)").\(finder) Safari remembers that you once turned ScreenFry on, so after a reinstall it may start switched on, with fresh settings."
                 }
                 done.runModal()
                 NSApp.terminate(nil)

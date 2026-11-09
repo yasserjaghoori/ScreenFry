@@ -681,7 +681,12 @@ interface AppReply {
   import?: { id?: unknown; settings?: unknown };
   /** "Reset all data" chosen in the app. */
   reset?: { id?: unknown };
-  /** "Erase Everything" in the app: Chrome removes this extension (and its storage). */
+  /**
+   * "Erase Everything" in the app: wipe everything ScreenFry keeps in this browser (Safari
+   * keeps an extension's storage after its app is deleted), and Chrome also removes the
+   * extension. `uninstall` is the older, Chrome-only form of the same request.
+   */
+  erase?: boolean;
   uninstall?: boolean;
 }
 type Outcome = { id: string; ok: boolean; error?: string };
@@ -702,6 +707,8 @@ async function resetEverything(
   return r;
 }
 let appSync: Promise<void> | undefined;
+/** Set once the app has asked this browser's ScreenFry to erase itself. */
+let erased = false;
 function syncWithApp(): Promise<void> {
   appSync ??= exchangeWithApp().finally(() => {
     appSync = undefined;
@@ -727,12 +734,24 @@ async function sendToApp(
 const passwordMessage = (what: string) =>
   `ScreenFry’s settings password is on in ${browser === "safari" ? "Safari" : "Chrome"}. ${what}`;
 async function exchangeWithApp() {
-  if (typeof chrome.runtime.sendNativeMessage !== "function") return;
+  if (erased || typeof chrome.runtime.sendNativeMessage !== "function") return;
   try {
     const reply = await sendToApp();
-    if (reply?.uninstall === true && browser === "chrome") {
-      // Chrome deletes the extension's storage with it; nothing of ScreenFry stays behind.
-      await chrome.management.uninstallSelf().catch(() => undefined);
+    if (reply?.erase === true || (reply?.uninstall === true && browser === "chrome")) {
+      erased = true;
+      await chrome.storage.local.clear().catch(() => undefined);
+      await sessionArea()?.clear().catch(() => undefined);
+      await chrome.declarativeNetRequest
+        ?.getDynamicRules()
+        .then((rules) =>
+          chrome.declarativeNetRequest.updateDynamicRules({
+            removeRuleIds: rules.map((r) => r.id),
+          }),
+        )
+        .catch(() => undefined);
+      // Chrome can also remove the extension itself; Safari drops it with the app.
+      if (browser === "chrome")
+        await chrome.management.uninstallSelf().catch(() => undefined);
       return;
     }
     const reset = reply?.reset;

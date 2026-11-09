@@ -4,10 +4,10 @@
   </defs>
   <rect width="660" height="400" fill="url(#glow)"/>
   <text x="330" y="62" text-anchor="middle" font-family="Inter" font-weight="800" font-size="26" fill="#261e18">Install ScreenFry</text>
-  <text x="330" y="90" text-anchor="middle" font-family="Inter" font-weight="500" font-size="14" fill="#7c6f65">Drag ScreenFry onto the Applications folder, then open it there.</text>
-  <text x="330" y="112" text-anchor="middle" font-family="Inter" font-weight="600" font-size="12.5" fill="#c9460f">ScreenFry closes this window and confirms it’s installed.</text>
+  <text x="330" y="90" text-anchor="middle" font-family="Inter" font-weight="700" font-size="14.5" fill="#c9460f">Double-click ScreenFry to install it. It closes this window when it’s done.</text>
+  <text x="330" y="112" text-anchor="middle" font-family="Inter" font-weight="500" font-size="12.5" fill="#7c6f65">Or drag it onto Applications, then open it there.</text>
   <path d="M262 190 H398" stroke="#f4621f" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 14" fill="none"/>
   <path d="M392 174 L414 190 L392 206" stroke="#f4621f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <text x="330" y="344" text-anchor="middle" font-family="Inter" font-weight="500" font-size="12" fill="#9a8c80">Updating? Drag the new ScreenFry here and choose Replace. Your settings are kept.</text>
-  <text x="330" y="364" text-anchor="middle" font-family="Inter" font-weight="500" font-size="12" fill="#9a8c80">Opened it from here by mistake? ScreenFry offers to move itself to Applications.</text>
+  <text x="330" y="344" text-anchor="middle" font-family="Inter" font-weight="500" font-size="12" fill="#9a8c80">Updating? Double-click the new ScreenFry, or drag it here and choose Replace.</text>
+  <text x="330" y="364" text-anchor="middle" font-family="Inter" font-weight="500" font-size="12" fill="#9a8c80">Your settings are kept either way.</text>
 </svg>
