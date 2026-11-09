@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { send, setSettingsCredential } from "@browser/messages";
 import type { AppState } from "@shared/index";
 import { launchSites } from "@core/sites";
 import { hostMatchesDomain } from "@core/domains";
 import { Switch } from "../ui/SiteControls";
 import { confirmLoosen } from "../ui/ConfirmLoosen";
+import { passwordGate } from "../ui/PasswordPrompt";
 import { PrivateAccessGuide } from "../ui/PrivateAccessGuide";
 import type { Notice } from "./index";
 export function Settings({
@@ -12,16 +13,32 @@ export function Settings({
   onState,
   onNotice,
   onUnlocked,
+  openPasswordForm = 0,
 }: {
   state: AppState;
   onState: (s: AppState) => void;
   onNotice: (n: Notice) => void;
   onUnlocked: () => void;
+  /** Changes whenever the password form should open and come into view. */
+  openPasswordForm?: number;
 }) {
   const [password, setPassword] = useState(""),
     [confirmation, setConfirmation] = useState(""),
     [editing, setEditing] = useState(false),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [highlight, setHighlight] = useState(false);
+  const passwordSection = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!openPasswordForm || state.settingsPassword) return;
+    setEditing(true);
+    setHighlight(true);
+    requestAnimationFrame(() => {
+      passwordSection.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      passwordSection.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+    });
+    const timer = setTimeout(() => setHighlight(false), 2400);
+    return () => clearTimeout(timer);
+  }, [openPasswordForm]);
   async function savePassword(value: string) {
     if (value && value !== confirmation)
       return onNotice({ kind: "error", text: "The passwords do not match." });
@@ -53,11 +70,18 @@ export function Settings({
   );
   return (
     <div className="settings-content">
-      <section className="card settings-block">
+      <section
+        ref={passwordSection}
+        id="password-protection"
+        className={`card settings-block password-block ${highlight ? "is-highlighted" : ""}`}
+      >
         <h2>Password protection</h2>
         <p className="muted">
-          Optional. Protect changes to website controls, limits and windows. A
-          password never grants extra website time.
+          Optional, and recommended. With a password, ScreenFry asks for it
+          before anyone can unblock a site, raise a limit, edit windows or turn
+          off feed blocking, so an impulse has to get past a pause first. Give
+          it to someone you trust for real accountability. A password never
+          grants extra website time.
         </p>
         <div className="setting-row">
           <span>
@@ -134,6 +158,7 @@ export function Settings({
             label="Feed and button blocking"
             checked={state.feedSettings.globalEnabled}
             onChange={async () => {
+              if (!(await passwordGate(state))) return;
               if (
                 state.feedSettings.globalEnabled &&
                 !(await confirmLoosen(
@@ -165,6 +190,7 @@ export function Settings({
             label="Time-limit warnings"
             checked={state.warningsEnabled}
             onChange={async () => {
+              if (!(await passwordGate(state))) return;
               const r = await send<AppState>({
                 type: "SET_PREFERENCES",
                 warningsEnabled: !state.warningsEnabled,
@@ -202,6 +228,7 @@ export function Settings({
               <button
                 className="button secondary"
                 onClick={async () => {
+                  if (!(await passwordGate(state))) return;
                   if (
                     rule.dailyAllowance &&
                     !(await confirmLoosen(`Remove your ${rule.label} limit?`))

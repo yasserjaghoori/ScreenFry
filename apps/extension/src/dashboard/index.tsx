@@ -11,6 +11,7 @@ import { SettingsGate } from "../ui/SettingsGate";
 import { siteStatus } from "../ui/siteStatus";
 import { Windows } from "./Windows";
 import { Settings } from "./Settings";
+import { setPasswordSetupHandler } from "../ui/PasswordPrompt";
 import "../styles/global.css";
 import "../styles/dashboard.css";
 const pages = [
@@ -35,6 +36,17 @@ function Dashboard() {
   );
   const [notice, setNotice] = useState<Notice>(),
     [unlocked, setUnlocked] = useState(false);
+  // Bumped to open (and scroll to) the password form, e.g. from the first-change prompt or
+  // when the popup sends someone here with ?setup=password.
+  const [passwordSetup, setPasswordSetup] = useState(() =>
+    new URLSearchParams(location.search).get("setup") === "password" ? 1 : 0,
+  );
+  useEffect(() => {
+    setPasswordSetupHandler(() => {
+      setPage("settings");
+      setPasswordSetup((n) => n + 1);
+    });
+  }, []);
   useEffect(() => {
     void send<AppState>({ type: "GET_STATE" }).then((r) =>
       r.ok ? setState(r.data) : setNotice({ kind: "error", text: r.error }),
@@ -203,6 +215,7 @@ function Dashboard() {
               onState={setState}
               onNotice={setNotice}
               onUnlocked={() => setUnlocked(true)}
+              openPasswordForm={passwordSetup}
             />
           )}
         </SettingsGate>

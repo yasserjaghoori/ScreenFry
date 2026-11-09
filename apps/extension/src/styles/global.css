@@ -525,3 +525,69 @@ select:focus {
     75% { transform: translateX(-3px); }
   }
 }
+
+/* First-change prompt suggesting a settings password. */
+.password-prompt-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow: auto;
+  background: rgba(20, 14, 10, 0.45);
+  animation: loosen-fade 160ms ease-out;
+}
+.password-prompt {
+  box-sizing: border-box;
+  width: min(100%, 440px);
+  padding: 26px 24px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  animation: loosen-pop 260ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.password-prompt-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 12px;
+  border-radius: 16px;
+  color: var(--on-accent);
+  background: var(--ember-gradient);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.password-prompt h2 { margin: 0 0 8px; font-size: 20px; line-height: 1.25; text-align: center; }
+.password-prompt-lead { margin: 0 0 16px; color: var(--muted); text-align: center; line-height: 1.5; }
+.password-prompt-points {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 16px;
+  list-style: none;
+  border-radius: 14px;
+  background: var(--soft);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.password-prompt-points li { position: relative; padding-left: 22px; }
+.password-prompt-points li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.45em;
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
+}
+.password-prompt-points strong { color: var(--ink); }
+.password-prompt-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.password-prompt-foot { margin: 12px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+@media (max-width: 420px) {
+  .password-prompt-actions { flex-direction: column-reverse; }
+  .password-prompt-actions .button { width: 100%; }
+}

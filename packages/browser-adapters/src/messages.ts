@@ -16,6 +16,7 @@ export type Request = (
       warningsEnabled?: boolean;
     }
   | { type: "COMPLETE_ONBOARDING" }
+  | { type: "PASSWORD_PROMPT_SEEN" }
   | { type: "REFRESH_PROTECTION" }
   | { type: "RESET_ALL" }
 ) & { password?: string };

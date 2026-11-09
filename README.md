@@ -14,7 +14,7 @@
 | **Block Shorts and Reels** | Blocks playback, not just the button: recognized direct links, notifications and in-page players are caught. TikTok has whole-site blocking and a linked-video-only option. |
 | **Daily limits** | Give each website its own daily allowance, or none. When it runs out, the whole site is blocked, including tabs already open. Resets at midnight. |
 | **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
-| **Optional password** | Protect your settings from impulsive changes. It never grants extra time. |
+| **Optional password** | Protect your settings from impulsive changes. It never grants extra time. The first time you change anything without one, ScreenFry explains it once and offers to set it up ("Not now" goes ahead with your change). |
 | **Private** | Everything stays on your device. No account, server or analytics, and no record of the sites you visit. |
 
 ### Supported websites

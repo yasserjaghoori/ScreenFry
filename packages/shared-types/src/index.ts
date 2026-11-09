@@ -86,6 +86,8 @@ export interface AppState {
   feedSettings: FeedSettings;
   protection: ProtectionStatus;
   warningsEnabled: boolean;
+  /** Set once the first-change prompt suggesting a settings password has been shown. */
+  passwordPromptSeen?: boolean;
   migrationNotice?: string;
 }
 export type PolicyReason =

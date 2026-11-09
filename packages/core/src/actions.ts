@@ -246,6 +246,9 @@ export const setPreferences = (
   }));
 export const completeOnboarding = (ctx: ActionContext) =>
   protectedUpdate(ctx, (s) => ({ ...s, onboardingComplete: true }));
+/** Remembers that the first-change password prompt was shown, so it appears only once. */
+export const markPasswordPromptSeen = (ctx: ActionContext) =>
+  protectedUpdate(ctx, (s) => ({ ...s, passwordPromptSeen: true }));
 export async function recordProtection(
   ctx: ActionContext,
   input: { privateAccess?: PrivateAccessStatus; observedPrivateTab?: boolean },
