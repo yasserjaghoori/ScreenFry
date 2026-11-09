@@ -56,7 +56,8 @@ jobs:
 
       - name: Hide the unsigned-extension setup steps in signed builds
         if: env.HAS_DEVELOPER_ID == 'true'
-        run: sed -i '' 's|ScreenFryShowSafariDeveloperSetup: true|ScreenFryShowSafariDeveloperSetup: false|' safari/ScreenFry/project.yml
+        run: |
+          sed -i '' 's|ScreenFryShowSafariDeveloperSetup: true|ScreenFryShowSafariDeveloperSetup: false|' safari/ScreenFry/project.yml
 
       - run: xcodegen generate --spec safari/ScreenFry/project.yml
 
