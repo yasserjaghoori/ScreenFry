@@ -28,6 +28,7 @@ import {
   networkResourceTypes,
 } from "@browser/urls";
 import {
+  earnGoalsFor,
   effectiveFeedSettings,
   evaluatePolicy,
   freeWindowsFor,
@@ -115,6 +116,7 @@ async function syncNetworkRules(state: AppState) {
     ...new Set([
       ...state.rules.filter((r) => r.enabled).flatMap((r) => r.domains),
       ...state.windows.filter((w) => w.enabled).flatMap((w) => w.domains),
+      ...(state.earnGoals ?? []).filter((g) => g.enabled).flatMap((g) => g.lockedDomains),
     ]),
   ].sort();
   domains.slice(0, 4500).forEach((domain, index) => {
@@ -203,9 +205,14 @@ async function currentIdleState(): Promise<IdleState> {
     return "active";
   }
 }
-/** Websites with a rule or a free-time window; nothing is recorded about other browsing. */
+/**
+ * Websites with a rule, a free-time window or an earn goal; nothing is recorded about other
+ * browsing.
+ */
 const trackedUrl = (state: AppState, url: string) =>
-  matchingRules(state, url).length > 0 || freeWindowsFor(state, url).length > 0;
+  matchingRules(state, url).length > 0 ||
+  freeWindowsFor(state, url).length > 0 ||
+  earnGoalsFor(state, url).length > 0;
 /** Only tabs on websites with a rule are tracked; nothing is recorded about other browsing. */
 async function findTrackableTabs(state: AppState) {
   const [tabs, window, idle] = await Promise.all([
@@ -532,6 +539,27 @@ async function handle(
     case "DELETE_WINDOW": {
       const r = await actions.deleteWindow(auth, request.windowId);
       if (r.ok) await settingsChanged();
+      return r;
+    }
+    case "SAVE_EARN_GOAL": {
+      const r = await actions.saveEarnGoal(auth, request.goal);
+      if (r.ok) await settingsChanged();
+      return r;
+    }
+    case "DELETE_EARN_GOAL": {
+      const r = await actions.deleteEarnGoal(auth, request.goalId);
+      if (r.ok) await settingsChanged();
+      return r;
+    }
+    case "IMPORT_SHARE_CODE": {
+      const r = await actions.importShareCode(auth, request.code);
+      if (r.ok) {
+        await settingsChanged();
+        void refreshActiveSite(
+          r.data,
+          siteDefinitions.map((s) => s.site),
+        );
+      }
       return r;
     }
     case "SET_FEEDS": {

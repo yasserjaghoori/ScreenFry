@@ -26,7 +26,7 @@ describe("settings export and import", () => {
     const exported = actions.exportSettings(await store.get(), clock.now());
     expect(exported.format).toBe("screenfry-settings-v1");
     expect(Object.keys(exported).sort()).toEqual(
-      ["exportedAt", "feedSettings", "format", "rules", "warningsEnabled", "windows"],
+      ["earnGoals", "exportedAt", "feedSettings", "format", "rules", "warningsEnabled", "windows"],
     );
     expect(JSON.stringify(exported)).not.toContain("PBKDF2");
   });

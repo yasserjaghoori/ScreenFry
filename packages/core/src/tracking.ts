@@ -3,6 +3,8 @@ import { emptyUsageDay, USAGE_RETENTION_DAYS } from "./defaults";
 import { displayHost } from "./domains";
 import {
   activeFreeTime,
+  earnGoalsFor,
+  earnRemaining,
   evaluatePolicy,
   evaluateRule,
   freeTimeRemaining,
@@ -77,15 +79,17 @@ function creditSlice(
   const rules = new Map<string, string>();
   /** Fry Time usage keys (window and website) to the URL being used. */
   const freeWindows = new Map<string, { window: AccessWindow; url: string }>();
+  const goals = new Set<string>();
   for (const url of urls) {
     // Blocked pages and playback outside a window do not consume a future allowance.
     if (evaluatePolicy(state, url, at).status === "blocked") continue;
     for (const rule of matchingRules(state, url)) rules.set(rule.id, url);
+    for (const goal of earnGoalsFor(state, url)) goals.add(goal.id);
     for (const w of freeWindowsFor(state, url))
       if (isScheduleActive(w, new Date(at)))
         freeWindows.set(fryUsageKey(w, fryKeyFor(w, url)), { window: w, url });
   }
-  if (!rules.size && !freeWindows.size) return;
+  if (!rules.size && !freeWindows.size && !goals.size) return;
   const key = localDateKey(new Date(at)),
     day = state.usage[key] ?? emptyUsageDay(key);
   state.usage[key] = day;
@@ -97,6 +101,14 @@ function creditSlice(
     if (left === 0) continue;
     day.millisecondsByWindow[id] =
       (day.millisecondsByWindow[id] ?? 0) + (left === undefined ? ms : Math.min(ms, left));
+  }
+  // Earn goals count once per wall-clock second too, and stop counting once met.
+  if (goals.size) day.millisecondsByGoal ??= {};
+  for (const id of goals) {
+    const goal = state.earnGoals!.find((g) => g.id === id)!;
+    const left = earnRemaining(state, goal, at);
+    if (left > 0)
+      day.millisecondsByGoal![id] = (day.millisecondsByGoal![id] ?? 0) + Math.min(ms, left);
   }
   // Several playing tabs on one website consume one second of allowance per wall-clock second.
   for (const [id] of rules) {
@@ -185,6 +197,11 @@ export function nextTrackingBoundary(
   // When free time runs out, feed blocking returns: credit and re-evaluate right then.
   const free = activeFreeTime(state, url, now)?.remainingMilliseconds;
   if (free !== undefined) times.push(now + free);
+  // When an earn goal is met, its locked websites open: credit and re-evaluate right then.
+  for (const goal of earnGoalsFor(state, url)) {
+    const left = earnRemaining(state, goal, now);
+    if (left > 0) times.push(now + left);
+  }
   for (const rule of matchingRules(state, url)) {
     const d = evaluateRule(state, rule, now);
     if (d.status !== "allowed" || d.remainingMilliseconds === undefined)

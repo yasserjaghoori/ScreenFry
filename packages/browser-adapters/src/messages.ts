@@ -1,4 +1,4 @@
-import type { AccessWindow, FeedSettings, WebsiteRule } from "@shared/index";
+import type { AccessWindow, EarnGoal, FeedSettings, WebsiteRule } from "@shared/index";
 export type Request = (
   | { type: "GET_STATE" }
   | { type: "GET_POLICY"; url: string }
@@ -10,6 +10,9 @@ export type Request = (
   | { type: "DELETE_RULE"; ruleId: string }
   | { type: "SAVE_WINDOW"; window: AccessWindow }
   | { type: "DELETE_WINDOW"; windowId: string }
+  | { type: "SAVE_EARN_GOAL"; goal: EarnGoal }
+  | { type: "DELETE_EARN_GOAL"; goalId: string }
+  | { type: "IMPORT_SHARE_CODE"; code: string }
   | { type: "SET_FEEDS"; feedSettings: FeedSettings }
   | {
       type: "SET_PREFERENCES";

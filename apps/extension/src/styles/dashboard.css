@@ -903,3 +903,72 @@
 .fry-minutes { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .fry-minutes input { width: 64px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; text-align: right; }
 .fry-same { margin: 12px 0 6px; }
+
+/* Experimental page: Earn your website time and share codes. */
+.experimental-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.experimental-pill {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.earn .row.spread h2,
+.share h2 { margin: 0; }
+.earn > p:first-of-type { margin-top: 12px; }
+.earn .empty { margin-top: 18px; padding: 28px 20px; }
+.earn .list { margin-top: 18px; }
+.earn-goal {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--warn);
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: var(--paper);
+}
+.earn-goal.is-earned { border-left-color: var(--good); }
+.earn-goal.is-off { border-left-color: var(--line); }
+.earn-goal.is-off .earn-rule { opacity: 0.6; }
+.earn-goal h3 { margin: 0 0 6px; font-size: 16px; }
+.earn-goal h3 .pill { margin-left: 4px; vertical-align: 1px; }
+.earn-rule { margin: 0; font-size: 14px; }
+.earn-goal .meter.large { max-width: none; }
+.earn-goal.is-earned .meter > span { background: var(--good); }
+.earn-progress { margin: 8px 0 0; }
+.earn-goal .window-actions { margin-top: 14px; }
+.earn-grid { margin: 0; }
+.share-step {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  margin-top: 22px;
+}
+.share-step h3 { margin: 0; font-size: 15px; }
+.share-code {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+}
+.share-code:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.share-preview {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--soft);
+  font-size: 14px;
+}
+.share-preview ul { margin: 8px 0 14px; padding-left: 20px; line-height: 1.7; }
+@media (max-width: 640px) {
+  .earn-grid { grid-template-columns: 1fr; }
+}

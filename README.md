@@ -14,6 +14,7 @@
 | **Block Shorts and Reels** | Blocks playback, not just the button: recognized direct links, notifications and in-page players are caught. TikTok has whole-site blocking and a linked-video-only option. |
 | **Daily limits** | Give each website its own daily allowance, or none. When it runs out, the whole site is blocked, including tabs already open. Resets at midnight. |
 | **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
+| **Experimental** | Two early features on their own page: **Earn your website time** and **share codes** (see below). |
 | **Optional password** | Protect your settings from impulsive changes. It never grants extra time. The first time you change anything without one, ScreenFry explains it once and offers to set it up ("Not now" goes ahead with your change). |
 | **ScreenFry Presets** | The Mac app exports and imports each browser's websites, limits, windows and feed blocking as a presets file, one browser at a time or all at once. |
 | **Start over** | **Restore defaults** at the bottom of Settings erases everything ScreenFry keeps in that browser, password included (it asks for the password first). **Reset All Data…** in the Mac app does it for every browser that doesn't have a password on. |
@@ -57,6 +58,13 @@ Windows can't contradict each other. A block window that overlaps an allow or Fr
 *Example:* YouTube has a 10-minute limit and allow windows at 12–1 pm and 6–8 pm. That's 10 minutes total for the day, usable in either window, and YouTube is blocked at 3 pm even if none of it was used. A block window from 9 am to 5 pm on weekdays would instead keep YouTube off during work hours.
 
 *Example (one browser for research and fun):* hide YouTube's home feed and Shorts with no daily limit, then add a Fry Time window from 7–9 pm with 30 minutes. All day, search and links work with the feed hidden; in the evening the feed and Shorts open up for 30 minutes, then hide again.
+
+## Experimental
+
+The **Experimental** page holds features that work but may still change.
+
+- **Earn your website time:** pick a goal website (say duolingo.com), how many minutes to spend there each day, and the websites to lock until then. The locked websites are blocked every day until the goal is met, then open right away and lock again at midnight. Time on the goal website counts like a daily limit does (focused tab or playback, once per website), and only on that website. A goal website can't be one of its own locked websites, and one goal can't lock another goal's website (it could never be earned). The block screen says how many minutes are left and links to the goal website.
+- **Share your setup:** **Copy my share code** puts your websites, limits, windows, earn goals and feed blocking into one line of text (no usage, history or password). Paste a friend's code to preview what it sets, then **Use these settings** to replace yours. Applying a code is validated like a presets file, follows your own password, and keeps today's usage for websites you already had. A pasted presets file works too.
 
 ## Install
 

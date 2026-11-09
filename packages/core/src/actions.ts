@@ -1,6 +1,12 @@
 /** Every user mutation is authorized here, independently of disabled UI controls. */
 import { createDefaultState, feedDefaults } from "./defaults";
-import { expandDomainAliases, isValidDomain, normalizeDomain } from "./domains";
+import {
+  expandDomainAliases,
+  hostMatchesDomain,
+  isValidDomain,
+  normalizeDomain,
+} from "./domains";
+import { decodeShareCode } from "./share";
 import { localDateKey } from "./date";
 import {
   createPasswordVerifier,
@@ -15,6 +21,7 @@ import type {
   AccessWindow,
   AppState,
   DayOfWeek,
+  EarnGoal,
   FeedSettings,
   FeedSite,
   PrivateAccessStatus,
@@ -240,6 +247,68 @@ export const deleteWindow = (ctx: ActionContext, id: string) =>
     ...s,
     windows: s.windows.filter((w) => w.id !== id),
   }));
+const overlaps = (a: string[], b: string[]) =>
+  a.some((d) => b.some((e) => hostMatchesDomain(d, e) || hostMatchesDomain(e, d)));
+export function sanitizeEarnGoal(input: EarnGoal): { goal?: EarnGoal; error?: string } {
+  const list = (x: unknown): x is string[] =>
+    Array.isArray(x) && x.every((d) => typeof d === "string");
+  if (!input || !list(input.goalDomains) || !list(input.lockedDomains))
+    return { error: "Choose a goal website and the websites to lock." };
+  const goalDomains = cleanDomains(input.goalDomains),
+    lockedDomains = cleanDomains(input.lockedDomains);
+  if (!goalDomains.length || !goalDomains.every(isValidDomain))
+    return { error: "Enter a valid goal website, like duolingo.com." };
+  if (!lockedDomains.length || !lockedDomains.every(isValidDomain))
+    return { error: "Choose at least one valid website to lock." };
+  if (overlaps(goalDomains, lockedDomains))
+    return { error: "The goal website can’t also be one of the locked websites." };
+  if (!minutes(input.minutes) || input.minutes === 0)
+    return { error: "The goal must be between 1 and 1440 minutes a day." };
+  return {
+    goal: {
+      id: String(input.id || crypto.randomUUID()),
+      label: String(input.label || `Earn it on ${goalDomains[0]}`).slice(0, 60),
+      enabled: input.enabled !== false,
+      goalDomains,
+      minutes: input.minutes,
+      lockedDomains,
+    },
+  };
+}
+/**
+ * A goal website that another goal locks could never be earned, and two goals locking each
+ * other's goal website would stay locked for good, so a goal website is never locked.
+ */
+function earnGoalClash(goals: EarnGoal[]): string | undefined {
+  const enabled = goals.filter((g) => g.enabled);
+  for (const goal of enabled)
+    for (const other of enabled)
+      if (other.id !== goal.id && overlaps(goal.goalDomains, other.lockedDomains))
+        return `“${other.label}” locks ${goal.goalDomains[0]}, the goal website of “${goal.label}”, so it could never be earned. Change one of them.`;
+  return undefined;
+}
+export async function saveEarnGoal(
+  ctx: ActionContext,
+  input: EarnGoal,
+): Promise<ActionResult<AppState>> {
+  const { goal, error } = sanitizeEarnGoal(input);
+  if (!goal) return fail(error!);
+  const goals = [
+    ...((await ctx.store.get()).earnGoals ?? []).filter((g) => g.id !== goal.id),
+    goal,
+  ];
+  const clash = earnGoalClash(goals);
+  if (clash) return fail(clash);
+  return protectedUpdate(ctx, (s) => ({
+    ...s,
+    earnGoals: [...(s.earnGoals ?? []).filter((g) => g.id !== goal.id), goal],
+  }));
+}
+export const deleteEarnGoal = (ctx: ActionContext, id: string) =>
+  protectedUpdate(ctx, (s) => ({
+    ...s,
+    earnGoals: (s.earnGoals ?? []).filter((g) => g.id !== id),
+  }));
 function sanitizeFeeds(input: FeedSettings): FeedSettings {
   const sites = structuredClone(feedDefaults.sites);
   for (const site of Object.keys(sites) as FeedSite[])
@@ -304,8 +373,8 @@ export function exportData(state: AppState): Record<string, unknown> {
   };
 }
 /**
- * Website settings only (rules, windows, feed blocking, warnings): no usage history and no
- * password, so the file is safe to move between browsers and Macs.
+ * Website settings only (rules, windows, earn goals, feed blocking, warnings): no usage
+ * history and no password, so the file is safe to move between browsers, Macs and people.
  */
 export const SETTINGS_FORMAT = "screenfry-settings-v1";
 export interface SettingsExport {
@@ -313,6 +382,7 @@ export interface SettingsExport {
   exportedAt: string;
   rules: WebsiteRule[];
   windows: AccessWindow[];
+  earnGoals?: EarnGoal[];
   feedSettings: FeedSettings;
   warningsEnabled: boolean;
 }
@@ -322,6 +392,7 @@ export function exportSettings(state: AppState, now: number): SettingsExport {
     exportedAt: new Date(now).toISOString(),
     rules: state.rules,
     windows: state.windows,
+    earnGoals: state.earnGoals ?? [],
     feedSettings: state.feedSettings,
     warningsEnabled: state.warningsEnabled,
   };
@@ -355,15 +426,35 @@ export async function importSettings(
     if (!window) return fail(`Windows: ${error}`);
     windows.push(window);
   }
+  // Files from before earn goals leave the current goals alone.
+  let earnGoals: EarnGoal[] | undefined;
+  if (Array.isArray(data.earnGoals)) {
+    earnGoals = [];
+    for (const input of data.earnGoals) {
+      const { goal, error } = sanitizeEarnGoal(input);
+      if (!goal) return fail(`Earn your website time: ${error}`);
+      earnGoals.push(goal);
+    }
+    const clash = earnGoalClash(earnGoals);
+    if (clash) return fail(`Earn your website time: ${clash}`);
+  }
   return protectedUpdate(ctx, (s) => {
     for (const rule of rules) {
-      const existing = s.rules.find((r) => r.id === rule.id);
-      if (existing) rule.createdAt = existing.createdAt;
+      // Settings from elsewhere (another browser, or someone's shared code) carry their own
+      // ids; keep this browser's id for the same website so today's usage still counts.
+      const existing =
+        s.rules.find((r) => r.id === rule.id) ??
+        s.rules.find((r) => overlaps(r.domains, rule.domains));
+      if (existing) {
+        rule.createdAt = existing.createdAt;
+        if (!rules.some((r) => r !== rule && r.id === existing.id)) rule.id = existing.id;
+      }
     }
     return {
       ...s,
       rules,
       windows,
+      ...(earnGoals ? { earnGoals } : {}),
       feedSettings: sanitizeFeeds(data.feedSettings as FeedSettings),
       warningsEnabled:
         typeof data.warningsEnabled === "boolean"
@@ -371,6 +462,19 @@ export async function importSettings(
           : s.warningsEnabled,
     };
   });
+}
+/** Applies someone's shared settings code: decoded, then validated exactly like a file. */
+export async function importShareCode(
+  ctx: ActionContext,
+  code: string,
+): Promise<ActionResult<AppState>> {
+  let data: unknown;
+  try {
+    data = await decodeShareCode(code);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "That share code didn’t work.");
+  }
+  return importSettings(ctx, data);
 }
 export const maintain = (ctx: ActionContext) =>
   ctx.store.update((s) => pruneUsage(s, ctx.now()));

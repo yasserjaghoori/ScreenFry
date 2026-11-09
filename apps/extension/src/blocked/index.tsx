@@ -110,6 +110,14 @@ function Blocked() {
           </p>
         )}
         <div className="focus-actions">
+          {!allowed && copy?.earnAt && (
+            <button
+              className="button"
+              onClick={() => location.assign(`https://${copy.earnAt}/`)}
+            >
+              Go to {copy.earnAt}
+            </button>
+          )}
           {allowed && url && (
             <button className="button" onClick={() => location.replace(url)}>
               {shortForm ? "Back to website" : "Continue to site"}

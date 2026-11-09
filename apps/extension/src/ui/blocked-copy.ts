@@ -10,7 +10,14 @@ export function blockedCopy(
   decision: PolicyDecision,
   label: string,
   now = Date.now(),
-): { title: string; details: string[]; next?: string; nextAt?: number } {
+): {
+  title: string;
+  details: string[];
+  next?: string;
+  nextAt?: number;
+  /** The goal website to visit to unlock this one, for an earn-locked website. */
+  earnAt?: string;
+} {
   const has = (reason: PolicyDecision["reasons"][number]) =>
     decision.reasons.includes(reason);
   const free = has("short-form") ? decision.freeTimeOff : undefined;
@@ -23,6 +30,13 @@ export function blockedCopy(
     details.push(
       `You’ve used your daily allowance for ${label}. Your timer resets at midnight, every day, in your local time zone.`,
     );
+  const earn = has("earn-locked") ? decision.earn : undefined;
+  if (earn) {
+    const left = Math.max(1, Math.ceil(earn.remainingMilliseconds / 60_000));
+    details.push(
+      `Spend ${left} more minute${left === 1 ? "" : "s"} on ${earn.goalDomain} today to unlock ${label} (goal: ${earn.minutes} min, from “${earn.label}”). It locks again at midnight.`,
+    );
+  }
   if (free?.state === "used-up")
     details.push(
       `You’ve used today’s Fry Time in ${free.label}, so feeds and short-form videos are hidden again.`,
@@ -44,12 +58,15 @@ export function blockedCopy(
   return {
     title: has("daily-limit")
       ? "Time is up!"
-      : free?.state === "used-up"
-        ? "Fry Time is up!"
-        : `${label} is off for now.`,
+      : earn
+        ? `Earn your ${label} time first.`
+        : free?.state === "used-up"
+          ? "Fry Time is up!"
+          : `${label} is off for now.`,
     details,
     next,
     ...(nextAt === undefined ? {} : { nextAt }),
+    ...(earn ? { earnAt: earn.goalDomain } : {}),
   };
 }
 

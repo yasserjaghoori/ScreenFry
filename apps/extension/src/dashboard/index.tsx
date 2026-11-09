@@ -14,12 +14,14 @@ import { FryTimeBar, fryTimeSummary } from "../ui/FryTime";
 import { Windows } from "./Windows";
 import { Settings } from "./Settings";
 import { About } from "./About";
+import { Experimental } from "./Experimental";
 import { setPasswordSetupHandler } from "../ui/PasswordPrompt";
 import "../styles/global.css";
 import "../styles/dashboard.css";
 const pages = [
   { id: "websites", label: "Websites", icon: "feeds" },
   { id: "windows", label: "Windows", icon: "schedules" },
+  { id: "experimental", label: "Experimental", icon: "lab" },
   { id: "settings", label: "Settings", icon: "settings" },
   { id: "about", label: "About", icon: "settings" },
 ] as const;
@@ -164,6 +166,8 @@ function Dashboard() {
                   ? "Choose when websites are available."
                   : page === "about"
                     ? "What ScreenFry does in this browser."
+                    : page === "experimental"
+                      ? "New ideas to try: earn your website time and share your setup."
                     : "Make ScreenFry work for you."}
             </p>
           </div>
@@ -247,6 +251,9 @@ function Dashboard() {
             <Windows state={state} onState={setState} onNotice={setNotice} />
           )}
           {page === "about" && <About />}
+          {page === "experimental" && (
+            <Experimental state={state} onState={setState} onNotice={setNotice} />
+          )}
           {page === "settings" && (
             <Settings
               state={state}
