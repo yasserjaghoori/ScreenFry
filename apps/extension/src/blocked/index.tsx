@@ -123,7 +123,7 @@ function Blocked() {
               })
             }
           >
-            Website settings
+            Open ScreenFry
           </button>
         </div>
         <p className="fine-print">

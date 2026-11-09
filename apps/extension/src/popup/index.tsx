@@ -65,6 +65,8 @@ function Popup() {
     // Focus moving inside the popup never blurs the window, so this only fires on leaving.
     let blurTimer: ReturnType<typeof setTimeout> | undefined;
     const left = () => {
+      // A native menu (the daily-limit dropdown) can take focus from the popup while open.
+      if (document.activeElement instanceof HTMLSelectElement) return;
       blurTimer = setTimeout(() => {
         if (!document.hasFocus()) window.close();
       }, 150);
