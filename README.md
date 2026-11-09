@@ -49,7 +49,7 @@ The **Windows** page has two kinds of schedule. Each has a name, days, a start a
 - **Block window:** the listed websites are blocked *during* the window and work normally otherwise.
 - **Free time:** the listed websites' feed blocking is paused *during* the window, for as many minutes a day as you give it (or the whole window). When the minutes run out or the window ends, feeds are hidden again; the website itself stays usable. Time inside counts down in an on-page timer.
 
-If an allow window and a block window overlap, **blocking wins**. Daily limits always still apply.
+Windows can't contradict each other: ScreenFry won't save (or switch on, or import) a block window that overlaps an allow or free-time window on the same website, and the editor explains which window clashes and when. Windows saved before this rule keep working, with **blocking winning** in the overlap, and their cards show a warning until you fix them. Daily limits always still apply.
 
 *Example:* YouTube has a 10-minute limit and allow windows at 12–1 pm and 6–8 pm. That's 10 minutes total for the day, usable in either window, and YouTube is blocked at 3 pm even if none of it was used. A block window from 9 am to 5 pm on weekdays would instead keep YouTube off during work hours.
 
