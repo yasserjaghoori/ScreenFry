@@ -32,9 +32,9 @@ Releases use the Developer ID secrets below. A release built without them, and a
 
 | Path | What happens |
 | --- | --- |
-| **Drag a new download over the old one** | Finder asks to Replace. Bundle identifiers stay the same from 0.6.0 on, so Safari keeps the extension and its settings. (0.6.0 changed them to `com.screenfry.*`, so builds before it start fresh.) On next launch, the app copies its newer Chrome build into the same folder. |
+| **Drag a new download over the old one** | Finder asks to Replace. Bundle identifiers stay the same from 0.6.0 on, so Safari keeps the extension and its settings. (0.6.0 changed them to `com.screenfry.*`, so builds before it start fresh.) On next launch, the app copies its Chrome build into the same folder whenever the build differs (`build.json`'s fingerprint, so rebuilds without a version bump count too). |
 | **In-app update** (Sparkle) | The app checks the feed daily and from **Check for Updates…**, then offers the new version. Installing it replaces the whole app, so the Safari extension inside updates too, and the relaunch refreshes the Chrome folder. |
-| **Chrome picks it up** | The Chrome extension checks once a minute, and on browser start, whether the version on disk differs from the one running, and reloads itself (`reloadIfUpdatedOnDisk` in the background). |
+| **Chrome picks it up** | The Chrome extension checks once a minute, and on browser start, whether the version or the build fingerprint (`build.json`, written by `scripts/stamp-build.mjs`) on disk differs from the one it started with, and reloads itself (`reloadIfUpdatedOnDisk` in the background). |
 
 Settings live in each browser's extension storage, keyed to the extension, so updates never reset them. Chrome's extension ID comes from its folder path, which never changes: `~/Library/Application Support/ScreenFry/Chrome Extension`.
 

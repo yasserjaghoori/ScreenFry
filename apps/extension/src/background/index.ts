@@ -635,19 +635,34 @@ chrome.runtime.onStartup.addListener(() => {
 /**
  * Chrome loads ScreenFry from a folder the Mac app keeps current (an unpacked install).
  * After an app update the files on disk are newer than the code running, so reload to pick
- * them up. Store installs update themselves and are skipped.
+ * them up: when the version changes, or when build.json's fingerprint differs from the one
+ * this run started with (a rebuild without a version bump). Session storage clears on
+ * reload, so each run records its own starting build. Store installs update themselves.
  */
+const BUILD_KEY = "screenfry.startedBuild";
 async function reloadIfUpdatedOnDisk() {
   if (browser !== "chrome") return;
   try {
     const self = await chrome.management.getSelf();
     if (self.installType !== "development") return;
-    const response = await fetch(chrome.runtime.getURL("manifest.json"), {
+    const { version } = (await (
+      await fetch(chrome.runtime.getURL("manifest.json"), { cache: "no-store" })
+    ).json()) as { version?: string };
+    const build = await fetch(chrome.runtime.getURL("build.json"), {
       cache: "no-store",
-    });
-    const onDisk = ((await response.json()) as { version?: string }).version;
-    if (onDisk && onDisk !== chrome.runtime.getManifest().version) {
-      console.info(`ScreenFry: reloading to apply ${onDisk}`);
+    })
+      .then((r) => r.json() as Promise<{ build?: string }>)
+      .then((b) => b.build)
+      .catch(() => undefined);
+    const started = (await chrome.storage.session.get(BUILD_KEY))[BUILD_KEY] as
+      | string
+      | undefined;
+    if (build && !started) await chrome.storage.session.set({ [BUILD_KEY]: build });
+    if (
+      (version && version !== chrome.runtime.getManifest().version) ||
+      (build && started && build !== started)
+    ) {
+      console.info(`ScreenFry: reloading to apply ${version} (${build})`);
       chrome.runtime.reload();
     }
   } catch {

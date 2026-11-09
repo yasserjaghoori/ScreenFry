@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite build --watch --config vite.config.ts",
-    "build": "tsc --noEmit && vite build --config vite.config.ts && vite build --config vite.content.config.ts && node scripts/verify-build.mjs",
+    "build": "tsc --noEmit && vite build --config vite.config.ts && vite build --config vite.content.config.ts && node scripts/stamp-build.mjs && node scripts/verify-build.mjs",
     "build:safari": "npm run build && mkdir -p 'safari/ScreenFry/ScreenFry Extension/Resources' 'safari/ScreenFry/ScreenFry/ChromeExtension' && rsync -a --delete dist/chrome/ 'safari/ScreenFry/ScreenFry Extension/Resources/' && rsync -a --delete dist/chrome/ 'safari/ScreenFry/ScreenFry/ChromeExtension/' && node scripts/prepare-safari.mjs",
     "dmg": "node scripts/make-dmg.mjs",
     "test": "vitest run --config vitest.config.ts",

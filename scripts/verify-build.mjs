@@ -5,6 +5,9 @@ const dist = new URL("../dist/chrome/", import.meta.url);
 const read = (path) => readFileSync(new URL(path, dist), "utf8");
 const errors = [];
 
+if (!/^\{"build":"[0-9a-f]{16}"\}\n$/.test(read("build.json")))
+  errors.push("build.json must hold the build fingerprint (scripts/stamp-build.mjs)");
+
 const manifest = JSON.parse(read("manifest.json"));
 if (
   /declarativeNetRequest\.(?:RuleActionType|ResourceType)\./.test(
@@ -53,9 +56,9 @@ if (
   /^export\s/m.test(content)
 )
   errors.push("content.js must be a classic script without import/export");
-// The one allowed fetch reads ScreenFry's own packaged manifest (a local extension file) to
-// notice a newer build on disk; anything else would be a network request.
-const ownManifestRead = /\bfetch\(\s*chrome\.runtime\.getURL\(\s*["'`]manifest\.json["'`]\s*\)/g;
+// The only allowed fetches read ScreenFry's own packaged manifest.json and build.json (local
+// extension files) to notice a newer build on disk; anything else would be a network request.
+const ownManifestRead = /\bfetch\(\s*chrome\.runtime\.getURL\(\s*["'`](?:manifest|build)\.json["'`]\s*\)/g;
 if (
   /\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket/.test(
     (read(manifest.background.service_worker) + content).replace(ownManifestRead, ""),
