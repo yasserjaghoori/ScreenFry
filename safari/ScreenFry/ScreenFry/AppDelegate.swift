@@ -850,26 +850,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 home.appendingPathComponent("Library/Containers/\(extensionIdentifier)"),
                 home.appendingPathComponent("Library/Application Scripts/\(extensionIdentifier)"),
             ]
+            // Clearing the domain leaves an empty preferences file behind; remove it too.
             UserDefaults.standard.removePersistentDomain(forName: id)
+            CFPreferencesAppSynchronize(id as CFString)
+            paths.append(home.appendingPathComponent("Library/Preferences/\(id).plist"))
+            // An installer disk still mounted would keep a copy of the app (and its Safari
+            // extension) visible to macOS.
+            for volume in fm.mountedVolumeURLs(includingResourceValuesForKeys: nil, options: [.skipHiddenVolumes]) ?? []
+            where volume.path.hasPrefix("/Volumes/")
+                && fm.fileExists(atPath: volume.appendingPathComponent("ScreenFry.app").path)
+                && !Bundle.main.bundlePath.hasPrefix(volume.path + "/") {
+                try? NSWorkspace.shared.unmountAndEjectDevice(at: volume)
+            }
         }
         for path in paths where fm.fileExists(atPath: path.path) {
             try? fm.removeItem(at: path)
         }
         let chromeLeft = erase && !chromeRemoved && chromeIsInstalled
         if chromeLeft { openChromeExtensions(nil) }
+        // macOS protects the Safari extension's own folder from every app; only Finder can
+        // move it. Show it so the user can drag it to the Trash.
+        let container = home.appendingPathComponent("Library/Containers/\(extensionIdentifier)")
+        let containerLeft = erase && fm.fileExists(atPath: container.path)
+        if containerLeft { NSWorkspace.shared.activateFileViewerSelecting([container]) }
         NSWorkspace.shared.recycle([Bundle.main.bundleURL]) { _, error in
             DispatchQueue.main.async {
                 let done = NSAlert()
+                let finder = containerLeft
+                    ? " One last step: drag the selected “\(container.lastPathComponent)” folder in Finder to the Trash. macOS only lets you remove that one yourself."
+                    : ""
                 if let error {
                     done.messageText = "Almost done"
-                    done.informativeText = "ScreenFry’s data was removed, but the app couldn’t move itself to the Trash (\(error.localizedDescription)). Drag ScreenFry from Applications to the Trash."
+                    done.informativeText = "ScreenFry’s data was removed, but the app couldn’t move itself to the Trash (\(error.localizedDescription)). Drag ScreenFry from Applications to the Trash.\(finder)"
                 } else {
-                    done.messageText = "ScreenFry is uninstalled"
+                    done.messageText = containerLeft ? "Almost done" : "ScreenFry is uninstalled"
                     done.informativeText = !erase
                         ? "Reinstall any time; Chrome keeps your ScreenFry settings until you remove it there."
                         : chromeLeft
-                            ? "Chrome didn’t answer in time. On Chrome’s Extensions page, click Remove on ScreenFry to delete its settings there."
-                            : "Every trace of ScreenFry is gone from this Mac\(chromeRemoved ? ", including Chrome" : "")."
+                            ? "Chrome didn’t answer in time. On Chrome’s Extensions page, click Remove on ScreenFry to delete its settings there.\(finder)"
+                            : containerLeft
+                                ? "ScreenFry was removed from this Mac\(chromeRemoved ? ", including Chrome" : "").\(finder)"
+                                : "Every trace of ScreenFry is gone from this Mac\(chromeRemoved ? ", including Chrome" : "")."
                 }
                 done.runModal()
                 NSApp.terminate(nil)
