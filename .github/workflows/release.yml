@@ -54,6 +54,10 @@ jobs:
           test -n "${{ vars.SPARKLE_PUBLIC_KEY }}" || { echo "Set the SPARKLE_PUBLIC_KEY repository variable"; exit 1; }
           sed -i '' 's|SUPublicEDKey: ""|SUPublicEDKey: "${{ vars.SPARKLE_PUBLIC_KEY }}"|' safari/ScreenFry/project.yml
 
+      - name: Hide the unsigned-extension setup steps in signed builds
+        if: env.HAS_DEVELOPER_ID == 'true'
+        run: sed -i '' 's|ScreenFryShowSafariDeveloperSetup: true|ScreenFryShowSafariDeveloperSetup: false|' safari/ScreenFry/project.yml
+
       - run: xcodegen generate --spec safari/ScreenFry/project.yml
 
       - name: Import Developer ID certificate
@@ -74,7 +78,8 @@ jobs:
       - name: Build ScreenFry.app
         run: |
           if [ "$HAS_DEVELOPER_ID" = "true" ]; then
-            SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=Developer ID Application" DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" OTHER_CODE_SIGN_FLAGS=--timestamp)
+            # No injected get-task-allow: the notary service rejects it.
+            SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=Developer ID Application" DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" OTHER_CODE_SIGN_FLAGS=--timestamp CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO)
           else
             # Ad-hoc: runs after "Open Anyway", and Safari needs Allow Unsigned Extensions.
             # The hardened runtime (needed only for notarization) refuses to load the ad-hoc
@@ -83,6 +88,10 @@ jobs:
           fi
           xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj -scheme ScreenFry \
             -configuration Release -derivedDataPath dist/safari "${SIGNING[@]}" build
+          if [ "$HAS_DEVELOPER_ID" = "true" ]; then
+            # Sign Sparkle's helpers and every other executable for notarization.
+            scripts/sign-developer-id.sh dist/safari/Build/Products/Release/ScreenFry.app
+          fi
           node scripts/verify-safari.mjs dist/safari/Build/Products/Release/ScreenFry.app
           node scripts/verify-macos-signing.mjs dist/safari/Build/Products/Release/ScreenFry.app
 
@@ -97,8 +106,15 @@ jobs:
         if: env.HAS_DEVELOPER_ID == 'true' && env.HAS_NOTARY == 'true'
         run: |
           DMG="dist/ScreenFry-${{ steps.version.outputs.version }}.dmg"
-          xcrun notarytool submit "$DMG" --apple-id "${{ secrets.APPLE_ID }}" \
-            --team-id "${{ secrets.APPLE_TEAM_ID }}" --password "${{ secrets.APPLE_APP_PASSWORD }}" --wait
+          AUTH=(--apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAM_ID }}" --password "${{ secrets.APPLE_APP_PASSWORD }}")
+          OUT=$(xcrun notarytool submit "$DMG" "${AUTH[@]}" --wait 2>&1) || true
+          echo "$OUT"
+          if ! echo "$OUT" | grep -q "status: Accepted"; then
+            # Print Apple's reasons so a rejection can be fixed without guessing.
+            ID=$(echo "$OUT" | awk '/^ *id:/ {print $2; exit}')
+            [ -n "$ID" ] && xcrun notarytool log "$ID" "${AUTH[@]}"
+            exit 1
+          fi
           xcrun stapler staple "$DMG"
 
       - name: Update feed

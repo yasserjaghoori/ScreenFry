@@ -4,7 +4,7 @@
 
 **Less feed. More day.** ScreenFry is a Chrome and Safari extension that strips the distracting parts out of social websites and limits how long you spend on them, without taking away the useful parts.
 
-> **Status:** development build, version 0.6.2. No public release has been published yet, so for now you install it by building it on a Mac (below). Chrome is covered by automated browser tests. The Mac app and Safari extension build and pass packaging checks, but live behavior on each website is still being verified. See [Testing](docs/TESTING.md).
+> **Status:** development build, version 0.6.2. Releases are signed with a Developer ID (Bhron, LLC) and notarized by Apple. Chrome is covered by automated browser tests. The Mac app and Safari extension build and pass packaging checks, but live behavior on each website is still being verified. See [Testing](docs/TESTING.md).
 
 ## What it does
 
@@ -57,9 +57,17 @@ If an allow window and a block window overlap, **blocking wins**. Daily limits a
 
 ## Install
 
-### Install on a Mac
+### Download (Mac)
 
-No release is on the [Releases page](https://github.com/yasserjaghoori/ScreenFry/releases) yet. Until there is one, build the installer yourself. You'll need [Node.js](https://nodejs.org) (the version in `.nvmrc`), Xcode signed in to your Apple ID (Xcode → Settings → Accounts), and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+1. Download the latest `ScreenFry-<version>.dmg` from [Releases](https://github.com/yasserjaghoori/ScreenFry/releases).
+2. Open it and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications.
+3. The app walks you through turning on **Safari** (one switch in Safari's settings, then allow it on websites) and **Chrome** (turn on Developer mode, then drag the ScreenFry tile onto Chrome's Extensions page).
+
+Releases are signed with a Developer ID and notarized by Apple, so they open normally and Safari lists the extension without any developer settings.
+
+### Build the installer yourself
+
+You'll need [Node.js](https://nodejs.org) (the version in `.nvmrc`), Xcode signed in to your Apple ID (Xcode → Settings → Accounts), and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```bash
 npm ci
@@ -68,14 +76,13 @@ npm run dmg:local
 
 This builds `dist/ScreenFry-<version>.dmg`, signed with your Mac's Apple Development identity, so Safari shows the extension without any developer settings.
 
-1. Open the disk image and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications.
-2. The app walks you through turning on **Safari** (one switch in Safari's settings, then allow it on websites) and **Chrome** (turn on Developer mode, then drag the ScreenFry tile onto Chrome's Extensions page).
+Install it the same way as a download.
+
+### Updating and uninstalling
 
 **Updating:** drag a newer build over the old app. Both browsers update together and keep their settings. **Check for Updates…** opens the Releases page until release signing is set up, then uses the automatic updater. Version 0.6.0 changed the app's identifiers, so settings from earlier builds don't carry over: uninstall the old version first and set ScreenFry up again.
 
-**Uninstalling:** **ScreenFry → Uninstall…** (also at the bottom of the window). **Keep Settings** removes the app and both extensions, but Chrome keeps your settings for a reinstall. **Erase Everything** also deletes ScreenFry's files on your Mac and opens Chrome's Extensions page so you can click **Remove**.
-
-Once releases are published, downloads built by GitHub won't be signed by Apple at first. The first open then needs **Open Anyway** in System Settings → Privacy & Security, and Safari only lists the extension with **Allow unsigned extensions** turned on. Details are in [Distribution](docs/DISTRIBUTION.md).
+**Uninstalling:** **ScreenFry → Uninstall…** (also at the bottom of the window). **Keep Settings** removes the app and both extensions, but Chrome keeps your settings for a reinstall. **Erase Everything** also deletes ScreenFry's files on your Mac and opens Chrome's Extensions page so you can click **Remove**. Details are in [Distribution](docs/DISTRIBUTION.md).
 
 ### Build from source
 
