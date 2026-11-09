@@ -2,7 +2,7 @@ import Foundation
 
 /// Keeps ScreenFry's Chrome extension in a fixed folder that Chrome loads as an unpacked
 /// extension. The path never changes, so Chrome keeps the same extension (and its settings)
-/// across app updates; the extension reloads itself when it sees a new version on disk.
+/// across app updates; the extension reloads itself when it sees a new build on disk.
 enum ChromeInstaller {
     /// ~/Library/Application Support/ScreenFry/Chrome Extension
     static var folder: URL {
@@ -27,12 +27,23 @@ enum ChromeInstaller {
 
     static var installedVersion: String? { version(at: folder) }
 
-    /// Copies the bundled build into place when it is missing or a different version.
+    /// The build's fingerprint from build.json, so a rebuild with the same version still
+    /// counts as new. Falls back to the version for builds made before build.json existed.
+    static func buildID(at folder: URL) -> String? {
+        if let data = try? Data(contentsOf: folder.appendingPathComponent("build.json")),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let build = json["build"] as? String {
+            return build
+        }
+        return version(at: folder)
+    }
+
+    /// Copies the bundled build into place when it is missing or a different build.
     /// Returns true when files were written.
     @discardableResult
     static func sync() throws -> Bool {
-        guard let source = bundled, let wanted = version(at: source) else { return false }
-        if installedVersion == wanted { return false }
+        guard let source = bundled, let wanted = buildID(at: source) else { return false }
+        if buildID(at: folder) == wanted { return false }
         let fm = FileManager.default
         let parent = folder.deletingLastPathComponent()
         try fm.createDirectory(at: parent, withIntermediateDirectories: true)
