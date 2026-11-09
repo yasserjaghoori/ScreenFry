@@ -386,3 +386,129 @@ select:focus {
   font-weight: 700;
   color: var(--green);
 }
+
+/* "Are you sure?" before loosening a restriction: the Yes button dodges, then deflects a click. */
+.loosen-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(20, 14, 10, 0.45);
+  animation: loosen-fade 160ms ease-out;
+}
+.loosen-dialog {
+  box-sizing: border-box;
+  width: min(100%, 380px);
+  padding: 26px 22px 18px;
+  text-align: center;
+  border-radius: var(--radius);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  animation: loosen-pop 260ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.loosen-dialog.is-really { animation: loosen-wobble 420ms ease-out; }
+.loosen-dialog h2 { margin: 6px 0 8px; font-size: 20px; line-height: 1.25; }
+.loosen-dialog p { margin: 0; }
+.loosen-emoji { display: block; font-size: 34px; line-height: 1; }
+.loosen-actions {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+.loosen-actions .button { min-width: 112px; }
+.loosen-yes { position: relative; }
+.loosen-yes[aria-disabled="true"] { pointer-events: none; }
+.loosen-yes.is-dodge { animation: loosen-dodge 850ms cubic-bezier(0.3, 0.7, 0.4, 1); }
+.loosen-yes.is-deflect { animation: loosen-deflect 750ms cubic-bezier(0.3, 0.7, 0.4, 1); }
+.loosen-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--on-accent);
+  background: var(--accent-bright);
+  transform: translateX(-50%);
+  animation: loosen-bubble 750ms ease-out forwards;
+}
+.loosen-status { min-height: 18px; margin-top: 10px !important; font-size: 12px; color: var(--muted); }
+/* The click itself, ricocheting off the Yes button. */
+.loosen-spark {
+  position: fixed;
+  z-index: 1001;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-bright) 30%, transparent);
+  pointer-events: none;
+  animation: loosen-spark 650ms cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+}
+.loosen-spark::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border: 2px solid var(--accent-bright);
+  border-radius: 50%;
+  animation: loosen-ring 450ms ease-out forwards;
+}
+@keyframes loosen-fade { from { opacity: 0; } }
+@keyframes loosen-pop { from { transform: scale(0.85); opacity: 0; } }
+@keyframes loosen-wobble {
+  0% { transform: scale(0.96); }
+  30% { transform: rotate(-2deg) scale(1.02); }
+  60% { transform: rotate(1.5deg); }
+  100% { transform: none; }
+}
+/* Startled squash, a big hop sideways, a bounce on landing, then a spring home. */
+@keyframes loosen-dodge {
+  0% { transform: none; }
+  10% { transform: scale(1.15, 0.8); }
+  35% { transform: translate(calc(var(--side) * 90px), -70px) rotate(calc(var(--side) * 18deg)) scale(0.95, 1.1); }
+  55% { transform: translate(calc(var(--side) * 110px), 0) scale(1.15, 0.85); }
+  68% { transform: translate(calc(var(--side) * 100px), -18px); }
+  80% { transform: translate(calc(var(--side) * 100px), 0) scale(1.05, 0.95); }
+  100% { transform: none; }
+}
+/* Squashed by the click, then springs up and shakes it off. */
+@keyframes loosen-deflect {
+  0% { transform: none; }
+  12% { transform: translateY(4px) scale(1.18, 0.7); }
+  32% { transform: translateY(-34px) scale(0.9, 1.15) rotate(calc(var(--side) * -8deg)); }
+  50% { transform: translateY(0) scale(1.12, 0.88); }
+  62% { transform: translateY(-10px) rotate(calc(var(--side) * 6deg)); }
+  74% { transform: translateY(0) rotate(calc(var(--side) * -4deg)); }
+  86% { transform: rotate(calc(var(--side) * 2deg)); }
+  100% { transform: none; }
+}
+@keyframes loosen-bubble {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.6); }
+  20% { opacity: 1; transform: translate(-50%, -4px) scale(1.15); }
+  75% { opacity: 1; transform: translate(-50%, -8px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -14px) scale(0.9); }
+}
+@keyframes loosen-spark {
+  0% { transform: scale(1.4); opacity: 1; }
+  20% { transform: translate(calc(var(--side) * 18px), 10px) scale(0.9); }
+  100% { transform: translate(calc(var(--side) * 140px), -160px) scale(0.4); opacity: 0; }
+}
+@keyframes loosen-ring { from { transform: scale(0.3); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .loosen-yes.is-dodge, .loosen-yes.is-deflect { animation: loosen-shake 500ms ease-in-out; }
+  .loosen-spark { animation-duration: 400ms; }
+  @keyframes loosen-shake {
+    25% { transform: translateX(-6px); }
+    50% { transform: translateX(6px); }
+    75% { transform: translateX(-3px); }
+  }
+}

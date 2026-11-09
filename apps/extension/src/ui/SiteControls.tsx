@@ -6,6 +6,7 @@ import { hostMatchesDomain } from "@core/domains";
 import type { AppState, FeedSite, WebsiteRule } from "@shared/index";
 import { formatDuration } from "./format";
 import { siteStatus } from "./siteStatus";
+import { confirmLoosen, loosenQuestion } from "./ConfirmLoosen";
 export function Switch({
   label,
   checked,
@@ -63,7 +64,43 @@ export function SiteControls({
     if (result.ok) onState(result.data);
     else onError(result.error);
   }
+  /** Ask before giving more time: removing a limit or raising it. */
+  async function saveLimit(minutes: number | undefined) {
+    const loosens =
+      current !== undefined && (minutes === undefined || minutes > current);
+    if (
+      loosens &&
+      !(await confirmLoosen(
+        minutes === undefined
+          ? `Remove your ${definition.name} time limit?`
+          : `Give yourself more ${definition.name} time?`,
+        `Your limit is ${current} minute${current === 1 ? "" : "s"} a day.`,
+      ))
+    )
+      return false;
+    await saveRule({
+      dailyAllowance:
+        minutes === undefined ? undefined : { defaultMinutes: minutes },
+    });
+    return true;
+  }
+  async function toggleBlocked() {
+    if (
+      rule.blocked &&
+      !(await confirmLoosen(`Unblock ${definition.name}?`))
+    )
+      return;
+    await saveRule({ blocked: !rule.blocked });
+  }
   async function toggle(key: string) {
+    if (state.feedSettings.sites[site]?.[key] === true) {
+      const shortForm = definition.shortForm;
+      const question =
+        shortForm?.setting === key
+          ? `Are you sure you want to start watching ${shortForm.label} again?`
+          : loosenQuestion(definition.elements[key].label, definition.name);
+      if (!(await confirmLoosen(question))) return;
+    }
     setBusy(true);
     const next = structuredClone(state.feedSettings);
     next.sites[site][key] = !next.sites[site][key];
@@ -113,7 +150,7 @@ export function SiteControls({
               label={`Block ${definition.name}`}
               checked={rule.blocked}
               disabled={busy}
-              onChange={() => void saveRule({ blocked: !rule.blocked })}
+              onChange={() => void toggleBlocked()}
             />
           </div>
         </div>
@@ -143,12 +180,11 @@ export function SiteControls({
                   return;
                 }
                 setCustomOpen(false);
-                void saveRule({
-                  dailyAllowance:
-                    e.target.value === "none"
-                      ? undefined
-                      : { defaultMinutes: Number(e.target.value) },
-                });
+                void saveLimit(
+                  e.target.value === "none"
+                    ? undefined
+                    : Number(e.target.value),
+                );
               }}
             >
               <option value="none">No limit</option>
@@ -166,9 +202,9 @@ export function SiteControls({
               className="control-row"
               onSubmit={(e) => {
                 e.preventDefault();
-                void saveRule({
-                  dailyAllowance: { defaultMinutes: Number(custom) },
-                }).then(() => setCustomOpen(false));
+                void saveLimit(Number(custom)).then(
+                  (saved) => saved && setCustomOpen(false),
+                );
               }}
             >
               <label htmlFor="custom-minutes">Minutes per day</label>

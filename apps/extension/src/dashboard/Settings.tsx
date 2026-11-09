@@ -4,6 +4,7 @@ import type { AppState } from "@shared/index";
 import { launchSites } from "@core/sites";
 import { hostMatchesDomain } from "@core/domains";
 import { Switch } from "../ui/SiteControls";
+import { confirmLoosen } from "../ui/ConfirmLoosen";
 import { PrivateAccessGuide } from "../ui/PrivateAccessGuide";
 import type { Notice } from "./index";
 export function Settings({
@@ -133,6 +134,14 @@ export function Settings({
             label="Feed and button blocking"
             checked={state.feedSettings.globalEnabled}
             onChange={async () => {
+              if (
+                state.feedSettings.globalEnabled &&
+                !(await confirmLoosen(
+                  "Turn off all feed and button blocking?",
+                  "Feeds, Shorts and Reels come back on every website.",
+                ))
+              )
+                return;
               const r = await send<AppState>({
                 type: "SET_FEEDS",
                 feedSettings: {
@@ -193,6 +202,11 @@ export function Settings({
               <button
                 className="button secondary"
                 onClick={async () => {
+                  if (
+                    rule.dailyAllowance &&
+                    !(await confirmLoosen(`Remove your ${rule.label} limit?`))
+                  )
+                    return;
                   const r = await send<AppState>({
                     type: "DELETE_RULE",
                     ruleId: rule.id,
