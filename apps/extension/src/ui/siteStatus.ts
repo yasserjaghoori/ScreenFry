@@ -19,6 +19,8 @@ export interface SiteStatus {
     remainingMilliseconds?: number;
     /** When the window itself ends, as a minute of the day. */
     endMinute?: number;
+    /** Earned by meeting an earn goal, rather than a Fry Time window. */
+    earned?: boolean;
   };
 }
 
@@ -47,6 +49,7 @@ export function siteStatus(state: AppState, site: FeedSite, now = Date.now()): S
   const fryWindow = fry && state.windows.find((w) => w.id === fry.windowId);
   const fryTime = fry && {
     label: fry.label,
+    ...(fry.earned ? { earned: true } : {}),
     ...(fry.remainingMilliseconds === undefined
       ? {}
       : { remainingMilliseconds: fry.remainingMilliseconds }),

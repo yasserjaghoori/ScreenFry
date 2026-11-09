@@ -6,6 +6,8 @@ type Fry = NonNullable<SiteStatus["fryTime"]>;
 
 /** "“Evening” is on until 9:00 PM, 12m left." */
 export function fryTimeSummary(fry: Fry): string {
+  if (fry.earned)
+    return `Earned with “${fry.label}”${fry.remainingMilliseconds === undefined ? "" : `, ${formatDuration(fry.remainingMilliseconds)} left`}.`;
   const until = fry.endMinute === undefined ? "" : ` until ${formatMinuteOfDay(fry.endMinute)}`;
   const left =
     fry.remainingMilliseconds === undefined

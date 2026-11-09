@@ -54,8 +54,9 @@ export const DOMAIN_ALIAS_GROUPS: string[][] = [
   ['x.com', 'twitter.com'],
   ['reddit.com', 'redd.it'],
   ['instagram.com', 'instagr.am'],
-  ['facebook.com', 'fb.com', 'fb.watch', 'messenger.com'],
-  ['linkedin.com'],
+  // Messenger stays separate from Facebook, so blocking Facebook leaves messages usable.
+  ['facebook.com', 'fb.com', 'fb.watch'],
+  ['linkedin.com', 'lnkd.in'],
   ['tiktok.com'],
   ['twitch.tv']
 ];

@@ -44,6 +44,19 @@ enum AboutWindow {
         link.target = opener
         link.action = #selector(LinkTarget.open(_:))
 
+        // "Samir and Yasser", each name linking to their site.
+        let credits = NSTextField(labelWithAttributedString: {
+            let text = NSMutableAttributedString(string: "Samir and Yasser", attributes: [
+                .font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.secondaryLabelColor,
+            ])
+            text.addAttribute(.link, value: URL(string: "https://bhron.org")!, range: NSRange(location: 0, length: 5))
+            text.addAttribute(.link, value: URL(string: "https://unjamlabs.com")!, range: NSRange(location: 10, length: 6))
+            return text
+        }())
+        credits.allowsEditingTextAttributes = true // makes the links clickable
+        credits.isSelectable = true
+        credits.alignment = .center
+
         let done = NSButton(title: "Done", target: nil, action: nil)
         done.bezelStyle = .rounded
         done.controlSize = .large
@@ -60,7 +73,7 @@ enum AboutWindow {
             heading("On this Mac"),
             paragraph("Each browser keeps its own settings, usage and optional password; Safari and Chrome don’t share them. Time counts on the focused tab and while audio or video plays. There are no accounts, servers or analytics, and nothing leaves your Mac."),
             heading("Made by"),
-            paragraph("Sam and Yasser."),
+            credits,
             link, done,
         ])
         stack.orientation = .vertical

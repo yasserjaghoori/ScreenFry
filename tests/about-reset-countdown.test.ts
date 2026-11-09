@@ -50,3 +50,19 @@ describe("restore defaults", () => {
     expect(state.usage).toEqual({});
   });
 });
+
+describe("no feed blocking master switch", () => {
+  it("turns an old 'off' into every control off, and keeps the switch on from then on", async () => {
+    const old = createDefaultState();
+    old.feedSettings.sites.youtube.home = true;
+    old.feedSettings.globalEnabled = false;
+    const migrated = migrateState(JSON.parse(JSON.stringify(old)));
+    expect(migrated.feedSettings.globalEnabled).toBe(true);
+    expect(migrated.feedSettings.sites.youtube.home).toBe(false);
+    const store = new MemoryStateStore();
+    const ctx = { store, now: () => Date.now() };
+    const r = await actions.setFeeds(ctx, { ...old.feedSettings });
+    expect(r.ok && r.data.feedSettings).toMatchObject({ globalEnabled: true });
+    expect(r.ok && r.data.feedSettings.sites.youtube.home).toBe(false);
+  });
+});

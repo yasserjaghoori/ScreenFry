@@ -16,6 +16,14 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Loadouts, Fry Time goals, Facebook and LinkedIn — November 9, 2026
+
+- `npm run check` passed **145 unit tests** (new: loadouts switch/fill/copy/empty/reset and password, Fry Time goals with repeats and per-website minutes, the old feed master switch migrating to every control off) and `npm run test:e2e` passed **63 checks** (site counts updated to eight).
+- Removed: settings import/export in the Mac app and bridge (check-ins now carry only version and password state, once a minute rather than after every edit), and the feed blocking master switch.
+- Erase Everything now ends by waiting for ScreenFry to be switched off in Safari, because Safari keeps its on/off memory in a folder no app can change.
+- Popup lag on busy pages: the content script re-ran the full policy check for every video on each media event and up to 20 times a second from page mutations. Decisions and feed settings are now reused within a second, mutation checks are batched to 4 a second, and the popup computes website statuses once per change.
+- Facebook, LinkedIn and X's video feed use stable attributes and URL paths but haven't been checked on the live, signed-in sites. The Mac app compiles; the Safari off-switch step needs a release build to try.
+
 ## Installer auto-close removed — November 9, 2026
 
 - At Sam's request, the attempt to have ScreenFry close the installer after installing is gone: no automatic eject, no install-from-installer flow, no installed/updated banner, and the installer background is back to the original drag instructions. Opening ScreenFry from the installer shows the original "Move ScreenFry to Applications first" note, and a still-mounted installer gets the original notice with an Eject button.

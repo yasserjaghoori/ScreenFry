@@ -31,8 +31,14 @@ let freeTimeLabel: string | undefined;
 let lastReportedPlaying: boolean | undefined,
   lastReportAt = 0;
 /** Saved feed settings, minus this website's while its free time is running. */
+let feedsCache: { state: AppState; href: string; second: number; feeds: FeedSettings } | undefined;
 function feeds(): FeedSettings | undefined {
-  return state && effectiveFeedSettings(state, location.href, Date.now());
+  if (!state) return undefined;
+  // Called for every video on media events; reuse within the same second (see currentDecision).
+  const second = Math.floor(Date.now() / 1000);
+  if (!feedsCache || feedsCache.state !== state || feedsCache.href !== location.href || feedsCache.second !== second)
+    feedsCache = { state, href: location.href, second, feeds: effectiveFeedSettings(state, location.href, Date.now()) };
+  return feedsCache.feeds;
 }
 function singleVideoEnabled() {
   const settings = feeds();
@@ -82,7 +88,7 @@ function blockedMedia(media: HTMLMediaElement): boolean {
   if (
     pageBlocked ||
     beyondLinkedVideo() ||
-    evaluatePolicy(state, location.href, Date.now()).status === "blocked"
+    currentDecision().status === "blocked"
   )
     return true;
   const settings = feeds()!;
@@ -136,6 +142,23 @@ function markXTab() {
   if (document.documentElement.dataset.screenfryXTab !== value)
     document.documentElement.dataset.screenfryXTab = value;
 }
+/**
+ * The policy decision for this page, reused within the same second for the same settings and
+ * address: it only changes with settings, navigation or the clock.
+ */
+let decisionCache: { state: AppState; href: string; second: number; decision: PolicyDecision } | undefined;
+function currentDecision(): PolicyDecision {
+  const now = Date.now();
+  const second = Math.floor(now / 1000);
+  if (
+    !decisionCache ||
+    decisionCache.state !== state ||
+    decisionCache.href !== location.href ||
+    decisionCache.second !== second
+  )
+    decisionCache = { state: state!, href: location.href, second, decision: evaluatePolicy(state!, location.href, now) };
+  return decisionCache.decision;
+}
 function evaluate() {
   if (!state || !/^https?:/.test(location.href) || !document.documentElement)
     return;
@@ -143,7 +166,7 @@ function evaluate() {
   else if (!linkedVideoUrl && tiktokVideoId(location.href))
     linkedVideoUrl = location.href;
   syncScrollGuards();
-  const decision = evaluatePolicy(state, location.href, Date.now());
+  const decision = currentDecision();
   const short = documentShortForm();
   const single = beyondLinkedVideo();
   if (decision.status === "blocked" || short || single) {
@@ -193,7 +216,9 @@ function evaluate() {
     freeTimeLabel = decision.freeTime?.label;
   }
 }
-const queueEvaluation = createBatchedTask(evaluate);
+// Busy pages (TikTok, X) change their layout many times a second; checking at most four
+// times a second is plenty, and the one-second timer covers the clock.
+const queueEvaluation = createBatchedTask(evaluate, 250);
 const overlay = (() => {
   let host: HTMLElement | undefined, pill: HTMLElement, toast: HTMLElement;
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
