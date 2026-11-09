@@ -24,7 +24,8 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
-    timeout-minutes: 40
+    # Apple's notary service can take well over half an hour, especially for a new Developer ID.
+    timeout-minutes: 150
     env:
       HOMEBREW_NO_AUTO_UPDATE: "1"
       HAS_DEVELOPER_ID: ${{ secrets.DEVELOPER_ID_P12 != '' }}
@@ -108,8 +109,9 @@ jobs:
         run: |
           DMG="dist/ScreenFry-${{ steps.version.outputs.version }}.dmg"
           AUTH=(--apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAM_ID }}" --password "${{ secrets.APPLE_APP_PASSWORD }}")
-          OUT=$(xcrun notarytool submit "$DMG" "${AUTH[@]}" --wait 2>&1) || true
-          echo "$OUT"
+          # Stream Apple's progress (and the submission ID) as it happens.
+          xcrun notarytool submit "$DMG" "${AUTH[@]}" --wait --timeout 2h 2>&1 | tee "$RUNNER_TEMP/notary.log" || true
+          OUT=$(cat "$RUNNER_TEMP/notary.log")
           if ! echo "$OUT" | grep -q "status: Accepted"; then
             # Print Apple's reasons so a rejection can be fixed without guessing.
             ID=$(echo "$OUT" | awk '/^ *id:/ {print $2; exit}')
