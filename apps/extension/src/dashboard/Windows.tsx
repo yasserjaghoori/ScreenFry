@@ -18,6 +18,12 @@ import { Switch } from "../ui/SiteControls";
 import type { Notice } from "./index";
 const days: DayOfWeek[] = [1, 2, 3, 4, 5, 6, 0];
 const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const modeNames = {
+  allow: "Allow window",
+  block: "Block window",
+  free: "Free time",
+} as const;
+const modeTones = { allow: "good", block: "warn", free: "subtle" } as const;
 export function Windows({
   state,
   onState,
@@ -60,9 +66,12 @@ export function Windows({
         <p>
           An <strong>allow window</strong> is the only time its websites can be
           used: outside it they are blocked, even with time left. A{" "}
-          <strong>block window</strong> blocks its websites while it is on.
-          Block windows win when both apply, and daily limits always still
-          count. Websites in no window keep their usual settings.
+          <strong>block window</strong> blocks its websites while it is on.{" "}
+          <strong>Free time</strong> pauses its websites’ feed blocking while
+          it is on, for as many minutes as you give it; when they run out (or
+          the window ends) feeds are hidden again. Block windows win when they
+          apply, and daily limits always still count. Websites in no window
+          keep their usual settings.
         </p>
         <button
           className="button"
@@ -95,10 +104,8 @@ export function Windows({
               <div>
                 <h2>
                   {w.label}{" "}
-                  <span
-                    className={`pill ${w.mode === "block" ? "warn" : "good"}`}
-                  >
-                    {w.mode === "block" ? "Block window" : "Allow window"}
+                  <span className={`pill ${modeTones[w.mode ?? "allow"]}`}>
+                    {modeNames[w.mode ?? "allow"]}
                   </span>
                 </h2>
                 <p className="window-time">
@@ -108,7 +115,14 @@ export function Windows({
                     : `${formatMinuteOfDay(w.startMinute)} – ${formatMinuteOfDay(w.endMinute)}`}
                   {w.startMinute > w.endMinute ? " · next day" : ""}
                 </p>
-                <p className="muted small">{describeDays(w.days)}</p>
+                <p className="muted small">
+                  {describeDays(w.days)}
+                  {w.mode === "free"
+                    ? w.freeMinutes === undefined
+                      ? " · feeds open the whole window"
+                      : ` · ${w.freeMinutes} min of open feeds a day`
+                    : ""}
+                </p>
               </div>
               <Switch
                 label={`Enable ${w.label}`}
@@ -194,6 +208,11 @@ export function Windows({
                         "block",
                         "Block these websites",
                         "Usable at other times",
+                      ],
+                      [
+                        "free",
+                        "Free time",
+                        "Feeds unblocked, for a time budget",
                       ],
                     ] as const
                   ).map(([mode, title, hint]) => (
@@ -286,11 +305,43 @@ export function Windows({
                 An end before the start crosses midnight. Equal times mean all
                 day.
               </p>
+              {editing.mode === "free" && (
+                <div className="field">
+                  <label htmlFor="window-free-minutes">
+                    Free time per day (minutes)
+                  </label>
+                  <input
+                    id="window-free-minutes"
+                    type="number"
+                    min={1}
+                    max={1440}
+                    step={1}
+                    placeholder="Whole window"
+                    value={editing.freeMinutes ?? ""}
+                    onChange={(e) =>
+                      setEditing({
+                        ...editing,
+                        freeMinutes:
+                          e.target.value === ""
+                            ? undefined
+                            : Number(e.target.value),
+                      })
+                    }
+                  />
+                  <p className="muted small">
+                    Feed blocking is paused on these websites until this much
+                    time is used inside the window, then it comes back. Leave
+                    empty to pause it for the whole window.
+                  </p>
+                </div>
+              )}
               <fieldset className="group">
                 <legend>
                   {editing.mode === "block"
                     ? "Websites to block"
-                    : "Websites to allow"}
+                    : editing.mode === "free"
+                      ? "Websites with free time"
+                      : "Websites to allow"}
                 </legend>
                 <div className="whitelist">
                   {launchSites.map((s) => {

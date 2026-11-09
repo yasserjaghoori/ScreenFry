@@ -13,8 +13,12 @@ import { hostMatchesDomain } from "@core/domains";
 import { tiktokVideoId } from "@feeds/tiktok";
 import { createBlockedScreen } from "./blocked-screen";
 import { createBatchedTask } from "@browser/scheduling";
-import { evaluatePolicy, matchingRules } from "@policy/index";
-import type { AppState, PolicyDecision } from "@shared/index";
+import {
+  effectiveFeedSettings,
+  evaluatePolicy,
+  matchingRules,
+} from "@policy/index";
+import type { AppState, FeedSettings, PolicyDecision } from "@shared/index";
 const isTop = window === window.top;
 let state: AppState | undefined;
 let pageBlocked = false;
@@ -22,12 +26,19 @@ let linkedVideoUrl = tiktokVideoId(location.href) ? location.href : undefined;
 const blockedScreen = createBlockedScreen();
 let scrollGuardsInstalled = false;
 const STYLE = "screenfry-feed-blocker";
+/** The free-time window that was pausing feed blocking at the last evaluation. */
+let freeTimeLabel: string | undefined;
 let lastReportedPlaying: boolean | undefined,
   lastReportAt = 0;
+/** Saved feed settings, minus this website's while its free time is running. */
+function feeds(): FeedSettings | undefined {
+  return state && effectiveFeedSettings(state, location.href, Date.now());
+}
 function singleVideoEnabled() {
+  const settings = feeds();
   return (
-    state?.feedSettings.globalEnabled &&
-    state.feedSettings.sites.tiktok.singleVideo &&
+    settings?.globalEnabled &&
+    settings.sites.tiktok.singleVideo &&
     siteFor(location.hostname)?.site === "tiktok"
   );
 }
@@ -53,14 +64,15 @@ function applyCss(css: string) {
   if (sheet.parentNode !== parent) parent.append(sheet);
 }
 function documentShortForm(): string | undefined {
-  if (!state) return;
-  const short = activeShortForm(state.feedSettings, location.hostname);
+  const settings = feeds();
+  if (!settings) return;
+  const short = activeShortForm(settings, location.hostname);
   if (!short) return;
   // SPA navigation can update the canonical link before the address bar.
   const canonical = document.querySelector<HTMLLinkElement>(
     'link[rel="canonical"]',
   )?.href;
-  if (canonical && shortFormBlock(state.feedSettings, canonical))
+  if (canonical && shortFormBlock(settings, canonical))
     return short.label;
   if (document.querySelector(short.playerSelectors.join(",")))
     return short.label;
@@ -73,9 +85,10 @@ function blockedMedia(media: HTMLMediaElement): boolean {
     evaluatePolicy(state, location.href, Date.now()).status === "blocked"
   )
     return true;
-  if (shortFormBlock(state.feedSettings, location.href) || documentShortForm())
+  const settings = feeds()!;
+  if (shortFormBlock(settings, location.href) || documentShortForm())
     return true;
-  return enabledElements(state.feedSettings, location.href).some(
+  return enabledElements(settings, location.href).some(
     (element) =>
       element.pauseMedia &&
       element.selectors.some((selector) => {
@@ -135,6 +148,7 @@ function evaluate() {
   const single = beyondLinkedVideo();
   if (decision.status === "blocked" || short || single) {
     pageBlocked = true;
+    freeTimeLabel = undefined;
     // Never wait for a background navigation or stop the document while Safari is loading.
     for (const media of document.querySelectorAll<HTMLMediaElement>(
       "video,audio",
@@ -165,10 +179,19 @@ function evaluate() {
   pageBlocked = false;
   blockedScreen.hide();
   markXTab();
-  applyCss(buildBlockingCss(state.feedSettings, location.href));
+  applyCss(buildBlockingCss(feeds()!, location.href));
   pauseRestrictedMedia();
   reportMedia();
-  if (isTop) overlay.update(decision);
+  if (isTop) {
+    overlay.update(decision);
+    if (freeTimeLabel && !decision.freeTime)
+      overlay.toast(
+        decision.freeTimeOff?.state === "used-up"
+          ? `Today’s free time is used up. Feeds are hidden again.`
+          : `${freeTimeLabel} is over. Feeds are hidden again.`,
+      );
+    freeTimeLabel = decision.freeTime?.label;
+  }
 }
 const queueEvaluation = createBatchedTask(evaluate);
 const overlay = (() => {
@@ -187,10 +210,15 @@ const overlay = (() => {
   }
   return {
     update(decision: PolicyDecision) {
-      const show =
-        state &&
-        matchingRules(state, location.href).some((r) => r.showTimer) &&
-        decision.remainingMilliseconds !== undefined;
+      // Free time with a budget always shows its countdown; daily limits only when asked.
+      const free = decision.freeTime?.remainingMilliseconds;
+      const remaining =
+        free ??
+        (state &&
+        matchingRules(state, location.href).some((r) => r.showTimer)
+          ? decision.remainingMilliseconds
+          : undefined);
+      const show = remaining !== undefined;
       if (!show) {
         pill?.classList.remove("show");
         return;
@@ -208,9 +236,9 @@ const overlay = (() => {
           : 0;
       const seconds = Math.max(
         0,
-        Math.ceil((decision.remainingMilliseconds! - elapsed) / 1000),
+        Math.ceil((remaining! - elapsed) / 1000),
       );
-      const text = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} left today`;
+      const text = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} ${free !== undefined ? "free time left" : "left today"}`;
       if (pill.textContent !== text) pill.textContent = text;
       pill.classList.add("show");
     },

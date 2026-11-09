@@ -47,10 +47,13 @@ The **Windows** page has two kinds of schedule. Each has a name, days, a start a
 
 - **Allow window:** the listed websites work *only* during the window. Outside every allow window they're blocked, even with time left.
 - **Block window:** the listed websites are blocked *during* the window and work normally otherwise.
+- **Free time:** the listed websites' feed blocking is paused *during* the window, for as many minutes a day as you give it (or the whole window). When the minutes run out or the window ends, feeds are hidden again; the website itself stays usable. Time inside counts down in an on-page timer.
 
 If an allow window and a block window overlap, **blocking wins**. Daily limits always still apply.
 
 *Example:* YouTube has a 10-minute limit and allow windows at 12–1 pm and 6–8 pm. That's 10 minutes total for the day, usable in either window, and YouTube is blocked at 3 pm even if none of it was used. A block window from 9 am to 5 pm on weekdays would instead keep YouTube off during work hours.
+
+*Example (one browser for research and fun):* hide YouTube's home feed and Shorts with no daily limit, then add a free-time window from 7–9 pm with 30 minutes. All day, search and links work with the feed hidden; in the evening the feed and Shorts open up for 30 minutes, then hide again.
 
 ## Install
 

@@ -28,7 +28,9 @@ import {
   networkResourceTypes,
 } from "@browser/urls";
 import {
+  effectiveFeedSettings,
   evaluatePolicy,
+  freeWindowsFor,
   matchingRules,
   nextPolicyBoundary,
 } from "@policy/index";
@@ -124,10 +126,13 @@ async function syncNetworkRules(state: AppState) {
         decision.ruleLabel ?? domain,
       );
   });
-  // One rule per site whose "block short-form entirely" setting is on.
+  // One rule per site whose "block short-form entirely" setting is on (and not paused by
+  // free time; the boundary at which free time ends re-runs this sync).
+  const now = Date.now();
   siteDefinitions.forEach((site, index) => {
     const short = site.shortForm;
-    if (!short || !activeShortForm(state.feedSettings, site.domains[0])) return;
+    const feeds = effectiveFeedSettings(state, `https://${site.domains[0]}/`, now);
+    if (!short || !activeShortForm(feeds, site.domains[0])) return;
     const hosts = site.domains.map(escapeRegex).join("|");
     redirect(
       50_001 + index,
@@ -198,6 +203,9 @@ async function currentIdleState(): Promise<IdleState> {
     return "active";
   }
 }
+/** Websites with a rule or a free-time window; nothing is recorded about other browsing. */
+const trackedUrl = (state: AppState, url: string) =>
+  matchingRules(state, url).length > 0 || freeWindowsFor(state, url).length > 0;
 /** Only tabs on websites with a rule are tracked; nothing is recorded about other browsing. */
 async function findTrackableTabs(state: AppState) {
   const [tabs, window, idle] = await Promise.all([
@@ -214,7 +222,7 @@ async function findTrackableTabs(state: AppState) {
     ),
   }));
   return pickTrackedTabs(
-    enriched.filter((t) => matchingRules(state, t.url ?? "").length),
+    enriched.filter((t) => trackedUrl(state, t.url ?? "")),
     window.focused ? window.id : undefined,
     idle,
   );
@@ -247,7 +255,7 @@ async function checkpointTracking(force: boolean) {
       // A newly tracked rule site also needs a fresh start for its on-page timer.
       if (
         JSON.stringify(r.state.usage) !== before ||
-        tabs.some((t) => matchingRules(r.state, t.url ?? "").length)
+        tabs.some((t) => trackedUrl(r.state, t.url ?? ""))
       )
         r.state.usageAsOf = now;
       return r.state;
@@ -412,7 +420,10 @@ function shortFormLabelAllowed(
   url: string,
   label: string,
 ): string | undefined {
-  const short = activeShortForm(state.feedSettings, new URL(url).hostname);
+  const short = activeShortForm(
+    effectiveFeedSettings(state, url, Date.now()),
+    new URL(url).hostname,
+  );
   return short?.label === label ? label : undefined;
 }
 const isExtensionSender = (sender: chrome.runtime.MessageSender) =>

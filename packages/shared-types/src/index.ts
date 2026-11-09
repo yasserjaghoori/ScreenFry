@@ -26,9 +26,13 @@ export interface AccessWindow extends WeeklySchedule {
   /**
    * "allow" (default): the listed websites are usable only inside this window (or another
    * allow window). "block": the listed websites are blocked while this window is active.
-   * When both apply, blocking wins.
+   * When both apply, blocking wins. "free": free time — the listed websites' feed blocking
+   * is paused while the window is on, until `freeMinutes` of use (per day) run out; then
+   * feed blocking returns. It never blocks or unblocks a website.
    */
-  mode?: "allow" | "block";
+  mode?: "allow" | "block" | "free";
+  /** Free-time budget in minutes per day; undefined means the whole window. */
+  freeMinutes?: number;
 }
 export interface WebsiteRule {
   id: string;
@@ -46,6 +50,8 @@ export interface UsageDay {
   /** Time counted toward each website rule. ScreenFry records nothing about other websites. */
   millisecondsByRule: Record<string, number>;
   warningsSent: Record<string, number[]>;
+  /** Free time used per free-time window. */
+  millisecondsByWindow: Record<string, number>;
 }
 export interface PasswordVerifier {
   algorithm: "PBKDF2-SHA-256";
@@ -96,4 +102,11 @@ export interface PolicyDecision {
   nextAccessAt?: number;
   remainingMilliseconds?: number;
   allowanceMinutes?: number;
+  /** Set while a free-time window has paused this website's feed blocking. */
+  freeTime?: { windowId: string; label: string; remainingMilliseconds?: number };
+  /**
+   * Set when this website has free-time windows but none is pausing its feed blocking now:
+   * "used-up" while a window is on but today's minutes are spent, "not-started" outside them.
+   */
+  freeTimeOff?: { state: "used-up" | "not-started"; label: string; nextAt?: number };
 }

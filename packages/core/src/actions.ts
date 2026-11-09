@@ -186,6 +186,11 @@ export function sanitizeWindow(input: AccessWindow): {
     !minutes(input.endMinute)
   )
     return { error: "Choose valid start and end times." };
+  const mode =
+    input.mode === "block" || input.mode === "free" ? input.mode : "allow";
+  const budget = mode === "free" ? input.freeMinutes : undefined;
+  if (budget !== undefined && (!minutes(budget) || budget === 0))
+    return { error: "Free time must be between 1 and 1440 minutes." };
   return {
     window: {
       id: String(input.id || crypto.randomUUID()),
@@ -195,7 +200,8 @@ export function sanitizeWindow(input: AccessWindow): {
       days,
       startMinute: input.startMinute,
       endMinute: input.endMinute,
-      mode: input.mode === "block" ? "block" : "allow",
+      mode,
+      ...(budget !== undefined ? { freeMinutes: budget } : {}),
     },
   };
 }

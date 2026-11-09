@@ -1,4 +1,5 @@
 import type { PolicyDecision } from "@shared/index";
+import { blockedCopy } from "../ui/blocked-copy";
 import animation from "../styles/fry-animation.css?inline";
 
 /** A local, isolated screen: no cross-scheme redirect and no background response required. */
@@ -36,29 +37,18 @@ export function createBlockedScreen() {
       if (!host.isConnected) document.documentElement.append(host);
       if (!dialog.open) dialog.showModal();
       const allowed = decision.status === "allowed" && !singleVideoUrl;
-      const daily = decision.reasons.includes("daily-limit");
+      const copy = blockedCopy(decision, label);
       title.textContent = singleVideoUrl
         ? "One video. Then back to your day."
         : allowed
           ? "You can continue."
-          : daily
-            ? "Time is up!"
-            : `${label} is off for now.`;
+          : copy.title;
       detail.textContent = singleVideoUrl
         ? "Only the linked video is enabled. Scrolling into another video is paused."
         : allowed
           ? "Your website is available again."
-          : daily
-            ? `You’ve used your daily allowance for ${label}. Your timer resets at midnight, every day, in your local time zone.`
-            : decision.reasons.includes("short-form")
-              ? "Short-form playback is turned off."
-              : decision.reasons.includes("site-blocked")
-                ? "You’ve turned on full website blocking."
-                : "This website is outside your allowed browsing time.";
-      next.textContent =
-        !allowed && decision.nextAccessAt
-          ? `Back ${new Date(decision.nextAccessAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}`
-          : "";
+          : copy.details.join(" ");
+      next.textContent = !allowed && !singleVideoUrl ? (copy.next ?? "") : "";
       resume.hidden = !allowed && !singleVideoUrl;
       resume.textContent = singleVideoUrl
         ? "Back to the linked video"

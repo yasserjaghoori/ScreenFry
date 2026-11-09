@@ -39,6 +39,7 @@ export function emptyUsageDay(dateKey: string): UsageDay {
     dateKey,
     millisecondsByRule: {},
     warningsSent: {},
+    millisecondsByWindow: {},
   };
 }
 const object = (x: unknown): x is Record<string, unknown> =>
@@ -98,10 +99,18 @@ export function migrateState(
   if (typeof raw.usageAsOf === "number") state.usageAsOf = raw.usageAsOf;
   state.windows =
     !legacy && Array.isArray(raw.windows)
-      ? (raw.windows as AccessWindow[]).map((w) => ({
-          ...w,
-          mode: w.mode === "block" ? "block" : "allow",
-        }))
+      ? (raw.windows as AccessWindow[]).map((w) => {
+          const mode =
+            w.mode === "block" || w.mode === "free" ? w.mode : "allow";
+          const { freeMinutes, ...rest } = w;
+          return {
+            ...rest,
+            mode,
+            ...(mode === "free" && typeof freeMinutes === "number"
+              ? { freeMinutes }
+              : {}),
+          };
+        })
       : [];
   state.rules = Array.isArray(raw.rules)
     ? (raw.rules as Record<string, unknown>[]).filter(object).map(
@@ -160,6 +169,9 @@ export function migrateState(
           : {},
         warningsSent: object(value.warningsSent)
           ? (value.warningsSent as Record<string, number[]>)
+          : {},
+        millisecondsByWindow: object(value.millisecondsByWindow)
+          ? (value.millisecondsByWindow as Record<string, number>)
           : {},
       };
     }

@@ -7,10 +7,12 @@ import {
   nextLocalMidnight,
 } from "@core/date";
 import { urlMatchesDomains } from "@core/domains";
-import { shortFormBlock } from "@feeds/index";
+import { shortFormBlock, siteFor } from "@feeds/index";
 import type {
+  AccessWindow,
   AppState,
   DayOfWeek,
+  FeedSettings,
   PolicyDecision,
   PolicyReason,
   WebsiteRule,
@@ -82,7 +84,9 @@ export function outsideWindow(
 ): boolean {
   const windows = state.windows.filter(
     (w) =>
-      w.enabled && w.mode !== "block" && urlMatchesDomains(url, w.domains),
+      w.enabled &&
+      (w.mode ?? "allow") === "allow" &&
+      urlMatchesDomains(url, w.domains),
   );
   return (
     windows.length > 0 &&
@@ -102,6 +106,92 @@ export function insideBlockWindow(
       urlMatchesDomains(url, w.domains) &&
       isScheduleActive(w, new Date(now)),
   );
+}
+export const freeWindowsFor = (state: AppState, url: string) =>
+  state.windows.filter(
+    (w) => w.enabled && w.mode === "free" && urlMatchesDomains(url, w.domains),
+  );
+/** Free time left today in a free-time window; undefined when it has no budget. */
+export function freeTimeRemaining(
+  state: AppState,
+  window: AccessWindow,
+  now: number,
+): number | undefined {
+  if (window.freeMinutes === undefined) return undefined;
+  const used =
+    state.usage[localDateKey(new Date(now))]?.millisecondsByWindow?.[
+      window.id
+    ] ?? 0;
+  return Math.max(0, window.freeMinutes * MINUTE - used);
+}
+/**
+ * The free-time window currently pausing this website's feed blocking, if any: one that is
+ * on now and still has free time left today. An unbudgeted window beats a budgeted one.
+ */
+export function activeFreeTime(
+  state: AppState,
+  url: string,
+  now: number,
+): PolicyDecision["freeTime"] {
+  let best: PolicyDecision["freeTime"];
+  for (const w of freeWindowsFor(state, url)) {
+    if (!isScheduleActive(w, new Date(now))) continue;
+    const remaining = freeTimeRemaining(state, w, now);
+    if (remaining === 0) continue;
+    if (
+      !best ||
+      (best.remainingMilliseconds !== undefined &&
+        (remaining === undefined || remaining > best.remainingMilliseconds))
+    )
+      best = { windowId: w.id, label: w.label, remainingMilliseconds: remaining };
+  }
+  return best;
+}
+/**
+ * Why free time isn't running for a website that has free-time windows, and when it next
+ * starts: either a window is on but today's minutes are spent, or no window is on.
+ */
+export function freeTimeOff(
+  state: AppState,
+  url: string,
+  now: number,
+): PolicyDecision["freeTimeOff"] {
+  const windows = freeWindowsFor(state, url);
+  if (!windows.length || activeFreeTime(state, url, now)) return undefined;
+  const spent = windows.find((w) => isScheduleActive(w, new Date(now)));
+  const nextAt = candidateTimes(windows, now, now + HORIZON).find((at) =>
+    activeFreeTime(state, url, at),
+  );
+  const next = windows.find(
+    (w) => nextAt !== undefined && isScheduleActive(w, new Date(nextAt)),
+  );
+  return {
+    state: spent ? "used-up" : "not-started",
+    label: (spent ?? next ?? windows[0]).label,
+    ...(nextAt === undefined ? {} : { nextAt }),
+  };
+}
+/**
+ * The feed settings in force on this page: the saved ones, with this website's feed and
+ * short-form blocking switched off while its free time is running.
+ */
+export function effectiveFeedSettings(
+  state: AppState,
+  url: string,
+  now: number,
+): FeedSettings {
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return state.feedSettings;
+  }
+  const site = siteFor(host);
+  if (!site || !activeFreeTime(state, url, now)) return state.feedSettings;
+  const feeds = structuredClone(state.feedSettings);
+  for (const key of Object.keys(feeds.sites[site.site] ?? {}))
+    feeds.sites[site.site][key] = false;
+  return feeds;
 }
 function decisionAt(
   state: AppState,
@@ -130,7 +220,7 @@ function decisionAt(
   reasons.push(...decisions.flatMap((d) => d.reasons));
   if (outsideWindow(state, url, at)) reasons.push("outside-window");
   if (insideBlockWindow(state, url, at)) reasons.push("block-window");
-  const short = shortFormBlock(state.feedSettings, url);
+  const short = shortFormBlock(effectiveFeedSettings(state, url, at), url);
   if (short) reasons.push("short-form");
   const primary =
     decisions.find((d) => d.status === "blocked") ??
@@ -151,6 +241,10 @@ export function evaluatePolicy(
   now: number,
 ): PolicyDecision {
   const result = decisionAt(state, url, now);
+  const freeTime = activeFreeTime(state, url, now);
+  if (freeTime) result.freeTime = freeTime;
+  const off = freeTimeOff(state, url, now);
+  if (off) result.freeTimeOff = off;
   if (
     result.status !== "blocked" ||
     result.reasons.includes("short-form") ||
