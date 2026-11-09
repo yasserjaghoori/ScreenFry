@@ -6,7 +6,7 @@ import { evaluatePolicy } from "@policy/index";
 import { parseWebUrl } from "@core/domains";
 import { shortFormLabels } from "@feeds/index";
 import type { PolicyDecision } from "@shared/index";
-import { formatWhen } from "../ui/format";
+import { blockedCopy } from "../ui/blocked-copy";
 import "../styles/global.css";
 import "../styles/focus.css";
 import "../styles/fry-animation.css";
@@ -66,6 +66,7 @@ function Blocked() {
     (allowed && shortForm ? requested : decision?.ruleLabel) ??
     (requested || "This website");
   const showContinue = allowed && !shortForm;
+  const copy = decision && blockedCopy(decision, label);
   return (
     <main className="focus-page">
       <section
@@ -78,41 +79,21 @@ function Blocked() {
           <i />
         </span>
         <span className="eyebrow">ScreenFry</span>
-        <h1>
-          {showContinue
-            ? "You can continue."
-            : decision?.reasons.includes("daily-limit")
-              ? "Time is up!"
-              : `${label} is off for now.`}
-        </h1>
-        {(decision?.reasons.includes("short-form") ||
-          (allowed && shortForm)) && (
+        <h1>{showContinue ? "You can continue." : copy?.title ?? `${label} is off for now.`}</h1>
+        {allowed && shortForm && (
           <p className="muted">
             Short-form playback is turned off for this website. Direct links and
             notifications follow the same setting.
           </p>
         )}
-        {decision?.reasons.includes("block-window") && (
-          <p className="muted">One of your block windows is on right now.</p>
-        )}
-        {decision?.reasons.includes("outside-window") && (
-          <p className="muted">This website is outside its allowed windows.</p>
-        )}
-        {decision?.reasons.includes("daily-limit") && (
-          <p className="muted">
-            You’ve used your daily allowance for {label}. Your timer resets at
-            midnight, every day, in your local time zone.
-          </p>
-        )}
-        {decision?.reasons.includes("site-blocked") && (
-          <p className="muted">You’ve turned on full website blocking.</p>
-        )}
+        {!allowed &&
+          copy?.details.map((text) => (
+            <p className="muted" key={text}>
+              {text}
+            </p>
+          ))}
         {!decision && <p className="muted">Checking website settings…</p>}
-        {decision?.nextAccessAt && (
-          <p className="next-access">
-            Back {formatWhen(decision.nextAccessAt)}
-          </p>
-        )}
+        {!allowed && copy?.next && <p className="next-access">{copy.next}</p>}
         {error && (
           <p className="error" role="alert">
             {error}

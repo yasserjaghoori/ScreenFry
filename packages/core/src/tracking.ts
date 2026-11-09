@@ -2,8 +2,12 @@ import { MINUTE, localDateKey, nextLocalMidnight } from "./date";
 import { emptyUsageDay, USAGE_RETENTION_DAYS } from "./defaults";
 import { displayHost } from "./domains";
 import {
+  activeFreeTime,
   evaluatePolicy,
   evaluateRule,
+  freeTimeRemaining,
+  freeWindowsFor,
+  isScheduleActive,
   matchingRules,
   nextPolicyBoundary,
 } from "@policy/index";
@@ -69,15 +73,27 @@ function creditSlice(
   warnings: CreditWarning[],
 ) {
   const rules = new Map<string, string>();
+  const freeWindows = new Set<string>();
   for (const url of urls) {
     // Blocked pages and playback outside a window do not consume a future allowance.
     if (evaluatePolicy(state, url, at).status === "blocked") continue;
     for (const rule of matchingRules(state, url)) rules.set(rule.id, url);
+    for (const w of freeWindowsFor(state, url))
+      if (isScheduleActive(w, new Date(at))) freeWindows.add(w.id);
   }
-  if (!rules.size) return;
+  if (!rules.size && !freeWindows.size) return;
   const key = localDateKey(new Date(at)),
     day = state.usage[key] ?? emptyUsageDay(key);
   state.usage[key] = day;
+  // Free time, like an allowance, counts once per wall-clock second across tabs.
+  day.millisecondsByWindow ??= {};
+  for (const id of freeWindows) {
+    const w = state.windows.find((x) => x.id === id)!;
+    const left = freeTimeRemaining(state, w, at);
+    if (left === 0) continue;
+    day.millisecondsByWindow[id] =
+      (day.millisecondsByWindow[id] ?? 0) + (left === undefined ? ms : Math.min(ms, left));
+  }
   // Several playing tabs on one website consume one second of allowance per wall-clock second.
   for (const [id] of rules) {
     const rule = state.rules.find((r) => r.id === id)!;
@@ -162,6 +178,9 @@ export function nextTrackingBoundary(
   now: number,
 ): number | undefined {
   const times: number[] = [];
+  // When free time runs out, feed blocking returns: credit and re-evaluate right then.
+  const free = activeFreeTime(state, url, now)?.remainingMilliseconds;
+  if (free !== undefined) times.push(now + free);
   for (const rule of matchingRules(state, url)) {
     const d = evaluateRule(state, rule, now);
     if (d.status !== "allowed" || d.remainingMilliseconds === undefined)
