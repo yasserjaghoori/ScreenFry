@@ -26,13 +26,19 @@ export interface AccessWindow extends WeeklySchedule {
   /**
    * "allow" (default): the listed websites are usable only inside this window (or another
    * allow window). "block": the listed websites are blocked while this window is active.
-   * When both apply, blocking wins. "free": free time — the listed websites' feed blocking
-   * is paused while the window is on, until `freeMinutes` of use (per day) run out; then
-   * feed blocking returns. It never blocks or unblocks a website.
+   * A block window overlapping an allow or Fry Time window on a website pauses both.
+   * "free": Fry Time — each listed website's feed blocking is paused while the window is
+   * on, until that website's own minutes (per day) run out; then that website is back to
+   * its normal settings for the rest of the window. It never blocks or unblocks a website.
    */
   mode?: "allow" | "block" | "free";
-  /** Free-time budget in minutes per day; undefined means the whole window. */
+  /** Fry Time minutes per day for each website; undefined means the whole window. */
   freeMinutes?: number;
+  /**
+   * Custom Fry Time minutes per website, keyed by site id (e.g. "youtube") or, for other
+   * websites, their domain. A listed website without an entry gets the whole window.
+   */
+  freeMinutesBySite?: Record<string, number>;
 }
 export interface WebsiteRule {
   id: string;

@@ -50,13 +50,13 @@ The **Windows** page has two kinds of schedule. Each has a name, days, a start a
 
 - **Allow window:** the listed websites work *only* during the window. Outside every allow window they're blocked, even with time left.
 - **Block window:** the listed websites are blocked *during* the window and work normally otherwise.
-- **Free time:** the listed websites' feed blocking is paused *during* the window, for as many minutes a day as you give it (or the whole window). When the minutes run out or the window ends, feeds are hidden again; the website itself stays usable. Time inside counts down in an on-page timer.
+- **Fry Time:** no filter during this time, for a limited amount of time. During the window each listed website's feed blocking is paused until *that website* uses up its own minutes: the same number for every website, or a custom number per website (or the whole window). When a website's minutes run out it's back to its normal settings for the rest of the window, while the others keep theirs; the website itself stays usable. Time left counts down in an on-page timer. While it's on, the website's dot glows in the sidebar and an orange Fry Time bar explains why its switches aren't hiding anything.
 
-Windows can't contradict each other. A block window that overlaps an allow or free-time window on the same website still saves, so you can fix it by editing either one, but **both windows pause** until you do: the editor warns about the clash before you save, a message explains it after saving, and both cards show **Paused** with the reason. Daily limits always still apply. The editor's **All websites** button selects every supported website at once.
+Windows can't contradict each other. A block window that overlaps an allow or Fry Time window on the same website still saves, so you can fix it by editing either one, but **both windows pause** until you do: the editor warns about the clash before you save, a message explains it after saving, and both cards show **Paused** with the reason. Daily limits always still apply. The editor's **All websites** button selects every supported website at once.
 
 *Example:* YouTube has a 10-minute limit and allow windows at 12–1 pm and 6–8 pm. That's 10 minutes total for the day, usable in either window, and YouTube is blocked at 3 pm even if none of it was used. A block window from 9 am to 5 pm on weekdays would instead keep YouTube off during work hours.
 
-*Example (one browser for research and fun):* hide YouTube's home feed and Shorts with no daily limit, then add a free-time window from 7–9 pm with 30 minutes. All day, search and links work with the feed hidden; in the evening the feed and Shorts open up for 30 minutes, then hide again.
+*Example (one browser for research and fun):* hide YouTube's home feed and Shorts with no daily limit, then add a Fry Time window from 7–9 pm with 30 minutes. All day, search and links work with the feed hidden; in the evening the feed and Shorts open up for 30 minutes, then hide again.
 
 ## Install
 

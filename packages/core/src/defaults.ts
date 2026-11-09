@@ -108,13 +108,23 @@ export function migrateState(
       ? (raw.windows as AccessWindow[]).map((w) => {
           const mode =
             w.mode === "block" || w.mode === "free" ? w.mode : "allow";
-          const { freeMinutes, ...rest } = w;
+          const { freeMinutes, freeMinutesBySite, ...rest } = w;
+          const bySite =
+            mode === "free" && object(freeMinutesBySite)
+              ? Object.fromEntries(
+                  Object.entries(freeMinutesBySite).filter(
+                    ([, v]) => typeof v === "number",
+                  ),
+                )
+              : undefined;
           return {
             ...rest,
             mode,
-            ...(mode === "free" && typeof freeMinutes === "number"
-              ? { freeMinutes }
-              : {}),
+            ...(bySite
+              ? { freeMinutesBySite: bySite as Record<string, number> }
+              : mode === "free" && typeof freeMinutes === "number"
+                ? { freeMinutes }
+                : {}),
           };
         })
       : [];

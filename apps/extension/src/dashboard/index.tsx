@@ -10,6 +10,7 @@ import { Icon } from "../ui/Icon";
 import { SiteControls } from "../ui/SiteControls";
 import { SettingsGate } from "../ui/SettingsGate";
 import { siteStatus } from "../ui/siteStatus";
+import { FryTimeBar, fryTimeSummary } from "../ui/FryTime";
 import { Windows } from "./Windows";
 import { Settings } from "./Settings";
 import { About } from "./About";
@@ -66,6 +67,12 @@ function Dashboard() {
     chrome.storage.onChanged.addListener(listener);
     return () => chrome.storage.onChanged.removeListener(listener);
   }, []);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    // Fry Time and windows start and end on the clock; refresh what the sidebar shows.
+    const timer = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(timer);
+  }, []);
   useEffect(() => {
     history.replaceState(null, "", `${location.pathname}?site=${site}#${page}`);
     setNotice(undefined);
@@ -104,14 +111,22 @@ function Dashboard() {
             return (
               <button
                 key={s.id}
-                className="today-row"
+                className={`today-row ${status.fryTime ? "is-fry" : ""}`}
+                title={
+                  status.fryTime
+                    ? `It’s Fry Time on ${s.name}: ${fryTimeSummary(status.fryTime)} Feed blocking is paused.`
+                    : undefined
+                }
                 onClick={() => {
                   setSite(s.id);
                   setPage("websites");
                 }}
               >
                 <span className="today-name">
-                  <span className="dot" style={{ background: s.color }} />
+                  <span
+                    className={`dot ${status.fryTime ? "fry-glow" : ""}`}
+                    style={{ background: s.color }}
+                  />
                   {s.name}
                 </span>
                 <span className={`today-value ${status.blocked ? "blocked" : ""}`}>
@@ -206,6 +221,13 @@ function Dashboard() {
                     <span className="website-name">
                       {s.name}
                       <small>{siteStatus(state, s.id).label}</small>
+                      {siteStatus(state, s.id).fryTime && (
+                        <FryTimeBar
+                          fry={siteStatus(state, s.id).fryTime!}
+                          site={s.name}
+                          compact
+                        />
+                      )}
                     </span>
                     <span className="site-chevron">›</span>
                   </button>

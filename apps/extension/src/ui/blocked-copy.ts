@@ -25,11 +25,11 @@ export function blockedCopy(
     );
   if (free?.state === "used-up")
     details.push(
-      `You’ve used today’s free time in ${free.label}, so feeds and short-form videos are hidden again.`,
+      `You’ve used today’s Fry Time in ${free.label}, so feeds and short-form videos are hidden again.`,
     );
   else if (free)
     details.push(
-      `Short-form videos are off outside your free time. ${free.label} isn’t on right now.`,
+      `Short-form videos are off outside your Fry Time. ${free.label} isn’t on right now.`,
     );
   else if (has("short-form"))
     details.push(
@@ -39,13 +39,13 @@ export function blockedCopy(
   const next = decision.nextAccessAt
     ? `Back ${formatWhen(decision.nextAccessAt, now)}`
     : free?.nextAt
-      ? `${free.state === "used-up" ? "Free time is back" : "Free time starts"} ${formatWhen(free.nextAt, now)}`
+      ? `${free.state === "used-up" ? "Fry Time is back" : "Fry Time starts"} ${formatWhen(free.nextAt, now)}`
       : undefined;
   return {
     title: has("daily-limit")
       ? "Time is up!"
       : free?.state === "used-up"
-        ? "Free time is up!"
+        ? "Fry Time is up!"
         : `${label} is off for now.`,
     details,
     next,

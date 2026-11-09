@@ -123,18 +123,46 @@ export const freeWindowsFor = (state: AppState, url: string) =>
   runningWindows(state.windows).filter(
     (w) => w.mode === "free" && urlMatchesDomains(url, w.domains),
   );
-/** Free time left today in a free-time window; undefined when it has no budget. */
+/** The key a Fry Time budget uses for a domain: its site id ("youtube"), else the domain. */
+export const fryKeyForDomain = (domain: string) => siteFor(domain)?.site ?? domain;
+/** Which of the window's websites a URL belongs to, as a Fry Time key. */
+export function fryKeyFor(window: AccessWindow, url: string): string {
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    /* not a web address */
+  }
+  const site = siteFor(host)?.site;
+  if (site) return site;
+  return window.domains.find((d) => hostMatchesDomain(host, d)) ?? host;
+}
+/** A website's Fry Time minutes in a window; undefined means the whole window. */
+export function fryMinutesFor(window: AccessWindow, key: string): number | undefined {
+  return window.freeMinutesBySite
+    ? window.freeMinutesBySite[key]
+    : window.freeMinutes;
+}
+/** Where a website's Fry Time use in a window is counted (per website, per day). */
+export const fryUsageKey = (window: AccessWindow, key: string) => `${window.id}:${key}`;
+/**
+ * Fry Time left today for this website in a Fry Time window; undefined when it has no
+ * budget. Each website has its own minutes: one running out doesn't end another's.
+ */
 export function freeTimeRemaining(
   state: AppState,
   window: AccessWindow,
+  url: string,
   now: number,
 ): number | undefined {
-  if (window.freeMinutes === undefined) return undefined;
+  const key = fryKeyFor(window, url);
+  const budget = fryMinutesFor(window, key);
+  if (budget === undefined) return undefined;
   const used =
     state.usage[localDateKey(new Date(now))]?.millisecondsByWindow?.[
-      window.id
+      fryUsageKey(window, key)
     ] ?? 0;
-  return Math.max(0, window.freeMinutes * MINUTE - used);
+  return Math.max(0, budget * MINUTE - used);
 }
 /**
  * The free-time window currently pausing this website's feed blocking, if any: one that is
@@ -148,7 +176,7 @@ export function activeFreeTime(
   let best: PolicyDecision["freeTime"];
   for (const w of freeWindowsFor(state, url)) {
     if (!isScheduleActive(w, new Date(now))) continue;
-    const remaining = freeTimeRemaining(state, w, now);
+    const remaining = freeTimeRemaining(state, w, url, now);
     if (remaining === 0) continue;
     if (
       !best ||

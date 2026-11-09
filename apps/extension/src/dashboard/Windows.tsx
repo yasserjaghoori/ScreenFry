@@ -1,7 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { send } from "@browser/messages";
 import { launchSites } from "@core/sites";
-import { expandDomainAliases, hostMatchesDomain } from "@core/domains";
+import {
+  expandDomainAliases,
+  hostMatchesDomain,
+  normalizeDomain,
+} from "@core/domains";
 import {
   ALL_DAYS,
   type AccessWindow,
@@ -14,10 +18,12 @@ import {
 } from "../ui/format";
 import { Switch } from "../ui/SiteControls";
 import { confirmLoosen } from "../ui/ConfirmLoosen";
+import { confirmDialog } from "../ui/ConfirmDialog";
 import { TimePicker } from "../ui/TimePicker";
 import { passwordGate } from "../ui/PasswordPrompt";
 import {
   describeConflict,
+  fryKeyForDomain,
   suspendedWindowIds,
   windowConflicts,
 } from "@policy/index";
@@ -27,7 +33,7 @@ const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const modeNames = {
   allow: "Allow window",
   block: "Block window",
-  free: "Free time",
+  free: "Fry Time",
 } as const;
 const modeTones = { allow: "good", block: "warn", free: "subtle" } as const;
 export function Windows({
@@ -43,16 +49,51 @@ export function Windows({
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [custom, setCustom] = useState("");
+  /** The window and Other websites text as they were when the editor opened. */
+  const original = useRef<{ window: string; custom: string }>(undefined);
   const supportedDomains = expandDomainAliases(
     launchSites.map((s) => s.domain),
   );
   function edit(w: AccessWindow) {
+    const typed = w.domains.filter((d) => !supportedDomains.includes(d)).join(", ");
+    original.current = { window: JSON.stringify(w), custom: typed };
     setEditing(structuredClone(w));
     setError("");
-    setCustom(
-      w.domains.filter((d) => !supportedDomains.includes(d)).join(", "),
-    );
+    setCustom(typed);
   }
+  /** Close the editor, asking first when it has unsaved changes. */
+  const closing = useRef(false);
+  async function requestClose() {
+    if (!editing || closing.current) return;
+    const changed =
+      JSON.stringify(editing) !== original.current?.window ||
+      custom !== original.current?.custom;
+    if (changed) {
+      closing.current = true;
+      const discard = await confirmDialog({
+        question: "Close without saving?",
+        detail: "Your changes to this window will be lost.",
+        yes: "Close without saving",
+        no: "Keep editing",
+      });
+      closing.current = false;
+      if (!discard) return;
+    }
+    setEditing(undefined);
+  }
+  const requestCloseRef = useRef(requestClose);
+  requestCloseRef.current = requestClose;
+  const editorOpen = Boolean(editing);
+  useEffect(() => {
+    if (!editorOpen) return;
+    const key = (e: KeyboardEvent) => {
+      // Escape belongs to a password or confirm prompt open on top of the editor, if any.
+      const prompt = document.querySelector('[aria-modal="true"]:not(.modal)');
+      if (e.key === "Escape" && !prompt) void requestCloseRef.current();
+    };
+    document.addEventListener("keydown", key);
+    return () => document.removeEventListener("keydown", key);
+  }, [editorOpen]);
   const allSelected = (w: AccessWindow) =>
     launchSites.every((s) =>
       w.domains.some((d) => hostMatchesDomain(s.domain, d)),
@@ -63,6 +104,24 @@ export function Windows({
     ...custom.split(/[\s,]+/).filter(Boolean),
   ];
   const suspended = suspendedWindowIds(state.windows);
+  const fryCustom = Boolean(editing && editing.freeMinutesBySite);
+  /** Websites typed under Other websites, as Fry Time keys. */
+  const otherDomains = [
+    ...new Set(
+      custom
+        .split(/[\s,]+/)
+        .filter(Boolean)
+        .map((d) => normalizeDomain(d))
+        .filter((d) => d && !supportedDomains.includes(d)),
+    ),
+  ];
+  function setFryMinutes(key: string, value: number | undefined) {
+    if (!editing) return;
+    const next = { ...editing.freeMinutesBySite };
+    if (value === undefined) delete next[key];
+    else next[key] = value;
+    setEditing({ ...editing, freeMinutesBySite: next });
+  }
   const editingConflict =
     editing &&
     windowConflicts(state.windows, {
@@ -98,10 +157,12 @@ export function Windows({
           An <strong>allow window</strong> is the only time its websites can be
           used: outside it they are blocked, even with time left. A{" "}
           <strong>block window</strong> blocks its websites while it is on.{" "}
-          <strong>Free time</strong> pauses its websites’ feed blocking while
-          it is on, for as many minutes as you give it; when they run out (or
-          the window ends) feeds are hidden again. A block window that overlaps
-          an allow or free-time window on the same website contradicts it, so
+          <strong>Fry Time</strong> means no filter for a limited time: while
+          it is on, each website’s feed blocking is paused until that website
+          uses up its own minutes (the same for every website, or custom per
+          website); then that website is back to its normal settings until the
+          window ends. A block window that overlaps
+          an allow or Fry Time window on the same website contradicts it, so
           both pause until you change one. Daily limits always still count.
           Websites in no window keep their usual settings.
         </p>
@@ -155,11 +216,7 @@ export function Windows({
                 </p>
                 <p className="muted small">
                   {describeDays(w.days)}
-                  {w.mode === "free"
-                    ? w.freeMinutes === undefined
-                      ? " · feeds open the whole window"
-                      : ` · ${w.freeMinutes} min of open feeds a day`
-                    : ""}
+                  {w.mode === "free" ? ` · ${describeFry(w)}` : ""}
                 </p>
               </div>
               <Switch
@@ -233,11 +290,22 @@ export function Windows({
                 void save({ ...editing, domains: editedDomains(editing) });
               }}
             >
-              <h2 id="window-title">
-                {state.windows.some((w) => w.id === editing.id)
-                  ? "Edit window"
-                  : "New window"}
-              </h2>
+              <div className="modal-head">
+                <h2 id="window-title">
+                  {state.windows.some((w) => w.id === editing.id)
+                    ? "Edit window"
+                    : "New window"}
+                </h2>
+                <button
+                  type="button"
+                  className="modal-close"
+                  aria-label="Close"
+                  title="Close (Esc)"
+                  onClick={() => void requestClose()}
+                >
+                  ×
+                </button>
+              </div>
               <fieldset className="group">
                 <legend>During this window</legend>
                 <div className="segmented" role="radiogroup">
@@ -255,8 +323,8 @@ export function Windows({
                       ],
                       [
                         "free",
-                        "Free time",
-                        "Feeds unblocked, for a time budget",
+                        "Fry Time",
+                        "No filter during this time, for a limited amount of time",
                       ],
                     ] as const
                   ).map(([mode, title, hint]) => (
@@ -340,41 +408,78 @@ export function Windows({
                 day.
               </p>
               {editing.mode === "free" && (
-                <div className="field">
-                  <label htmlFor="window-free-minutes">
-                    Free time per day (minutes)
-                  </label>
-                  <input
-                    id="window-free-minutes"
-                    type="number"
-                    min={1}
-                    max={1440}
-                    step={1}
-                    placeholder="Whole window"
-                    value={editing.freeMinutes ?? ""}
-                    onChange={(e) =>
-                      setEditing({
-                        ...editing,
-                        freeMinutes:
-                          e.target.value === ""
-                            ? undefined
-                            : Number(e.target.value),
-                      })
-                    }
-                  />
+                <fieldset className="group">
+                  <legend>Fry Time for each website</legend>
+                  <div className="segmented" role="radiogroup">
+                    {(
+                      [
+                        [false, "Same for every website", "Each website gets these minutes"],
+                        [true, "Custom per website", "Set minutes beside each website below"],
+                      ] as const
+                    ).map(([custom, title, hint]) => (
+                      <button
+                        type="button"
+                        key={title}
+                        role="radio"
+                        aria-checked={fryCustom === custom}
+                        className={fryCustom === custom ? "selected" : ""}
+                        onClick={() =>
+                          setEditing(
+                            custom
+                              ? {
+                                  ...editing,
+                                  freeMinutes: undefined,
+                                  freeMinutesBySite: editing.freeMinutesBySite ?? {},
+                                }
+                              : { ...editing, freeMinutesBySite: undefined },
+                          )
+                        }
+                      >
+                        <strong>{title}</strong>
+                        <span>{hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {!fryCustom && (
+                    <div className="field fry-same">
+                      <label htmlFor="window-free-minutes">
+                        Minutes per website, per day
+                      </label>
+                      <input
+                        id="window-free-minutes"
+                        type="number"
+                        min={1}
+                        max={1440}
+                        step={1}
+                        placeholder="Whole window"
+                        value={editing.freeMinutes ?? ""}
+                        onChange={(e) =>
+                          setEditing({
+                            ...editing,
+                            freeMinutes:
+                              e.target.value === ""
+                                ? undefined
+                                : Number(e.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                  )}
                   <p className="muted small">
-                    Feed blocking is paused on these websites until this much
-                    time is used inside the window, then it comes back. Leave
-                    empty to pause it for the whole window.
+                    During this window, each website’s feed blocking is paused
+                    until that website uses up its own minutes. Then it’s back to
+                    its normal settings for the rest of the window, while other
+                    websites keep their Fry Time. Leave a box empty to pause it
+                    for the whole window.
                   </p>
-                </div>
+                </fieldset>
               )}
               <fieldset className="group">
                 <legend>
                   {editing.mode === "block"
                     ? "Websites to block"
                     : editing.mode === "free"
-                      ? "Websites with free time"
+                      ? "Websites with Fry Time"
                       : "Websites to allow"}
                 </legend>
                 <button
@@ -405,7 +510,8 @@ export function Windows({
                     );
                     const aliases = expandDomainAliases([s.domain]);
                     return (
-                      <label className="check" key={s.id}>
+                      <div className="check-row" key={s.id}>
+                      <label className="check">
                         <input
                           type="checkbox"
                           checked={selected}
@@ -422,6 +528,14 @@ export function Windows({
                         />
                         {s.name}
                       </label>
+                      {fryCustom && selected && (
+                        <FryMinutes
+                          name={s.name}
+                          value={editing.freeMinutesBySite?.[s.id]}
+                          onChange={(value) => setFryMinutes(s.id, value)}
+                        />
+                      )}
+                      </div>
                     );
                   })}
                 </div>
@@ -433,6 +547,20 @@ export function Windows({
                     onChange={(e) => setCustom(e.target.value)}
                   />
                 </label>
+                {fryCustom && otherDomains.length > 0 && (
+                  <div className="whitelist">
+                    {otherDomains.map((domain) => (
+                      <div className="check-row" key={domain}>
+                        <span className="check">{domain}</span>
+                        <FryMinutes
+                          name={domain}
+                          value={editing.freeMinutesBySite?.[domain]}
+                          onChange={(value) => setFryMinutes(domain, value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </fieldset>
               {editingConflict ? (
                 <p className="window-conflict" role="alert">
@@ -452,7 +580,7 @@ export function Windows({
                 <button
                   type="button"
                   className="button secondary"
-                  onClick={() => setEditing(undefined)}
+                  onClick={() => void requestClose()}
                 >
                   Cancel
                 </button>
@@ -466,6 +594,52 @@ export function Windows({
       )}
     </>
   );
+}
+/** Minutes box beside a website in custom Fry Time. Empty means the whole window. */
+function FryMinutes({
+  name,
+  value,
+  onChange,
+}: {
+  name: string;
+  value: number | undefined;
+  onChange: (value: number | undefined) => void;
+}) {
+  return (
+    <label className="fry-minutes">
+      <input
+        type="number"
+        min={1}
+        max={1440}
+        step={1}
+        placeholder="All"
+        aria-label={`${name} Fry Time minutes per day`}
+        value={value ?? ""}
+        onChange={(e) =>
+          onChange(e.target.value === "" ? undefined : Number(e.target.value))
+        }
+      />
+      min
+    </label>
+  );
+}
+/** "10 min per website a day", or each website's own minutes. */
+function describeFry(w: AccessWindow): string {
+  if (w.freeMinutesBySite) {
+    const parts = Object.entries(w.freeMinutesBySite).map(
+      ([key, minutes]) =>
+        `${launchSites.find((s) => s.id === key)?.name ?? key} ${minutes} min`,
+    );
+    const unset = [...new Set(w.domains.map(fryKeyForDomain))].some(
+      (key) => w.freeMinutesBySite![key] === undefined,
+    );
+    return parts.length
+      ? `Fry Time: ${parts.join(", ")} a day${unset ? " (others: whole window)" : ""}`
+      : "feeds open the whole window";
+  }
+  return w.freeMinutes === undefined
+    ? "feeds open the whole window"
+    : `${w.freeMinutes} min of Fry Time per website a day`;
 }
 /** Allow and block windows restrict you, so switching one off or deleting it asks first. */
 function confirmWindowOff(w: AccessWindow, action: "off" | "delete") {

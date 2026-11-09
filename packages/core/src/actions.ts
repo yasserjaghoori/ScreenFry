@@ -9,6 +9,7 @@ import {
   verifyPassword,
 } from "./password";
 import { pruneUsage } from "./tracking";
+import { fryKeyForDomain } from "@policy/index";
 import type { StateStore } from "./store";
 import type {
   AccessWindow,
@@ -190,7 +191,19 @@ export function sanitizeWindow(input: AccessWindow): {
     input.mode === "block" || input.mode === "free" ? input.mode : "allow";
   const budget = mode === "free" ? input.freeMinutes : undefined;
   if (budget !== undefined && (!minutes(budget) || budget === 0))
-    return { error: "Free time must be between 1 and 1440 minutes." };
+    return { error: "Fry Time must be between 1 and 1440 minutes." };
+  // Custom minutes per website: only for websites in this window, each 1–1440.
+  let bySite: Record<string, number> | undefined;
+  if (mode === "free" && input.freeMinutesBySite && typeof input.freeMinutesBySite === "object") {
+    const keys = new Set(domains.map(fryKeyForDomain));
+    bySite = {};
+    for (const [key, value] of Object.entries(input.freeMinutesBySite)) {
+      if (!keys.has(key) || value === undefined || value === null) continue;
+      if (!minutes(value) || value === 0)
+        return { error: "Each website’s Fry Time must be between 1 and 1440 minutes." };
+      bySite[key] = value;
+    }
+  }
   return {
     window: {
       id: String(input.id || crypto.randomUUID()),
@@ -201,7 +214,11 @@ export function sanitizeWindow(input: AccessWindow): {
       startMinute: input.startMinute,
       endMinute: input.endMinute,
       mode,
-      ...(budget !== undefined ? { freeMinutes: budget } : {}),
+      ...(bySite
+        ? { freeMinutesBySite: bySite }
+        : budget !== undefined
+          ? { freeMinutes: budget }
+          : {}),
     },
   };
 }
