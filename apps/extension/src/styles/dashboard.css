@@ -818,3 +818,14 @@
   font-size: 13px;
   line-height: 1.45;
 }
+
+/* The password section, pulsing briefly when someone is sent here to set one up. */
+.password-block { scroll-margin: 24px; transition: box-shadow 300ms, border-color 300ms; }
+.password-block.is-highlighted {
+  border-color: var(--accent);
+  animation: password-pulse 1.2s ease-out 2;
+}
+@keyframes password-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent), var(--shadow); }
+  100% { box-shadow: 0 0 0 14px transparent, var(--shadow); }
+}

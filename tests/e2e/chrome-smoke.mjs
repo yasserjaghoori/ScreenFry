@@ -234,6 +234,19 @@ try {
     controller.session,
     `document.querySelector('#daily-limit').value='5';document.querySelector('#daily-limit').dispatchEvent(new Event('change',{bubbles:true}))`,
   );
+  // The first change without a password suggests one; "Not now" carries on with it.
+  await waitFor(
+    () => evaluate(controller.session, `!!document.querySelector('.password-prompt')`),
+    "first-change password prompt",
+  );
+  check(
+    "first change suggests password protection and explains it",
+    /Set up password/.test(await body()) && /Never adds time/.test(await body()),
+  );
+  await evaluate(
+    controller.session,
+    `[...document.querySelectorAll('.password-prompt button')].find(b=>b.textContent==='Not now').click()`,
+  );
   await waitFor(
     async () =>
       (await getState()).rules.find((r) => r.id === "youtube").dailyAllowance
@@ -241,6 +254,14 @@ try {
     "daily limit control",
   );
   check("daily limit selector persists five minutes", true);
+  check(
+    "the password prompt is shown only once",
+    (await getState()).passwordPromptSeen === true &&
+      (await evaluate(
+        controller.session,
+        `document.querySelector('#daily-limit').value='5';document.querySelector('#daily-limit').dispatchEvent(new Event('change',{bubbles:true}));new Promise(r=>setTimeout(()=>r(!document.querySelector('.password-prompt')),300))`,
+      )),
+  );
   await screenshot(controller, "websites.png");
   await evaluate(
     controller.session,

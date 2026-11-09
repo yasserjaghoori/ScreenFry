@@ -7,6 +7,7 @@ import type { AppState, FeedSite, WebsiteRule } from "@shared/index";
 import { formatDuration } from "./format";
 import { siteStatus } from "./siteStatus";
 import { confirmLoosen, loosenQuestion } from "./ConfirmLoosen";
+import { passwordGate } from "./PasswordPrompt";
 export function Switch({
   label,
   checked,
@@ -55,6 +56,7 @@ export function SiteControls({
   const current = rule.dailyAllowance?.defaultMinutes;
   const [customOpen, setCustomOpen] = useState(false);
   async function saveRule(patch: Partial<WebsiteRule>) {
+    if (!(await passwordGate(state))) return;
     setBusy(true);
     const result = await send<AppState>({
       type: "SAVE_RULE",
@@ -66,6 +68,7 @@ export function SiteControls({
   }
   /** Ask before giving more time: removing a limit or raising it. */
   async function saveLimit(minutes: number | undefined) {
+    if (!(await passwordGate(state))) return false;
     const loosens =
       current !== undefined && (minutes === undefined || minutes > current);
     if (
@@ -85,6 +88,7 @@ export function SiteControls({
     return true;
   }
   async function toggleBlocked() {
+    if (!(await passwordGate(state))) return;
     if (
       rule.blocked &&
       !(await confirmLoosen(`Unblock ${definition.name}?`))
@@ -93,6 +97,7 @@ export function SiteControls({
     await saveRule({ blocked: !rule.blocked });
   }
   async function toggle(key: string) {
+    if (!(await passwordGate(state))) return;
     if (state.feedSettings.sites[site]?.[key] === true) {
       const shortForm = definition.shortForm;
       const question =

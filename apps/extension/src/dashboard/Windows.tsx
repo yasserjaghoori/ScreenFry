@@ -15,6 +15,7 @@ import {
 import { Switch } from "../ui/SiteControls";
 import { confirmLoosen } from "../ui/ConfirmLoosen";
 import { TimePicker } from "../ui/TimePicker";
+import { passwordGate } from "../ui/PasswordPrompt";
 import { describeConflict, windowConflicts } from "@policy/index";
 import type { Notice } from "./index";
 const days: DayOfWeek[] = [1, 2, 3, 4, 5, 6, 0];
@@ -60,6 +61,7 @@ export function Windows({
       domains: editedDomains(editing),
     })[0];
   async function save(w: AccessWindow) {
+    if (!(await passwordGate(state))) return;
     setBusy(true);
     const r = await send<AppState>({ type: "SAVE_WINDOW", window: w });
     setBusy(false);
@@ -141,6 +143,7 @@ export function Windows({
                 checked={w.enabled}
                 disabled={busy}
                 onChange={async () => {
+                  if (!(await passwordGate(state))) return;
                   if (w.enabled && !(await confirmWindowOff(w, "off"))) return;
                   void save({ ...w, enabled: !w.enabled });
                 }}
@@ -173,6 +176,7 @@ export function Windows({
                 className="button ghost danger"
                 disabled={busy}
                 onClick={async () => {
+                  if (!(await passwordGate(state))) return;
                   if (w.enabled && !(await confirmWindowOff(w, "delete"))) return;
                   setBusy(true);
                   const r = await send<AppState>({
