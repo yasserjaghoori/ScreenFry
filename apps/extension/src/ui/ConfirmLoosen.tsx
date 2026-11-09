@@ -9,6 +9,8 @@ import { createRoot } from "react-dom/client";
  * - First ask: the Yes button jumps away the first time you reach for it (hover, tap or
  *   keyboard), then springs back and can be clicked.
  * - Second ask ("Are you sure?"): the first click bounces off Yes, then the next one counts.
+ * The "nope!"/"boing!" bubble and the line explaining what happened stay up afterwards, so
+ * it's always clear what to do next.
  */
 export function confirmLoosen(question: string, detail?: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -43,6 +45,8 @@ function LoosenDialog({
   const [dodged, setDodged] = useState(false);
   const [deflected, setDeflected] = useState(false);
   const [motion, setMotion] = useState<Motion>("idle");
+  /** What last happened to Yes on this ask; stays shown until the next ask. */
+  const [note, setNote] = useState<Exclude<Motion, "idle">>();
   const [side, setSide] = useState<1 | -1>(1);
   const [spark, setSpark] = useState<{ x: number; y: number; key: number }>();
   const no = useRef<HTMLButtonElement>(null);
@@ -62,6 +66,7 @@ function LoosenDialog({
     // Yes sits on the right, so it dodges left, leapfrogging No, to stay inside the dialog.
     setSide(next === "dodge" || Math.random() < 0.5 ? -1 : 1);
     setMotion(next);
+    if (next !== "idle") setNote(next);
     clearTimeout(timer.current);
     timer.current = setTimeout(() => setMotion("idle"), ms);
   }
@@ -75,6 +80,7 @@ function LoosenDialog({
     if (stage === "ask") {
       // Touch and keyboard never hover, so their first try is the one that gets dodged.
       if (!dodged) return dodge();
+      setNote(undefined);
       setStage("really");
       return;
     }
@@ -126,18 +132,18 @@ function LoosenDialog({
             onClick={clickYes}
           >
             {really ? "Yes, I’m sure" : "Yes"}
-            {motion !== "idle" && (
-              <span className="loosen-bubble" aria-hidden="true">
-                {motion === "dodge" ? "nope!" : "boing!"}
+            {note && (
+              <span key={note} className="loosen-bubble" aria-hidden="true">
+                {note === "dodge" ? "nope!" : "boing!"}
               </span>
             )}
           </button>
         </div>
-        <p className="loosen-status" role="status">
-          {motion === "dodge"
-            ? "The Yes button dodged you. Try again."
-            : motion === "deflect"
-              ? "Your click bounced off. Try once more if you mean it."
+        <p className={`loosen-status ${note ? "is-shown" : ""}`} role="status">
+          {note === "dodge"
+            ? "The Yes button dodged you. Click Yes again if you mean it."
+            : note === "deflect"
+              ? "Your click bounced off. Click “Yes, I’m sure” once more if you mean it."
               : ""}
         </p>
       </section>

@@ -19,6 +19,7 @@ export type Request = (
   | { type: "PASSWORD_PROMPT_SEEN" }
   | { type: "REFRESH_PROTECTION" }
   | { type: "RESET_ALL" }
+  | { type: "OPEN_SAFARI_SETTINGS" }
 ) & { password?: string };
 export const CONTENT_SCRIPT_REQUESTS: ReadonlySet<Request["type"]> = new Set([
   "GET_POLICY",

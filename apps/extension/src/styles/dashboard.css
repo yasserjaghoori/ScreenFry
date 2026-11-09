@@ -135,6 +135,19 @@
   font-size: 12px;
   font-weight: 600;
 }
+.sidebar-foot p { margin: 6px 0 0; }
+.about-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--muted);
+  cursor: pointer;
+}
+.about-link:hover,
+.about-link.active { color: var(--accent); }
 .main {
   padding: 40px clamp(20px, 4vw, 60px) 64px;
   max-width: 1250px;
@@ -546,6 +559,9 @@
   .brand,
   .today,
   .sidebar-foot {
+    padding-top: 8px;
+  }
+  .sidebar-foot p {
     display: none;
   }
   .nav {
@@ -829,3 +845,61 @@
   0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent), var(--shadow); }
   100% { box-shadow: 0 0 0 14px transparent, var(--shadow); }
 }
+
+/* A window paused because it contradicts another one. */
+.window-card.is-paused { border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.window-card.is-paused .window-time,
+.window-card.is-paused .window-sites { opacity: 0.6; }
+
+/* "All websites" in the window editor. */
+.all-sites { margin: 0 0 10px; padding: 6px 12px; font-size: 13px; }
+.all-sites[aria-pressed="true"] { background: var(--accent-soft); border-color: transparent; }
+
+/* About page */
+.about-head { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }
+.about-head img { width: 56px; height: 56px; }
+.about-head h2 { margin: 0; }
+.about-head p { margin: 2px 0 0; }
+
+/* Restore defaults sits apart from everyday settings. */
+.reset-block { border-color: color-mix(in srgb, var(--danger, #c0392b) 30%, transparent); }
+.settings-block a { color: var(--accent); font-weight: 600; }
+
+/* The window editor's header with its close button, which stays reachable while scrolling. */
+.modal-head {
+  position: sticky;
+  top: -28px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -28px -28px 0;
+  padding: 22px 28px 12px;
+  background: var(--paper);
+}
+.modal-close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.modal-close:hover { color: var(--accent); border-color: var(--accent); }
+@media (max-width: 640px) {
+  .modal-head { top: -20px; margin: -20px -20px 0; padding: 16px 20px 10px; }
+}
+.website-name .fry-bar.compact { justify-self: start; }
+
+/* Custom Fry Time: a minutes box beside each selected website. */
+.check-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.fry-minutes { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.fry-minutes input { width: 64px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; text-align: right; }
+.fry-same { margin: 12px 0 6px; }

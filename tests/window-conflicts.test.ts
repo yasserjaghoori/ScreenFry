@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import * as actions from "@core/actions";
 import { MemoryStateStore } from "@core/store";
-import { describeConflict, windowConflicts } from "@policy/index";
+import {
+  describeConflict,
+  evaluatePolicy,
+  runningWindows,
+  suspendedWindowIds,
+  windowConflicts,
+} from "@policy/index";
+import { createDefaultState } from "@core/defaults";
 import type { AccessWindow } from "@shared/index";
 
 const youtubeAndX = ["youtube.com", "youtu.be", "x.com", "twitter.com"];
@@ -24,7 +31,7 @@ describe("contradicting windows", () => {
     const [conflict] = windowConflicts([morning], noX);
     expect(conflict).toMatchObject({ other: morning, sites: ["YouTube", "X"], day: 1, minute: 675 });
     expect(describeConflict(noX, conflict)).toBe(
-      "“No X or YouTube” blocks YouTube and X while “Morning BrainRot” allows them (overlap starts Mon 11:15 AM). Change the times, days or websites so they don’t overlap.",
+      "“No X or YouTube” blocks YouTube and X while “Morning BrainRot” allows them (overlap starts Mon 11:15 AM). Both are paused until you change the times, days or websites so they don’t overlap.",
     );
     // Reported the same way whichever window is being saved.
     expect(describeConflict(morning, windowConflicts([noX], morning)[0])).toContain(
@@ -57,20 +64,34 @@ describe("contradicting windows", () => {
     const allDay = win({ id: "all", mode: "block", days: [3], startMinute: 0, endMinute: 0 });
     expect(windowConflicts([morning], allDay)[0]).toMatchObject({ day: 3, minute: 675 });
   });
-  it("is refused when saving, switching on or importing, but editing either side to fix it works", async () => {
+  it("is saved, but pauses both windows until either one is edited to fix it", async () => {
     const store = new MemoryStateStore();
     const ctx = { store, now: () => Date.now() };
     expect((await actions.saveWindow(ctx, morning)).ok).toBe(true);
-    const refused = await actions.saveWindow(ctx, noX);
-    expect(refused.ok).toBe(false);
-    expect(!refused.ok && refused.error).toContain("“No X or YouTube” blocks YouTube and X");
-    // Saved switched off, then switched on: refused at the switch.
-    expect((await actions.saveWindow(ctx, { ...noX, enabled: false })).ok).toBe(true);
-    expect((await actions.saveWindow(ctx, noX)).ok).toBe(false);
+    const saved = await actions.saveWindow(ctx, noX);
+    expect(saved.ok).toBe(true);
+    const windows = (await store.get()).windows;
+    expect([...suspendedWindowIds(windows)].sort()).toEqual(["morning", "nox"]);
+    expect(runningWindows(windows)).toEqual([]);
+    // Switching one off reconciles it; so does moving it.
+    expect(suspendedWindowIds([morning, { ...noX, enabled: false }]).size).toBe(0);
     expect((await actions.saveWindow(ctx, { ...noX, startMinute: 690, endMinute: 720 })).ok).toBe(true);
+    expect(runningWindows((await store.get()).windows).map((w) => w.id).sort()).toEqual(["morning", "nox"]);
+    // Imports keep a contradiction too, paused the same way.
     const exported = actions.exportSettings(await store.get(), Date.now());
     exported.windows = [morning, noX];
-    const imported = await actions.importSettings(ctx, exported);
-    expect(!imported.ok && imported.error).toMatch(/^Windows: “No X or YouTube” blocks/);
+    expect((await actions.importSettings(ctx, exported)).ok).toBe(true);
+    expect(suspendedWindowIds((await store.get()).windows).size).toBe(2);
+  });
+  it("lets neither paused window decide whether a website is open", () => {
+    const state = createDefaultState();
+    state.windows = [morning, noX];
+    const monday1120 = new Date(2026, 10, 9, 11, 20).getTime();
+    const decision = evaluatePolicy(state, "https://www.youtube.com/", monday1120);
+    expect(decision.reasons).not.toContain("block-window");
+    expect(decision.reasons).not.toContain("outside-window");
+    // Without the contradiction the block window applies.
+    state.windows = [noX];
+    expect(evaluatePolicy(state, "https://www.youtube.com/", monday1120).reasons).toContain("block-window");
   });
 });

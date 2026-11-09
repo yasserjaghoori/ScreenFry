@@ -1,5 +1,5 @@
 import type { PolicyDecision } from "@shared/index";
-import { blockedCopy } from "../ui/blocked-copy";
+import { blockedCopy, formatCountdown } from "../ui/blocked-copy";
 import animation from "../styles/fry-animation.css?inline";
 
 /** A local, isolated screen: no cross-scheme redirect and no background response required. */
@@ -7,6 +7,8 @@ export function createBlockedScreen() {
   let host: HTMLElement | undefined;
   let dialog: HTMLDialogElement;
   let title: HTMLElement, detail: HTMLElement, next: HTMLElement;
+  let countdown: HTMLElement, countdownValue: HTMLElement;
+  let ticker: ReturnType<typeof setInterval> | undefined;
   let resume: HTMLButtonElement;
   let savedFocus: HTMLElement | null = null;
   return {
@@ -22,15 +24,17 @@ export function createBlockedScreen() {
           dialog[open]{display:grid;place-items:center}dialog::backdrop{background:#141315}
           section{box-sizing:border-box;width:min(100%,560px);padding:40px 28px;text-align:center;border:1px solid #ffffff18;border-radius:28px;background:#201b1bed;box-shadow:0 24px 100px #0005}
           h1{font-size:clamp(28px,5vw,44px);line-height:1.15;margin:12px 0 20px;letter-spacing:-1.5px}p{color:#c8b9b0}small{color:#eb9b6e;letter-spacing:3px;text-transform:uppercase}
-          button{font:600 15px system-ui;padding:13px 20px;border:1px solid #f7955b;border-radius:12px;background:#f7955b;color:#24160f;cursor:pointer}button:focus-visible{outline:3px solid white;outline-offset:4px}button[hidden]{display:none}.next{font-size:14px;color:#e8ad82}
+          button{font:600 15px system-ui;padding:13px 20px;border:1px solid #f7955b;border-radius:12px;background:#f7955b;color:#24160f;cursor:pointer}button:focus-visible{outline:3px solid white;outline-offset:4px}button[hidden]{display:none}.next{font-size:14px;color:#e8ad82}.countdown{display:grid;gap:2px;margin:4px 0 18px;color:#c8b9b0;font-size:12px;letter-spacing:2px;text-transform:uppercase}.countdown[hidden]{display:none}.countdown strong{font:700 30px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:0;text-transform:none;color:#f9f4ef;font-variant-numeric:tabular-nums}
           ${animation}
-        </style><dialog aria-labelledby="heading"><section><span class="fry-mark" aria-hidden="true"><img alt=""><i></i><i></i><i></i></span><small>ScreenFry · Less feed. More day.</small><h1 id="heading"></h1><p class="detail"></p><p class="next"></p><button hidden></button><p>Open ScreenFry in your browser toolbar to change website settings.</p></section></dialog>`;
+        </style><dialog aria-labelledby="heading"><section><span class="fry-mark" aria-hidden="true"><img alt=""><i></i><i></i><i></i></span><small>ScreenFry · Less feed. More day.</small><h1 id="heading"></h1><p class="detail"></p><p class="next"></p><p class="countdown" hidden><span>Time until</span><strong></strong></p><button hidden></button></section></dialog>`;
         root.querySelector("img")!.src =
           chrome.runtime.getURL("icons/icon-256.png");
         dialog = root.querySelector("dialog")!;
         title = root.querySelector("h1")!;
         detail = root.querySelector(".detail")!;
         next = root.querySelector(".next")!;
+        countdown = root.querySelector(".countdown")!;
+        countdownValue = countdown.querySelector("strong")!;
         resume = root.querySelector("button")!;
         dialog.addEventListener("cancel", (event) => event.preventDefault());
       }
@@ -49,6 +53,16 @@ export function createBlockedScreen() {
           ? "Your website is available again."
           : copy.details.join(" ");
       next.textContent = !allowed && !singleVideoUrl ? (copy.next ?? "") : "";
+      clearInterval(ticker);
+      const target = !allowed && !singleVideoUrl ? copy.nextAt : undefined;
+      countdown.hidden = target === undefined;
+      if (target !== undefined) {
+        const tick = () => {
+          countdownValue.textContent = formatCountdown(target - Date.now());
+        };
+        tick();
+        ticker = setInterval(tick, 1000);
+      }
       resume.hidden = !allowed && !singleVideoUrl;
       resume.textContent = singleVideoUrl
         ? "Back to the linked video"
@@ -58,6 +72,7 @@ export function createBlockedScreen() {
     },
     hide() {
       if (!host) return;
+      clearInterval(ticker);
       dialog.close();
       host.remove();
       host = undefined;

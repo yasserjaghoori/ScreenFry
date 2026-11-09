@@ -89,8 +89,13 @@ function convertSchedules(
 }
 export function migrateState(
   raw: unknown,
-  browser: BrowserKind = "chrome",
+  /** Defaults to the browser the state was saved in, so a page that doesn't pass one can't relabel it. */
+  requested?: BrowserKind,
 ): AppState {
+  const saved =
+    object(raw) && object(raw.protection) ? raw.protection.browser : undefined;
+  const browser: BrowserKind =
+    requested ?? (saved === "safari" || saved === "chrome" ? saved : "chrome");
   const state = createDefaultState(browser);
   if (!object(raw)) return state;
   const legacy = raw.schemaVersion !== 3;
@@ -103,13 +108,23 @@ export function migrateState(
       ? (raw.windows as AccessWindow[]).map((w) => {
           const mode =
             w.mode === "block" || w.mode === "free" ? w.mode : "allow";
-          const { freeMinutes, ...rest } = w;
+          const { freeMinutes, freeMinutesBySite, ...rest } = w;
+          const bySite =
+            mode === "free" && object(freeMinutesBySite)
+              ? Object.fromEntries(
+                  Object.entries(freeMinutesBySite).filter(
+                    ([, v]) => typeof v === "number",
+                  ),
+                )
+              : undefined;
           return {
             ...rest,
             mode,
-            ...(mode === "free" && typeof freeMinutes === "number"
-              ? { freeMinutes }
-              : {}),
+            ...(bySite
+              ? { freeMinutesBySite: bySite as Record<string, number> }
+              : mode === "free" && typeof freeMinutes === "number"
+                ? { freeMinutes }
+                : {}),
           };
         })
       : [];

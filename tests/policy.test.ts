@@ -225,19 +225,18 @@ describe("block windows", () => {
     expect(evaluatePolicy(s, url, at(2026, 10, 4, 5)).status).toBe("blocked");
     expect(evaluatePolicy(s, url, at(2026, 10, 4, 7)).status).toBe("allowed");
   });
-  it("wins over an overlapping allow window", () => {
+  it("pauses itself and an overlapping allow window until they're reconciled", () => {
     const s = stateWith([rule()]);
     s.windows = [
       window({ startMinute: 9 * 60, endMinute: 20 * 60 }),
       block({ startMinute: 12 * 60, endMinute: 13 * 60 }),
     ];
-    expect(evaluatePolicy(s, url, at(2026, 10, 3, 10)).status).toBe("allowed");
-    const lunch = evaluatePolicy(s, url, at(2026, 10, 3, 12, 30));
-    expect(lunch.reasons).toEqual(["block-window"]);
-    expect(lunch.nextAccessAt).toBe(at(2026, 10, 3, 13));
-    expect(evaluatePolicy(s, url, at(2026, 10, 3, 21)).reasons).toEqual([
-      "outside-window",
-    ]);
+    // A contradiction: neither window applies, so only the site's own settings do.
+    for (const hour of [10, 12.5, 21])
+      expect(evaluatePolicy(s, url, at(2026, 10, 3, Math.floor(hour), (hour % 1) * 60)).status).toBe("allowed");
+    // Turning one off brings the other back.
+    s.windows = [s.windows[0], { ...s.windows[1], enabled: false }];
+    expect(evaluatePolicy(s, url, at(2026, 10, 3, 21)).reasons).toEqual(["outside-window"]);
   });
   it("has no effect when disabled, and schedules a boundary at its start", () => {
     const s = stateWith([rule()]);

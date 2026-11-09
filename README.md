@@ -15,6 +15,9 @@
 | **Daily limits** | Give each website its own daily allowance, or none. When it runs out, the whole site is blocked, including tabs already open. Resets at midnight. |
 | **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
 | **Optional password** | Protect your settings from impulsive changes. It never grants extra time. The first time you change anything without one, ScreenFry explains it once and offers to set it up ("Not now" goes ahead with your change). |
+| **ScreenFry Presets** | The Mac app exports and imports each browser's websites, limits, windows and feed blocking as a presets file, one browser at a time or all at once. |
+| **Start over** | **Restore defaults** at the bottom of Settings erases everything ScreenFry keeps in that browser, password included (it asks for the password first). **Reset All Data…** in the Mac app does it for every browser that doesn't have a password on. |
+| **Countdown** | Block screens show when the website is back and a live hours, minutes and seconds countdown. |
 | **Private** | Everything stays on your device. No account, server or analytics, and no record of the sites you visit. |
 
 ### Supported websites
@@ -47,13 +50,13 @@ The **Windows** page has two kinds of schedule. Each has a name, days, a start a
 
 - **Allow window:** the listed websites work *only* during the window. Outside every allow window they're blocked, even with time left.
 - **Block window:** the listed websites are blocked *during* the window and work normally otherwise.
-- **Free time:** the listed websites' feed blocking is paused *during* the window, for as many minutes a day as you give it (or the whole window). When the minutes run out or the window ends, feeds are hidden again; the website itself stays usable. Time inside counts down in an on-page timer.
+- **Fry Time:** no filter during this time, for a limited amount of time. During the window each listed website's feed blocking is paused until *that website* uses up its own minutes: the same number for every website, or a custom number per website (or the whole window). When a website's minutes run out it's back to its normal settings for the rest of the window, while the others keep theirs; the website itself stays usable. Time left counts down in an on-page timer. While it's on, the website's dot glows in the sidebar and an orange Fry Time bar explains why its switches aren't hiding anything.
 
-Windows can't contradict each other: ScreenFry won't save (or switch on, or import) a block window that overlaps an allow or free-time window on the same website, and the editor explains which window clashes and when. Windows saved before this rule keep working, with **blocking winning** in the overlap, and their cards show a warning until you fix them. Daily limits always still apply.
+Windows can't contradict each other. A block window that overlaps an allow or Fry Time window on the same website still saves, so you can fix it by editing either one, but **both windows pause** until you do: the editor warns about the clash before you save, a message explains it after saving, and both cards show **Paused** with the reason. Daily limits always still apply. The editor's **All websites** button selects every supported website at once.
 
 *Example:* YouTube has a 10-minute limit and allow windows at 12–1 pm and 6–8 pm. That's 10 minutes total for the day, usable in either window, and YouTube is blocked at 3 pm even if none of it was used. A block window from 9 am to 5 pm on weekdays would instead keep YouTube off during work hours.
 
-*Example (one browser for research and fun):* hide YouTube's home feed and Shorts with no daily limit, then add a free-time window from 7–9 pm with 30 minutes. All day, search and links work with the feed hidden; in the evening the feed and Shorts open up for 30 minutes, then hide again.
+*Example (one browser for research and fun):* hide YouTube's home feed and Shorts with no daily limit, then add a Fry Time window from 7–9 pm with 30 minutes. All day, search and links work with the feed hidden; in the evening the feed and Shorts open up for 30 minutes, then hide again.
 
 ## Install
 
@@ -82,7 +85,7 @@ Install it the same way as a download.
 
 **Updating:** drag a newer build over the old app. Both browsers update together and keep their settings. **Check for Updates…** opens the Releases page until release signing is set up, then uses the automatic updater. Version 0.6.0 changed the app's identifiers, so settings from earlier builds don't carry over: uninstall the old version first and set ScreenFry up again.
 
-**Uninstalling:** **ScreenFry → Uninstall…** (also at the bottom of the window). **Keep Settings** removes the app and both extensions, but Chrome keeps your settings for a reinstall. **Erase Everything** also deletes ScreenFry's files on your Mac and opens Chrome's Extensions page so you can click **Remove**. Details are in [Distribution](docs/DISTRIBUTION.md).
+**Uninstalling:** **ScreenFry → Uninstall…** (also at the bottom of the window). **Keep Settings** removes the app and both extensions, but Chrome keeps your settings for a reinstall. **Erase Everything** removes every trace: ScreenFry in Chrome removes itself and its settings (Chrome is opened in the background if it's closed; if it doesn't answer within about a minute and a half, the Extensions page opens so you can click **Remove**), then ScreenFry's files and preferences on your Mac are deleted. Details are in [Distribution](docs/DISTRIBUTION.md).
 
 ### Build from source
 

@@ -20,6 +20,14 @@ function savedFormat(): Format {
   const sample = new Date(2000, 0, 1, 13).toLocaleTimeString([], { hour: "numeric" });
   return /13/.test(sample) ? "24" : "12";
 }
+/** Forgets the 12/24-hour choice (Restore defaults). */
+export function clearTimeFormatPreference() {
+  try {
+    localStorage.removeItem(FORMAT_KEY);
+  } catch {
+    /* storage blocked: nothing saved */
+  }
+}
 const pad = (n: number) => String(n).padStart(2, "0");
 const hour12 = (minute: number) => ((Math.floor(minute / 60) + 11) % 12) + 1;
 const isPm = (minute: number) => minute >= 720;

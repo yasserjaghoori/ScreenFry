@@ -431,7 +431,7 @@ select:focus {
   display: flex;
   justify-content: center;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 36px;
 }
 .loosen-actions .button { min-width: 112px; }
 .loosen-yes { position: relative; }
@@ -451,9 +451,17 @@ select:focus {
   color: var(--on-accent);
   background: var(--accent-bright);
   transform: translateX(-50%);
-  animation: loosen-bubble 750ms ease-out forwards;
+  animation: loosen-bubble 420ms cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
 }
-.loosen-status { min-height: 18px; margin-top: 10px !important; font-size: 12px; color: var(--muted); }
+.loosen-status { min-height: 18px; margin-top: 12px !important; font-size: 12.5px; color: var(--muted); }
+.loosen-status.is-shown {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 650;
+  animation: loosen-fade 200ms ease-out;
+}
 /* The click itself, ricocheting off the Yes button. */
 .loosen-spark {
   position: fixed;
@@ -504,11 +512,11 @@ select:focus {
   86% { transform: rotate(calc(var(--side) * 2deg)); }
   100% { transform: none; }
 }
+/* Pops in and stays above the Yes button. */
 @keyframes loosen-bubble {
   0% { opacity: 0; transform: translate(-50%, 6px) scale(0.6); }
-  20% { opacity: 1; transform: translate(-50%, -4px) scale(1.15); }
-  75% { opacity: 1; transform: translate(-50%, -8px) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -14px) scale(0.9); }
+  60% { opacity: 1; transform: translate(-50%, -4px) scale(1.12); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 @keyframes loosen-spark {
   0% { transform: scale(1.4); opacity: 1; }
@@ -590,4 +598,55 @@ select:focus {
 @media (max-width: 420px) {
   .password-prompt-actions { flex-direction: column-reverse; }
   .password-prompt-actions .button { width: 100%; }
+}
+
+/* Fry Time: an orange strip with grease dripping off it, and a glowing sidebar dot. */
+.fry-bar { display: grid; gap: 6px; margin: 0 0 18px; }
+.fry-bar-strip {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: linear-gradient(100deg, #ff9a3c, #f4621f 70%, #e8501a);
+  color: #fff;
+  font-size: 13px;
+  box-shadow: 0 6px 16px #f4621f40;
+}
+.fry-bar-strip strong { font-weight: 800; letter-spacing: 0.02em; }
+.fry-bar-strip i {
+  position: absolute;
+  top: calc(100% - 3px);
+  left: 18%;
+  width: 6px;
+  height: 11px;
+  border-radius: 40% 40% 55% 55%;
+  background: linear-gradient(#ffb15a, #f4621f);
+  transform-origin: top;
+  animation: fry-bar-drip 2.6s cubic-bezier(0.45, 0, 0.8, 0.6) infinite;
+  pointer-events: none;
+}
+.fry-bar-strip i:nth-of-type(2) { left: 46%; width: 8px; animation-delay: -0.9s; }
+.fry-bar-strip i:nth-of-type(3) { left: 77%; width: 5px; animation-delay: -1.8s; }
+.fry-bar-detail { color: var(--muted); font-size: 12.5px; line-height: 1.45; padding-top: 14px; }
+.fry-bar.compact { display: inline-flex; margin: 6px 0 4px; cursor: help; }
+.fry-bar.compact .fry-bar-strip { padding: 2px 9px; border-radius: 999px; font-size: 11px; box-shadow: none; }
+.fry-bar.compact .fry-bar-strip i { width: 4px; height: 7px; }
+@keyframes fry-bar-drip {
+  0%, 15% { transform: translateY(0) scaleY(0.2); opacity: 0; }
+  30% { opacity: 1; }
+  80% { transform: translateY(14px) scaleY(1.3); opacity: 0.9; }
+  100% { transform: translateY(20px) scaleY(0.4); opacity: 0; }
+}
+.dot.fry-glow {
+  box-shadow: 0 0 0 2px #ff9a3c80, 0 0 10px 3px #f4621f;
+  animation: fry-dot-glow 1.8s ease-in-out infinite;
+}
+@keyframes fry-dot-glow {
+  50% { box-shadow: 0 0 0 3px #ff9a3c40, 0 0 16px 6px #f4621fcc; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fry-bar-strip i, .dot.fry-glow { animation: none; }
 }

@@ -187,7 +187,7 @@ function evaluate() {
     if (freeTimeLabel && !decision.freeTime)
       overlay.toast(
         decision.freeTimeOff?.state === "used-up"
-          ? `Today’s free time is used up. Feeds are hidden again.`
+          ? `Today’s Fry Time is used up. Feeds are hidden again.`
           : `${freeTimeLabel} is over. Feeds are hidden again.`,
       );
     freeTimeLabel = decision.freeTime?.label;
@@ -238,7 +238,7 @@ const overlay = (() => {
         0,
         Math.ceil((remaining! - elapsed) / 1000),
       );
-      const text = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} ${free !== undefined ? "free time left" : "left today"}`;
+      const text = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} ${free !== undefined ? "Fry Time left" : "left today"}`;
       if (pill.textContent !== text) pill.textContent = text;
       pill.classList.add("show");
     },

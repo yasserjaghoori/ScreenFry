@@ -16,6 +16,13 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Presets, reset, About and paused windows — November 9, 2026
+
+- `npm run check` passed **118 unit tests** (new: contradicting windows save but pause both, block-screen countdown, Safari label kept on re-read, Restore defaults erasing presets/usage/password and refusing without it), typecheck and verified build. `npm run test:e2e` passed **63 checks**.
+- The Mac app compiles (unsigned Release build in a scratch folder). Its window wasn't opened: launching a dev build would rewrite the installed Chrome folder and register a second Safari extension. Still to check on the Mac: the Chrome card folding its steps once connected, the clickable Developer mode pictures and arrow, Reset All Data, Erase Everything removing ScreenFry from Chrome, and Safari's orange "Open ScreenFry in Safari Settings" button and popup closing when Safari loses focus.
+- Follow-up: Fry Time (renamed from free time) budgets are per website (same for all, or custom per website; usage keyed `windowId:site`), with a glowing sidebar dot and a dripping Fry Time bar. The window editor has a × button, Esc, and a "Close without saving?" check. The confirm pop-up's nope!/boing! bubble and message stay up. Now **120 unit tests** and **63 e2e checks** pass. Walked through deleting a block window (dodge, boing, confirm) and the editor close flow in headless Chrome.
+- Visually checked in a throwaway headless Chrome: paused window cards, the editor's All websites button and clash warning, the About page, Restore defaults, the narrow layout, and the block page countdown.
+
 ## 0.6.2 responsive blocking and TikTok — November 8, 2026
 
 - Node 24.14.0: `npm ci` reported no vulnerabilities; `npm run check` passed **93 unit tests**, typecheck and verified build. `npm run test:e2e` passed **61 checks** in a disposable Chrome profile.

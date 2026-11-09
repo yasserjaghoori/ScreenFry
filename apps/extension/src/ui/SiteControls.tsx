@@ -6,6 +6,7 @@ import { hostMatchesDomain } from "@core/domains";
 import type { AppState, FeedSite, WebsiteRule } from "@shared/index";
 import { formatDuration } from "./format";
 import { siteStatus } from "./siteStatus";
+import { FryTimeBar } from "./FryTime";
 import { confirmLoosen, loosenQuestion } from "./ConfirmLoosen";
 import { passwordGate } from "./PasswordPrompt";
 export function Switch({
@@ -146,6 +147,7 @@ export function SiteControls({
           )}
         </div>
       </div>
+      {status.fryTime && <FryTimeBar fry={status.fryTime} site={definition.name} />}
       <section className="control-section">
         <h3>Essentials</h3>
         <div className="control-group">

@@ -1,7 +1,8 @@
 import CryptoKit
 import Foundation
 
-/// Website-settings export and import for each browser, through `SettingsBridge` files.
+/// ScreenFry Presets (website settings) export and import, reset and removal for each
+/// browser, through `SettingsBridge` files. Adding a browser here gives it every one of these.
 enum SettingsBrowser: String, CaseIterable {
     case safari, chrome
 
@@ -24,6 +25,46 @@ enum SettingsTransfer {
     static let settingsFormat = "screenfry-settings-v1"
     static let bundleFormat = "screenfry-settings-bundle-v1"
     private static let settingsKeys = ["format", "exportedAt", "rules", "windows", "feedSettings", "warningsEnabled"]
+
+    /// The browser's last check-in: proof ScreenFry runs there, its version, and whether a
+    /// settings password is on.
+    static func checkIn(_ browser: SettingsBrowser) -> (at: Date, version: String, passwordProtected: Bool)? {
+        guard let record = SettingsBridge.read(browser.bridge.checkInURL),
+              let at = (record["at"] as? String).flatMap({ ISO8601DateFormatter().date(from: $0) })
+        else { return nil }
+        return (at, record["version"] as? String ?? "", record["passwordProtected"] as? Bool ?? false)
+    }
+
+    /// Asks the browser's copy of ScreenFry to restore its defaults at its next check-in.
+    static func queueReset(_ browser: SettingsBrowser) throws {
+        let bridge = browser.bridge
+        try FileManager.default.createDirectory(at: bridge.directory, withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: bridge.resetResultURL)
+        let request: [String: Any] = ["id": UUID().uuidString, "requestedAt": ISO8601DateFormatter().string(from: Date())]
+        guard SettingsBridge.write(request, to: bridge.resetURL) else { throw CocoaError(.fileWriteUnknown) }
+    }
+
+    static func pendingReset(_ browser: SettingsBrowser) -> Bool {
+        FileManager.default.fileExists(atPath: browser.bridge.resetURL.path)
+    }
+
+    static func lastResetResult(_ browser: SettingsBrowser) -> (ok: Bool, error: String?, at: Date?)? {
+        guard let result = SettingsBridge.read(browser.bridge.resetResultURL) else { return nil }
+        let at = (result["at"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
+        return (result["ok"] as? Bool ?? false, result["error"] as? String, at)
+    }
+
+    /// Asks Chrome's copy of ScreenFry to remove itself (with its storage) at its next check-in.
+    static func requestUninstall(_ browser: SettingsBrowser) {
+        let bridge = browser.bridge
+        try? FileManager.default.createDirectory(at: bridge.directory, withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: bridge.uninstallSentURL)
+        SettingsBridge.write(["requestedAt": ISO8601DateFormatter().string(from: Date())], to: bridge.uninstallURL)
+    }
+
+    static func uninstallSent(_ browser: SettingsBrowser) -> Bool {
+        FileManager.default.fileExists(atPath: browser.bridge.uninstallSentURL.path)
+    }
 
     /// Settings the browser last sent, and when.
     static func snapshot(_ browser: SettingsBrowser) -> (settings: [String: Any], receivedAt: Date)? {
@@ -60,7 +101,7 @@ enum SettingsTransfer {
 
     enum ImportError: LocalizedError {
         case notSettings
-        var errorDescription: String? { "This isn’t a ScreenFry settings file. Choose a file exported from ScreenFry." }
+        var errorDescription: String? { "This isn’t a ScreenFry Presets file. Choose a file exported from ScreenFry." }
     }
 
     /// Reads a settings file or bundle. A bundle maps browsers to their own settings; a plain

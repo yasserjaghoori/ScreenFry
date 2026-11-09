@@ -43,6 +43,39 @@ const before = at(2026, 10, 3, 18),
   during = at(2026, 10, 3, 19, 30),
   after = at(2026, 10, 3, 21, 30);
 
+describe("Fry Time for each website", () => {
+  const both = (patch: Partial<AccessWindow> = {}) =>
+    evening({ domains: ["youtube.com", "youtu.be", "x.com", "twitter.com"], freeMinutes: 5, ...patch });
+  const x = "https://x.com/home";
+  it("gives every website its own minutes; one running out doesn't end another's", () => {
+    const s = feedBlocked([both()]);
+    use(s, home, during, during + 10 * MIN);
+    // YouTube's 5 minutes are spent, so it's back to its normal settings...
+    expect(activeFreeTime(s, home, during + 10 * MIN)).toBeUndefined();
+    expect(buildBlockingCss(effectiveFeedSettings(s, home, during + 10 * MIN), home)).not.toBe("");
+    // ...while X still has all of its own.
+    expect(activeFreeTime(s, x, during + 10 * MIN)?.remainingMilliseconds).toBe(5 * MIN);
+    const day = s.usage[localDateKey(new Date(during))].millisecondsByWindow;
+    expect(day).toEqual({ "evening:youtube": 5 * MIN });
+  });
+  it("supports custom minutes per website, and keeps them through saving", async () => {
+    const custom = both({ freeMinutes: undefined, freeMinutesBySite: { youtube: 10, x: 2 } });
+    const s = feedBlocked([custom]);
+    expect(activeFreeTime(s, home, during)?.remainingMilliseconds).toBe(10 * MIN);
+    expect(activeFreeTime(s, x, during)?.remainingMilliseconds).toBe(2 * MIN);
+    const store = new MemoryStateStore();
+    const ctx = { store, now: () => during };
+    const saved = await actions.saveWindow(ctx, {
+      ...custom,
+      freeMinutesBySite: { youtube: 10, x: 2, reddit: 4 }, // Reddit isn't in this window
+    });
+    expect(saved.ok && saved.data.windows[0].freeMinutesBySite).toEqual({ youtube: 10, x: 2 });
+    expect(saved.ok && saved.data.windows[0].freeMinutes).toBeUndefined();
+    expect((await actions.saveWindow(ctx, { ...custom, freeMinutesBySite: { youtube: 0 } })).ok).toBe(false);
+    expect(migrateState(JSON.parse(JSON.stringify(await store.get()))).windows[0].freeMinutesBySite).toEqual({ youtube: 10, x: 2 });
+  });
+});
+
 describe("free-time windows", () => {
   it("keeps feeds blocked outside the window and pauses them inside it", () => {
     const s = feedBlocked();
@@ -63,12 +96,12 @@ describe("free-time windows", () => {
   it("counts time inside the window and brings feed blocking back when it runs out", () => {
     const s = feedBlocked();
     use(s, home, during, during + 20 * MIN);
-    expect(s.usage[localDateKey(new Date(during))].millisecondsByWindow.evening).toBe(20 * MIN);
+    expect(s.usage[localDateKey(new Date(during))].millisecondsByWindow["evening:youtube"]).toBe(20 * MIN);
     expect(activeFreeTime(s, home, during + 20 * MIN)?.remainingMilliseconds).toBe(10 * MIN);
     expect(nextTrackingBoundary(s, home, during + 20 * MIN)).toBe(during + 30 * MIN);
     use(s, home, during + 20 * MIN, during + 45 * MIN);
     // Capped at the budget; the site stays usable, with feeds hidden again.
-    expect(s.usage[localDateKey(new Date(during))].millisecondsByWindow.evening).toBe(30 * MIN);
+    expect(s.usage[localDateKey(new Date(during))].millisecondsByWindow["evening:youtube"]).toBe(30 * MIN);
     const later = evaluatePolicy(s, shorts, during + 45 * MIN);
     expect(later.freeTime).toBeUndefined();
     expect(later.reasons).toEqual(["short-form"]);
@@ -77,7 +110,7 @@ describe("free-time windows", () => {
   it("doesn't count time outside the window, and an unbudgeted window lasts all window", () => {
     const s = feedBlocked([evening({ freeMinutes: undefined })]);
     use(s, home, before, before + 10 * MIN);
-    expect(s.usage[localDateKey(new Date(before))]?.millisecondsByWindow?.evening).toBeUndefined();
+    expect(s.usage[localDateKey(new Date(before))]?.millisecondsByWindow?.["evening:youtube"]).toBeUndefined();
     use(s, home, during, during + 60 * MIN);
     expect(activeFreeTime(s, home, during + 60 * MIN)).toEqual({
       windowId: "evening",
@@ -103,8 +136,8 @@ describe("free-time windows", () => {
     });
     const earlyCopy = blockedCopy(early, "YouTube Shorts", before);
     expect(earlyCopy.title).toBe("YouTube Shorts is off for now.");
-    expect(earlyCopy.details.join(" ")).toContain("outside your free time");
-    expect(earlyCopy.next).toMatch(/^Free time starts today at/);
+    expect(earlyCopy.details.join(" ")).toContain("outside your Fry Time");
+    expect(earlyCopy.next).toMatch(/^Fry Time starts today at/);
 
     use(s, home, during, during + 30 * MIN);
     const spent = evaluatePolicy(s, shorts, during + 31 * MIN);
@@ -114,9 +147,9 @@ describe("free-time windows", () => {
       nextAt: at(2026, 10, 4, 19),
     });
     const spentCopy = blockedCopy(spent, "YouTube Shorts", during + 31 * MIN);
-    expect(spentCopy.title).toBe("Free time is up!");
-    expect(spentCopy.details.join(" ")).toContain("used today’s free time");
-    expect(spentCopy.next).toMatch(/^Free time is back tomorrow at/);
+    expect(spentCopy.title).toBe("Fry Time is up!");
+    expect(spentCopy.details.join(" ")).toContain("used today’s Fry Time");
+    expect(spentCopy.next).toMatch(/^Fry Time is back tomorrow at/);
 
     // After the window ends it reads as outside free time again, not as used up.
     expect(evaluatePolicy(s, shorts, after).freeTimeOff?.state).toBe("not-started");

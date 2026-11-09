@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { send, setSettingsCredential } from "@browser/messages";
 import { STATE_KEY } from "@browser/storage";
+import { detectBrowser } from "@browser/platform";
 import { migrateState } from "@core/defaults";
 import { launchSites } from "@core/sites";
 import type { AppState, FeedSite } from "@shared/index";
@@ -9,8 +10,10 @@ import { Icon } from "../ui/Icon";
 import { SiteControls } from "../ui/SiteControls";
 import { SettingsGate } from "../ui/SettingsGate";
 import { siteStatus } from "../ui/siteStatus";
+import { FryTimeBar, fryTimeSummary } from "../ui/FryTime";
 import { Windows } from "./Windows";
 import { Settings } from "./Settings";
+import { About } from "./About";
 import { setPasswordSetupHandler } from "../ui/PasswordPrompt";
 import "../styles/global.css";
 import "../styles/dashboard.css";
@@ -18,7 +21,10 @@ const pages = [
   { id: "websites", label: "Websites", icon: "feeds" },
   { id: "windows", label: "Windows", icon: "schedules" },
   { id: "settings", label: "Settings", icon: "settings" },
+  { id: "about", label: "About", icon: "settings" },
 ] as const;
+/** Pages listed in the sidebar's main navigation; About lives at the bottom. */
+const navPages = pages.filter((p) => p.id !== "about");
 export interface Notice {
   kind: "success" | "info" | "error";
   text: string;
@@ -56,10 +62,16 @@ function Dashboard() {
       area: string,
     ) => {
       if (area === "local" && changes[STATE_KEY]?.newValue)
-        setState(migrateState(changes[STATE_KEY].newValue));
+        setState(migrateState(changes[STATE_KEY].newValue, detectBrowser()));
     };
     chrome.storage.onChanged.addListener(listener);
     return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    // Fry Time and windows start and end on the clock; refresh what the sidebar shows.
+    const timer = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(timer);
   }, []);
   useEffect(() => {
     history.replaceState(null, "", `${location.pathname}?site=${site}#${page}`);
@@ -80,7 +92,7 @@ function Dashboard() {
           <span>ScreenFry</span>
         </div>
         <nav className="nav" aria-label="Sections">
-          {pages.map((p) => (
+          {navPages.map((p) => (
             <button
               key={p.id}
               className={page === p.id ? "active" : ""}
@@ -99,14 +111,22 @@ function Dashboard() {
             return (
               <button
                 key={s.id}
-                className="today-row"
+                className={`today-row ${status.fryTime ? "is-fry" : ""}`}
+                title={
+                  status.fryTime
+                    ? `It’s Fry Time on ${s.name}: ${fryTimeSummary(status.fryTime)} Feed blocking is paused.`
+                    : undefined
+                }
                 onClick={() => {
                   setSite(s.id);
                   setPage("websites");
                 }}
               >
                 <span className="today-name">
-                  <span className="dot" style={{ background: s.color }} />
+                  <span
+                    className={`dot ${status.fryTime ? "fry-glow" : ""}`}
+                    style={{ background: s.color }}
+                  />
                   {s.name}
                 </span>
                 <span className={`today-value ${status.blocked ? "blocked" : ""}`}>
@@ -121,7 +141,16 @@ function Dashboard() {
             );
           })}
         </section>
-        <p className="sidebar-foot muted">Less feed. More day.</p>
+        <div className="sidebar-foot">
+          <button
+            className={`about-link ${page === "about" ? "active" : ""}`}
+            aria-current={page === "about" ? "page" : undefined}
+            onClick={() => setPage("about")}
+          >
+            About ScreenFry
+          </button>
+          <p className="muted">Less feed. More day.</p>
+        </div>
       </aside>
       <main className="main">
         <header className="page-head">
@@ -133,7 +162,9 @@ function Dashboard() {
                 ? "Keep the useful parts. Choose what gets in the way."
                 : page === "windows"
                   ? "Choose when websites are available."
-                  : "Make ScreenFry work for you."}
+                  : page === "about"
+                    ? "What ScreenFry does in this browser."
+                    : "Make ScreenFry work for you."}
             </p>
           </div>
           {state.settingsPassword && unlocked && (
@@ -190,6 +221,13 @@ function Dashboard() {
                     <span className="website-name">
                       {s.name}
                       <small>{siteStatus(state, s.id).label}</small>
+                      {siteStatus(state, s.id).fryTime && (
+                        <FryTimeBar
+                          fry={siteStatus(state, s.id).fryTime!}
+                          site={s.name}
+                          compact
+                        />
+                      )}
                     </span>
                     <span className="site-chevron">›</span>
                   </button>
@@ -209,6 +247,7 @@ function Dashboard() {
           {page === "windows" && (
             <Windows state={state} onState={setState} onNotice={setNotice} />
           )}
+          {page === "about" && <About />}
           {page === "settings" && (
             <Settings
               state={state}

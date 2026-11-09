@@ -7,11 +7,13 @@ import {
   evaluateRule,
   freeTimeRemaining,
   freeWindowsFor,
+  fryKeyFor,
+  fryUsageKey,
   isScheduleActive,
   matchingRules,
   nextPolicyBoundary,
 } from "@policy/index";
-import type { AppState } from "@shared/index";
+import type { AccessWindow, AppState } from "@shared/index";
 export const MAX_CREDIT_MS = 90_000;
 export const WARNING_THRESHOLDS_MINUTES = [5, 1];
 export type IdleState = "active" | "idle" | "locked";
@@ -73,23 +75,25 @@ function creditSlice(
   warnings: CreditWarning[],
 ) {
   const rules = new Map<string, string>();
-  const freeWindows = new Set<string>();
+  /** Fry Time usage keys (window and website) to the URL being used. */
+  const freeWindows = new Map<string, { window: AccessWindow; url: string }>();
   for (const url of urls) {
     // Blocked pages and playback outside a window do not consume a future allowance.
     if (evaluatePolicy(state, url, at).status === "blocked") continue;
     for (const rule of matchingRules(state, url)) rules.set(rule.id, url);
     for (const w of freeWindowsFor(state, url))
-      if (isScheduleActive(w, new Date(at))) freeWindows.add(w.id);
+      if (isScheduleActive(w, new Date(at)))
+        freeWindows.set(fryUsageKey(w, fryKeyFor(w, url)), { window: w, url });
   }
   if (!rules.size && !freeWindows.size) return;
   const key = localDateKey(new Date(at)),
     day = state.usage[key] ?? emptyUsageDay(key);
   state.usage[key] = day;
-  // Free time, like an allowance, counts once per wall-clock second across tabs.
+  // Fry Time, like an allowance, counts once per wall-clock second across a website's tabs,
+  // separately for each website in the window.
   day.millisecondsByWindow ??= {};
-  for (const id of freeWindows) {
-    const w = state.windows.find((x) => x.id === id)!;
-    const left = freeTimeRemaining(state, w, at);
+  for (const [id, { window: w, url }] of freeWindows) {
+    const left = freeTimeRemaining(state, w, url, at);
     if (left === 0) continue;
     day.millisecondsByWindow[id] =
       (day.millisecondsByWindow[id] ?? 0) + (left === undefined ? ms : Math.min(ms, left));

@@ -561,11 +561,10 @@ async function handle(
       return actions.markPasswordPromptSeen(auth);
     case "REFRESH_PROTECTION":
       return { ok: true, data: await refreshProtection() };
-    case "RESET_ALL": {
-      const r = await actions.resetAll(auth);
-      if (r.ok) await settingsChanged();
-      return r;
-    }
+    case "RESET_ALL":
+      return resetEverything(auth);
+    case "OPEN_SAFARI_SETTINGS":
+      return openSafariSettings();
     default:
       return { ok: false, error: "Unsupported request." };
   }
@@ -680,6 +679,27 @@ async function reloadIfUpdatedOnDisk() {
 const APP_HOST = "com.screenfry.host";
 interface AppReply {
   import?: { id?: unknown; settings?: unknown };
+  /** "Reset all data" chosen in the app. */
+  reset?: { id?: unknown };
+  /** "Erase Everything" in the app: Chrome removes this extension (and its storage). */
+  uninstall?: boolean;
+}
+type Outcome = { id: string; ok: boolean; error?: string };
+/** Extra keys kept beside the state; Restore defaults removes them too. */
+const EXTRA_KEYS = ["safariSiteAccessNoticeDismissed"];
+async function resetEverything(
+  auth: actions.ActionContext,
+): Promise<actions.ActionResult<AppState>> {
+  const r = await actions.resetAll(auth);
+  if (r.ok) {
+    await chrome.storage.local.remove(EXTRA_KEYS).catch(() => undefined);
+    await settingsChanged();
+    void refreshActiveSite(
+      r.data,
+      siteDefinitions.map((s) => s.site),
+    );
+  }
+  return r;
 }
 let appSync: Promise<void> | undefined;
 function syncWithApp(): Promise<void> {
@@ -688,29 +708,55 @@ function syncWithApp(): Promise<void> {
   });
   return appSync;
 }
-async function sendToApp(importResult?: {
-  id: string;
-  ok: boolean;
-  error?: string;
-}): Promise<AppReply | undefined> {
-  const settings = actions.exportSettings(
-    await chromeStateStore.get(),
-    Date.now(),
-  );
+async function sendToApp(
+  outcome: { importResult?: Outcome; resetResult?: Outcome } = {},
+): Promise<AppReply | undefined> {
+  const state = await chromeStateStore.get();
   return (await withTimeout(
     chrome.runtime.sendNativeMessage(APP_HOST, {
       type: "screenfry-sync",
       browser,
-      settings,
-      ...(importResult ? { importResult } : {}),
+      version: chrome.runtime.getManifest().version,
+      passwordProtected: Boolean(state.settingsPassword),
+      settings: actions.exportSettings(state, Date.now()),
+      ...outcome,
     }),
     5000,
   )) as AppReply | undefined;
 }
+const passwordMessage = (what: string) =>
+  `ScreenFry’s settings password is on in ${browser === "safari" ? "Safari" : "Chrome"}. ${what}`;
 async function exchangeWithApp() {
   if (typeof chrome.runtime.sendNativeMessage !== "function") return;
   try {
-    const pending = (await sendToApp())?.import;
+    const reply = await sendToApp();
+    if (reply?.uninstall === true && browser === "chrome") {
+      // Chrome deletes the extension's storage with it; nothing of ScreenFry stays behind.
+      await chrome.management.uninstallSelf().catch(() => undefined);
+      return;
+    }
+    const reset = reply?.reset;
+    if (reset && typeof reset.id === "string") {
+      const hadPassword = Boolean((await chromeStateStore.get()).settingsPassword);
+      const r = await resetEverything(ctx);
+      await sendToApp({
+        resetResult: {
+          id: reset.id,
+          ok: r.ok,
+          ...(r.ok
+            ? {}
+            : {
+                error: hadPassword
+                  ? passwordMessage(
+                      "Reset it from ScreenFry’s Settings there (Restore defaults asks for the password).",
+                    )
+                  : r.error,
+              }),
+        },
+      });
+      return;
+    }
+    const pending = reply?.import;
     if (!pending || typeof pending.id !== "string") return;
     const hadPassword = Boolean((await chromeStateStore.get()).settingsPassword);
     const r = await actions.importSettings(ctx, pending.settings);
@@ -723,18 +769,38 @@ async function exchangeWithApp() {
       );
     }
     await sendToApp({
-      id: pending.id,
-      ok: r.ok,
-      ...(r.ok
-        ? {}
-        : {
-            error: hadPassword
-              ? "ScreenFry’s settings password is on. Turn it off in ScreenFry’s Settings, import again, then turn it back on."
-              : r.error,
-          }),
+      importResult: {
+        id: pending.id,
+        ok: r.ok,
+        ...(r.ok
+          ? {}
+          : {
+              error: hadPassword
+                ? passwordMessage(
+                    "Turn it off in ScreenFry’s Settings, import again, then turn it back on.",
+                  )
+                : r.error,
+            }),
+      },
     });
   } catch {
     /* The Mac app (or its native host) isn't installed; nothing to sync. */
+  }
+}
+/** Safari: asks the extension's native handler to open Safari Settings → Extensions → ScreenFry. */
+async function openSafariSettings(): Promise<actions.ActionResult<null>> {
+  if (browser !== "safari" || typeof chrome.runtime.sendNativeMessage !== "function")
+    return { ok: false, error: "Only Safari can open its extension settings." };
+  try {
+    const reply = (await withTimeout(
+      chrome.runtime.sendNativeMessage(APP_HOST, { type: "screenfry-open-settings" }),
+      5000,
+    )) as { ok?: boolean; error?: string } | undefined;
+    return reply?.ok
+      ? { ok: true, data: null }
+      : { ok: false, error: reply?.error ?? "Safari didn’t open its settings." };
+  } catch {
+    return { ok: false, error: "Safari didn’t open its settings." };
   }
 }
 async function start() {

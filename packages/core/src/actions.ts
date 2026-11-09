@@ -9,7 +9,7 @@ import {
   verifyPassword,
 } from "./password";
 import { pruneUsage } from "./tracking";
-import { describeConflict, windowConflicts } from "@policy/index";
+import { fryKeyForDomain } from "@policy/index";
 import type { StateStore } from "./store";
 import type {
   AccessWindow,
@@ -191,7 +191,19 @@ export function sanitizeWindow(input: AccessWindow): {
     input.mode === "block" || input.mode === "free" ? input.mode : "allow";
   const budget = mode === "free" ? input.freeMinutes : undefined;
   if (budget !== undefined && (!minutes(budget) || budget === 0))
-    return { error: "Free time must be between 1 and 1440 minutes." };
+    return { error: "Fry Time must be between 1 and 1440 minutes." };
+  // Custom minutes per website: only for websites in this window, each 1–1440.
+  let bySite: Record<string, number> | undefined;
+  if (mode === "free" && input.freeMinutesBySite && typeof input.freeMinutesBySite === "object") {
+    const keys = new Set(domains.map(fryKeyForDomain));
+    bySite = {};
+    for (const [key, value] of Object.entries(input.freeMinutesBySite)) {
+      if (!keys.has(key) || value === undefined || value === null) continue;
+      if (!minutes(value) || value === 0)
+        return { error: "Each website’s Fry Time must be between 1 and 1440 minutes." };
+      bySite[key] = value;
+    }
+  }
   return {
     window: {
       id: String(input.id || crypto.randomUUID()),
@@ -202,7 +214,11 @@ export function sanitizeWindow(input: AccessWindow): {
       startMinute: input.startMinute,
       endMinute: input.endMinute,
       mode,
-      ...(budget !== undefined ? { freeMinutes: budget } : {}),
+      ...(bySite
+        ? { freeMinutesBySite: bySite }
+        : budget !== undefined
+          ? { freeMinutes: budget }
+          : {}),
     },
   };
 }
@@ -212,8 +228,8 @@ export async function saveWindow(
 ): Promise<ActionResult<AppState>> {
   const { window, error } = sanitizeWindow(input);
   if (!window) return fail(error!);
-  const conflict = windowConflicts((await ctx.store.get()).windows, window)[0];
-  if (conflict) return fail(describeConflict(window, conflict));
+  // A window that contradicts another is saved anyway, so either one can be edited to fix
+  // it; the policy engine pauses both until then (see suspendedWindowIds).
   return protectedUpdate(ctx, (s) => ({
     ...s,
     windows: [...s.windows.filter((w) => w.id !== window.id), window],
@@ -337,8 +353,6 @@ export async function importSettings(
   for (const input of data.windows) {
     const { window, error } = sanitizeWindow(input);
     if (!window) return fail(`Windows: ${error}`);
-    const conflict = windowConflicts(windows, window)[0];
-    if (conflict) return fail(`Windows: ${describeConflict(window, conflict)}`);
     windows.push(window);
   }
   return protectedUpdate(ctx, (s) => {
