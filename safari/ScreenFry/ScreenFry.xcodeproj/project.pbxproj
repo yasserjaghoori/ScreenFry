@@ -420,6 +420,7 @@
 				CODE_SIGN_ENTITLEMENTS = "ScreenFry Extension/ScreenFry Extension.entitlements";
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 24;
+				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = "ScreenFry Extension/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -495,6 +496,7 @@
 				CODE_SIGN_ENTITLEMENTS = "ScreenFry Extension/ScreenFry Extension.entitlements";
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 24;
+				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = "ScreenFry Extension/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

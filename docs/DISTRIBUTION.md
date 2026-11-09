@@ -1,6 +1,6 @@
 # Distribution: the ScreenFry download
 
-ScreenFry ships as one Mac app, downloaded from GitHub Releases as a disk image. No release has been published yet; until then, build one with `npm run dmg:local` (below). Users drag the app into Applications and open it. The app carries both browser extensions and keeps them updated together.
+ScreenFry ships as one Mac app, downloaded from GitHub Releases as a disk image. Releases are signed with the Bhron, LLC Developer ID and notarized by Apple, so they open normally and Safari lists the extension without developer settings. Users drag the app into Applications and open it. The app carries both browser extensions and keeps them updated together.
 
 ## What the user does
 
@@ -21,12 +21,12 @@ Both are one-time steps. Apple requires the user to turn a Safari extension on t
 - **Keep Settings:** removes the app, its Safari extension and the Chrome extension folder. Chrome keeps ScreenFry's settings until you click Remove on its Extensions page, so a reinstall picks them up.
 - **Erase Everything:** also deletes ScreenFry's caches and preferences, then opens Chrome's Extensions page so you can click Remove, which deletes Chrome's copy of the settings.
 
-### Test builds (before Apple Developer ID signing)
+### Test builds (no Developer ID)
 
-Until releases are signed with a Developer ID and notarized, they're test builds:
+Releases use the Developer ID secrets below. A release built without them, and any ad-hoc build, is a test build:
 
 - **First open:** macOS says the app can't be verified. Open **System Settings → Privacy & Security** and click **Open Anyway** (once).
-- **Safari:** the setup window currently always includes **Settings → Advanced → Show features for web developers**, then the **Developer** tab → **Allow unsigned extensions**. Safari turns unsigned-extension access off when it quits. After enabling ScreenFry, check **Remember for other websites** and choose **Always Allow** when prompted. Builds signed for local development may not need the unsigned-extension setting. When public distribution is ready, set `ScreenFryShowSafariDeveloperSetup` to `false` in `project.yml` and regenerate the Xcode project to remove the development step and renumber the remaining steps.
+- **Safari:** the setup window currently always includes **Settings → Advanced → Show features for web developers**, then the **Developer** tab → **Allow unsigned extensions**. Safari turns unsigned-extension access off when it quits. After enabling ScreenFry, check **Remember for other websites** and choose **Always Allow** when prompted. Builds signed for local development may not need the unsigned-extension setting. The release workflow sets `ScreenFryShowSafariDeveloperSetup` to `false` for Developer ID builds, which removes the development step and renumbers the rest.
 
 ## How updates reach everything
 
@@ -45,6 +45,8 @@ The app also warns if another copy of ScreenFry is installed. Two copies registe
 1. Bump the version: `package.json`, `package-lock.json`, `apps/extension/public/manifest.json`, `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `safari/ScreenFry/project.yml` (and the generated `project.pbxproj`).
 2. Push a tag `v<version>`, or run the **Release** workflow manually from the Actions tab.
 3. The workflow tests, builds, signs (ad-hoc or Developer ID), packages the DMG, writes `appcast.xml` when an update key exists, and publishes the GitHub Release.
+
+**Developer ID signing and notarization** use these repository secrets, all set: `DEVELOPER_ID_P12` (the Bhron, LLC "Developer ID Application" certificate and key, base64), `DEVELOPER_ID_P12_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_ID` and `APPLE_APP_PASSWORD` (an app-specific password from account.apple.com). After the Xcode build, `scripts/sign-developer-id.sh` re-signs Sparkle's helpers, the extension and the app from the inside out, with a timestamp, the hardened runtime and no `get-task-allow`. Apple's notary service rejects the app otherwise. If notarization fails, the workflow prints Apple's log. The certificate is valid until December 2027 and lives in the Account Holder's login keychain; only the Account Holder can create a replacement.
 
 To build a disk image locally on a Mac: `npm run build:safari`, `xcodegen generate --spec safari/ScreenFry/project.yml`, build the **ScreenFry** scheme in Release, then `npm run dmg -- <path to ScreenFry.app>`.
 
