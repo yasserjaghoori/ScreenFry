@@ -15,6 +15,7 @@ import {
   toTimeInput,
 } from "../ui/format";
 import { Switch } from "../ui/SiteControls";
+import { confirmLoosen } from "../ui/ConfirmLoosen";
 import type { Notice } from "./index";
 const days: DayOfWeek[] = [1, 2, 3, 4, 5, 6, 0];
 const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -128,7 +129,10 @@ export function Windows({
                 label={`Enable ${w.label}`}
                 checked={w.enabled}
                 disabled={busy}
-                onChange={() => void save({ ...w, enabled: !w.enabled })}
+                onChange={async () => {
+                  if (w.enabled && !(await confirmWindowOff(w, "off"))) return;
+                  void save({ ...w, enabled: !w.enabled });
+                }}
               />
             </div>
             <div className="window-sites">
@@ -153,6 +157,7 @@ export function Windows({
                 className="button ghost danger"
                 disabled={busy}
                 onClick={async () => {
+                  if (w.enabled && !(await confirmWindowOff(w, "delete"))) return;
                   setBusy(true);
                   const r = await send<AppState>({
                     type: "DELETE_WINDOW",
@@ -401,5 +406,15 @@ export function Windows({
         </div>
       )}
     </>
+  );
+}
+/** Allow and block windows restrict you, so switching one off or deleting it asks first. */
+function confirmWindowOff(w: AccessWindow, action: "off" | "delete") {
+  if (w.mode === "free") return Promise.resolve(true);
+  return confirmLoosen(
+    action === "off" ? `Turn off “${w.label}”?` : `Delete “${w.label}”?`,
+    w.mode === "block"
+      ? "This window keeps these websites blocked."
+      : "This window keeps these websites closed outside its hours.",
   );
 }
