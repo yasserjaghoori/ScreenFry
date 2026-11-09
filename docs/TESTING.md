@@ -16,6 +16,11 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## About, installer finish and scan fixes — November 9, 2026
+
+- The Mac app's orange About button and sheet, the installed banner, the new Developer mode arrow and the footer order (Uninstall, Reset All Data, Export, Import) were checked in a test copy run with a throwaway home folder (`CFFIXED_USER_HOME`), so the installed app's Chrome folder and settings weren't touched. In that run the test copy ejected the mounted 0.6.4 installer, as designed.
+- Not yet tried on a real install: Move to Applications from the installer (needs a downloaded, quarantined release).
+
 ## Presets, reset, About and paused windows — November 9, 2026
 
 - `npm run check` passed **118 unit tests** (new: contradicting windows save but pause both, block-screen countdown, Safari label kept on re-read, Restore defaults erasing presets/usage/password and refusing without it), typecheck and verified build. `npm run test:e2e` passed **63 checks**.

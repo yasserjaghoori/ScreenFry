@@ -45,6 +45,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let notice = NSTextField(wrappingLabelWithString: "")
     private lazy var ejectButton = button("Eject Installer", #selector(ejectInstaller(_:)), primary: false)
     private var installerVolume: URL?
+    private weak var mainStack: NSStackView?
+    private var installedBanner: InstalledBanner?
     private var transferStatus: [SettingsBrowser: NSTextField] = [:]
     /// Chrome's setup steps, folded away once ScreenFry in Chrome has checked in.
     private let chromeSteps = NSStackView()
@@ -86,11 +88,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
         buildWindow()
         installChromeExtension()
-        warnAboutOtherCopies()
+        let ejected = warnAboutOtherCopies()
+        announceInstall(ejectedInstaller: ejected)
         refreshState()
-        // Browsers check in about once a minute; keep import/export status current.
+        // Browsers check in about once a minute; keep their status current.
         transferTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             self?.refreshTransferStatus()
+            self?.refreshChromeStatus()
         }
     }
 
@@ -100,39 +104,101 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: Install checks
 
     /// Opened straight from the download (or quarantined in place)? Safari would register the
-    /// extension from a temporary location, so ask the user to drag the app to Applications.
+    /// extension from a temporary location, so offer to move ScreenFry into Applications.
     private func runningFromDiskImage() -> Bool {
-        let path = Bundle.main.bundlePath
-        guard path.hasPrefix("/Volumes/") || path.contains("/AppTranslocation/") else { return false }
-        let alert = NSAlert()
-        alert.messageText = "Move ScreenFry to Applications first"
-        alert.informativeText = "Drag ScreenFry into the Applications folder in the download window, then open it from Applications."
-        alert.addButton(withTitle: "Quit")
+        guard InstallFlow.runningFromDownload else { return false }
         NSApp.activate(ignoringOtherApps: true)
-        alert.runModal()
-        NSApp.terminate(nil)
+        let alert = NSAlert()
+        alert.messageText = "Move ScreenFry to Applications?"
+        alert.informativeText = "ScreenFry runs from your Applications folder. It can move itself there now, open from there, and close the installer for you. Updating? Your settings are kept."
+        alert.addButton(withTitle: "Move to Applications")
+        alert.addButton(withTitle: "Quit")
+        alert.buttons[0].bezelColor = Self.ember
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            NSApp.terminate(nil)
+            return true
+        }
+        do {
+            try InstallFlow.moveToApplications()
+        } catch {
+            let failed = NSAlert()
+            failed.messageText = "Couldn’t move ScreenFry"
+            failed.informativeText = "\(error.localizedDescription)\n\nDrag ScreenFry onto the Applications folder in the installer window instead, then open it from Applications."
+            failed.addButton(withTitle: "Quit")
+            failed.runModal()
+            NSApp.terminate(nil)
+        }
         return true
     }
 
     /// Two installed copies register two Safari extensions with the same identity, which makes
-    /// Safari flaky. The installer disk image left mounted counts too (Safari can register the
-    /// extension inside it), but it is not a real install: offer to eject it instead.
-    private func warnAboutOtherCopies() {
-        guard let id = Bundle.main.bundleIdentifier else { return }
+    /// Safari flaky. A mounted installer counts too (Safari can register the extension inside
+    /// it), but it's only the download: once ScreenFry runs from Applications, it ejects it,
+    /// which also closes the installer window. Returns true when it did.
+    private func warnAboutOtherCopies() -> Bool {
+        guard let id = Bundle.main.bundleIdentifier else { return false }
+        for installer in InstallFlow.mountedInstallers() {
+            if let other = installer.version, InstallFlow.isNewer(other, than: version) {
+                installerVolume = installer.volume
+                notice.stringValue = "The open installer has a newer ScreenFry (\(other)). Drag it onto Applications and choose Replace."
+                notice.isHidden = false
+                return false
+            }
+        }
+        var ejected = false
+        for installer in InstallFlow.mountedInstallers() {
+            do {
+                try NSWorkspace.shared.unmountAndEjectDevice(at: installer.volume)
+                ejected = true
+            } catch {
+                // Just moved from the installer? Its old copy may still be quitting; retry once.
+                installerVolume = installer.volume
+                ejectButton.isHidden = false
+                notice.stringValue = "ScreenFry is in Applications. Eject the installer to finish (Finder may be using it)."
+                notice.isHidden = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                    guard (try? NSWorkspace.shared.unmountAndEjectDevice(at: installer.volume)) != nil else { return }
+                    self?.notice.isHidden = true
+                    self?.ejectButton.isHidden = true
+                }
+            }
+        }
         let others = NSWorkspace.shared.urlsForApplications(withBundleIdentifier: id).filter {
             $0.standardizedFileURL != Bundle.main.bundleURL.standardizedFileURL
                 && FileManager.default.fileExists(atPath: $0.path)
+                && !$0.path.hasPrefix("/Volumes/")
                 && !$0.path.contains("/DerivedData/") && !$0.path.contains("/Build/Products/")
-                && !$0.path.contains("/.Trash/")
+                && !$0.path.contains("/.Trash/") && !$0.path.contains("/AppTranslocation/")
         }
-        if let installer = others.first(where: { $0.path.hasPrefix("/Volumes/") }) {
-            installerVolume = URL(fileURLWithPath: "/Volumes").appendingPathComponent(installer.pathComponents[2])
-            ejectButton.isHidden = false
-            notice.stringValue = "The ScreenFry installer is still open. Eject it now that ScreenFry is in Applications."
-            notice.isHidden = false
-        } else if let other = others.first {
+        if let other = others.first, notice.isHidden {
             notice.stringValue = "Another copy of ScreenFry is installed at \(other.deletingLastPathComponent().path). Keep only one: move the other copy to the Trash."
             notice.isHidden = false
+        }
+        return ejected
+    }
+
+    /// The first launch of a version says so, with a short animation: installed, or updated.
+    private func announceInstall(ejectedInstaller: Bool) {
+        let key = "lastLaunchedVersion"
+        let previous = UserDefaults.standard.string(forKey: key)
+        UserDefaults.standard.set(version, forKey: key)
+        guard previous != version || ejectedInstaller else { return }
+        let title = previous == nil
+            ? "ScreenFry \(version) is installed"
+            : previous == version ? "ScreenFry is ready" : "Updated to ScreenFry \(version)"
+        var detail = previous == nil
+            ? "Follow the steps below to turn it on in each browser."
+            : "Both browsers pick up the new version on their own, and keep their settings."
+        if ejectedInstaller {
+            detail += " The installer is closed; you can delete the downloaded disk image."
+        }
+        let banner = InstalledBanner(title: title, detail: detail)
+        installedBanner = banner
+        mainStack?.insertArrangedSubview(banner, at: 1)
+        banner.widthAnchor.constraint(equalTo: mainStack!.widthAnchor).isActive = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.mainStack?.superview?.scroll(.zero) // keep the header and banner in view
+            banner.play()
         }
     }
 
@@ -206,9 +272,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !Self.updatesConfigured {
             updateButton.toolTip = "Open ScreenFry releases to check for a newer download."
         }
+        let about = NSButton(title: "About", target: self, action: #selector(showAbout(_:)))
+        about.bezelStyle = .rounded
+        about.bezelColor = Self.ember
+        about.toolTip = "About ScreenFry"
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let header = NSStackView(views: [logo, titles, spacer, updateButton])
+        let header = NSStackView(views: [logo, titles, spacer, about, updateButton])
         header.orientation = .horizontal
         header.alignment = .centerY
         header.spacing = 14
@@ -301,10 +371,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let resetAll = NSButton(title: "Reset All Data…", target: self, action: #selector(resetAllData(_:)))
         resetAll.bezelStyle = .inline
         resetAll.toolTip = "Restore ScreenFry’s defaults in every browser: presets, usage and settings passwords."
-        let footer = NSStackView(views: [uninstallButton, exportAll, importAll, resetAll])
+        let footer = NSStackView(views: [uninstallButton, resetAll, exportAll, importAll])
         footer.orientation = .horizontal
         footer.spacing = 10
         let stack = NSStackView(views: [header, noticeRow, browsers, footer])
+        mainStack = stack
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 16
@@ -481,6 +552,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// A successful file drop is not proof of installation. Keep user confirmation explicit.
     private func refreshState() {
         refreshTransferStatus()
+        refreshChromeStatus()
+        refreshSafariStatus()
+    }
+
+    private func refreshChromeStatus() {
         let chromeCheckIn = SettingsTransfer.checkIn(.chrome)
         chromeSteps.isHidden = chromeCheckIn != nil && !chromeStepsShownByUser
         chromeStepsToggle.isHidden = chromeCheckIn == nil
@@ -506,6 +582,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             chromeStatus.stringValue = "Ready to add to Chrome"
             chromeDot.layer?.backgroundColor = Self.ember.cgColor
         }
+    }
+
+    private func refreshSafariStatus() {
         SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: extensionIdentifier) { [weak self] state, error in
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -540,6 +619,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open([page], withApplicationAt: chrome, configuration: NSWorkspace.OpenConfiguration()) { _, error in
             if let error { NSLog("ScreenFry: unable to open Chrome: \(error.localizedDescription)") }
         }
+    }
+
+    @objc private func showAbout(_ sender: Any?) {
+        guard let window, window.attachedSheet == nil else { return }
+        AboutWindow.show(on: window, version: version, ember: Self.ember)
     }
 
     @objc private func toggleChromeSteps(_ sender: Any?) {
@@ -904,7 +988,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         main.addItem(appItem)
         let appMenu = NSMenu()
         appMenu.autoenablesItems = false
-        appMenu.addItem(withTitle: "About ScreenFry", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "About ScreenFry", action: #selector(showAbout(_:)), keyEquivalent: "")
+        aboutItem.target = self
+        appMenu.addItem(aboutItem)
         let update = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates(_:)), keyEquivalent: "")
         update.target = self
         appMenu.addItem(update)

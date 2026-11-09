@@ -205,7 +205,9 @@ function Dashboard() {
           {page === "websites" && (
             <div className="website-layout">
               <div className="website-list" aria-label="Websites">
-                {launchSites.map((s) => (
+                {launchSites.map((s) => {
+                  const status = siteStatus(state, s.id);
+                  return (
                   <button
                     key={s.id}
                     aria-pressed={site === s.id}
@@ -220,18 +222,15 @@ function Dashboard() {
                     </span>
                     <span className="website-name">
                       {s.name}
-                      <small>{siteStatus(state, s.id).label}</small>
-                      {siteStatus(state, s.id).fryTime && (
-                        <FryTimeBar
-                          fry={siteStatus(state, s.id).fryTime!}
-                          site={s.name}
-                          compact
-                        />
+                      <small>{status.label}</small>
+                      {status.fryTime && (
+                        <FryTimeBar fry={status.fryTime} site={s.name} compact />
                       )}
                     </span>
                     <span className="site-chevron">›</span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
               <div className="website-detail">
                 <SiteControls
