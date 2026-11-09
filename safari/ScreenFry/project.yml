@@ -59,8 +59,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry
         # Required for notarization once the app is Developer ID signed.
         ENABLE_HARDENED_RUNTIME: YES
-        MARKETING_VERSION: "0.6.7"
-        CURRENT_PROJECT_VERSION: "29"
+        MARKETING_VERSION: "0.6.8"
+        CURRENT_PROJECT_VERSION: "30"
     dependencies:
       - target: ScreenFry Extension
         embed: true
@@ -109,5 +109,5 @@ targets:
         # Notarization requires the hardened runtime on every executable, the extension included.
         ENABLE_HARDENED_RUNTIME: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry.Extension
-        MARKETING_VERSION: "0.6.7"
-        CURRENT_PROJECT_VERSION: "29"
+        MARKETING_VERSION: "0.6.8"
+        CURRENT_PROJECT_VERSION: "30"
