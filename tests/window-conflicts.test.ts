@@ -40,6 +40,10 @@ describe("contradicting windows", () => {
     expect(windowConflicts([morning], later)).toEqual([]); // back to back, no overlap
     expect(windowConflicts([morning], { ...noX, days: [] })).toEqual([]);
     expect(windowConflicts([morning], { ...noX, domains: ["reddit.com"] })).toEqual([]);
+    const instagram = { ...noX, domains: ["instagram.com"] };
+    expect(
+      describeConflict(instagram, windowConflicts([{ ...morning, domains: ["instagram.com"] }], instagram)[0]),
+    ).toContain("blocks Instagram while “Morning BrainRot” allows it (");
     expect(windowConflicts([morning], { ...noX, enabled: false })).toEqual([]);
     expect(windowConflicts([{ ...morning, enabled: false }], noX)).toEqual([]);
     expect(windowConflicts([morning], { ...morning, id: "other" })).toEqual([]); // allow + allow
