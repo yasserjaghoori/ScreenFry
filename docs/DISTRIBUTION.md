@@ -15,10 +15,6 @@ Both are one-time steps. Apple requires the user to turn a Safari extension on t
 
 `npm run dmg:local` builds the disk image signed with this Mac's Apple Development identity (from Xcode's Accounts settings). Safari lists that build's extension on this Mac without any developer settings, unlike the unsigned CI download. Run it from the project folder, then install the disk image it prints.
 
-### Installing from the disk image
-
-The disk image is a Finder window, so it can't change once ScreenFry is copied. The app finishes the job: opened from Applications, it ejects any mounted ScreenFry installer holding the same or an older version (closing that window) and shows an animated "installed" or "updated" banner on the first launch of each version. Double-clicking ScreenFry in the installer is the main path (the installer background says so): it offers **Install**, quits an older running copy, moves the old app to the Trash, copies itself into `/Applications` with `ditto --noqtn` (leaving the download flag behind, as Finder's move would; Gatekeeper already checked this copy), checks the flag is gone, opens the new copy and quits (`InstallFlow.swift`). If macOS still flags the copy, it removes it and asks for the drag instead; a flagged copy already in Applications also asks for the drag, so it can never loop. macOS doesn't tell an app when it's dragged into Applications, so the drag path finishes when ScreenFry is first opened. A newer version in a mounted installer is left alone, with a note to install it.
-
 ### Uninstalling
 
 **ScreenFry → Uninstall…** (also a button at the bottom of the window) offers:

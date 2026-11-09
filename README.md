@@ -71,7 +71,7 @@ The **Experimental** page holds features that work but may still change.
 ### Download (Mac)
 
 1. Download the latest `ScreenFry-<version>.dmg` from [Releases](https://github.com/yasserjaghoori/ScreenFry/releases).
-2. Open it and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications. ScreenFry closes the installer window for you and shows that it's installed. Opened it straight from the installer? It offers to move itself to Applications.
+2. Open it and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications.
 3. The app walks you through turning on **Safari** (one switch in Safari's settings, then allow it on websites) and **Chrome** (turn on Developer mode, then drag the ScreenFry tile onto Chrome's Extensions page).
 
 Releases are signed with a Developer ID and notarized by Apple, so they open normally and Safari lists the extension without any developer settings.
@@ -91,7 +91,7 @@ Install it the same way as a download.
 
 ### Updating and uninstalling
 
-**Updating:** drag a newer build over the old app (or open it from the installer and choose **Move to Applications**). Both browsers update together and keep their settings, and the app says what version it updated to. Chrome's card shows **Connected** once the new version checks in, with nothing to redo. **Check for Updates…** opens the Releases page until release signing is set up, then uses the automatic updater. Version 0.6.0 changed the app's identifiers, so settings from earlier builds don't carry over: uninstall the old version first and set ScreenFry up again.
+**Updating:** drag a newer build over the old app. Both browsers update together and keep their settings. Chrome's card shows **Connected** once the new version checks in, with nothing to redo. **Check for Updates…** opens the Releases page until release signing is set up, then uses the automatic updater. Version 0.6.0 changed the app's identifiers, so settings from earlier builds don't carry over: uninstall the old version first and set ScreenFry up again.
 
 **Uninstalling:** **ScreenFry → Uninstall…** (also at the bottom of the window). **Keep Settings** removes the app and its extension files; Safari and Chrome keep ScreenFry's settings for a reinstall. **Erase Everything** removes every trace: ScreenFry in Safari and in Chrome first wipes its settings, windows, usage and password (each browser is opened in the background if it's closed; Chrome also removes the extension), then ScreenFry's files and preferences on your Mac are deleted. A browser that doesn't answer within about a minute and a half gets **Try Again** or **Uninstall Anyway**. Safari remembers that you once turned ScreenFry on, so after a reinstall it may start switched on, with fresh settings. Details are in [Distribution](docs/DISTRIBUTION.md).
 

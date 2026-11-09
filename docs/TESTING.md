@@ -16,16 +16,18 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
-## Uninstall wipes Safari, double-click install — November 9, 2026
+## Installer auto-close removed — November 9, 2026
+
+- At Sam's request, the attempt to have ScreenFry close the installer after installing is gone: no automatic eject, no install-from-installer flow, no installed/updated banner, and the installer background is back to the original drag instructions. Opening ScreenFry from the installer shows the original "Move ScreenFry to Applications first" note, and a still-mounted installer gets the original notice with an Eject button.
+
+## Uninstall wipes Safari — November 9, 2026
 
 - Found on Sam's Mac: after Erase Everything and a reinstall, Safari still had every setting, window and the password, and ScreenFry started switched on. Safari keeps a web extension's storage and on/off choice after its app is deleted. Erase Everything now has ScreenFry in each connected browser wipe its storage first (Chrome also removes itself). The on/off choice lives in Safari and can't be changed by an app.
-- Found while testing 0.6.5's Move to Applications from the real download: `FileManager.copyItem` carried the download flag into Applications, macOS refused to clear it (App Management), and the new copy ran translocated and asked to install again. The copy now uses `ditto --noqtn`, is checked, and falls back to the drag; a flagged copy in Applications asks for the drag rather than looping.
-- `npm run check` (120 tests) and `npm run test:e2e` (63 checks) pass; the Mac app compiles. The erase and double-click install need the 0.6.6 release to try for real.
+- `npm run check` (120 tests) and `npm run test:e2e` (63 checks) pass; the Mac app compiles. The erase needs a release build to try for real.
 
-## About, installer finish and scan fixes — November 9, 2026
+## About and scan fixes — November 9, 2026
 
-- The Mac app's orange About button and sheet, the installed banner, the new Developer mode arrow and the footer order (Uninstall, Reset All Data, Export, Import) were checked in a test copy run with a throwaway home folder (`CFFIXED_USER_HOME`), so the installed app's Chrome folder and settings weren't touched. In that run the test copy ejected the mounted 0.6.4 installer, as designed.
-- Not yet tried on a real install: Move to Applications from the installer (needs a downloaded, quarantined release).
+- The Mac app's orange About button and sheet, the new Developer mode arrow and the footer order (Uninstall, Reset All Data, Export, Import) were checked in a test copy run with a throwaway home folder (`CFFIXED_USER_HOME`), so the installed app's Chrome folder and settings weren't touched.
 
 ## Presets, reset, About and paused windows — November 9, 2026
 

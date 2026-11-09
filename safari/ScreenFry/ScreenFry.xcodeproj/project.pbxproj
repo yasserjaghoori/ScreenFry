@@ -19,7 +19,6 @@
 		2E4ABC2320A75A09C1B57FA2 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 6D34DFAD7E4751437B0FC818 /* manifest.json */; };
 		4A8E9F697CA30E3002F3EB6B /* ChromeInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */; };
 		52BF8BD282EE58DEA6604CC8 /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 4560C22C5C494F3794B2222A /* blocked.html */; };
-		5AFF8B29613673CD1C8BEB43 /* InstallFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9982E357E776291CDFF2F4 /* InstallFlow.swift */; };
 		5C021D84B4277C1736B2C841 /* SettingsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B569E73536E468E42DCD24 /* SettingsBridge.swift */; };
 		6B98191F35B7C6F95CCCAA01 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DFC9DF5528FD9C921B13900 /* AppDelegate.swift */; };
 		83C821571D01DDD1A3C86AAC /* onboarding.html in Resources */ = {isa = PBXBuildFile; fileRef = 6A872869A26315B6CA5A3829 /* onboarding.html */; };
@@ -79,7 +78,6 @@
 		A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES.txt; sourceTree = "<group>"; };
 		C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeInstaller.swift; sourceTree = "<group>"; };
 		C926A87187A450660B765193 /* BrandIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = BrandIcon.png; sourceTree = "<group>"; };
-		CC9982E357E776291CDFF2F4 /* InstallFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallFlow.swift; sourceTree = "<group>"; };
 		CE2515CAFCFFC020BD630A93 /* build.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = build.json; sourceTree = "<group>"; };
 		D121F86DED7ECFCE62F12399 /* AboutWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindow.swift; sourceTree = "<group>"; };
 		E7B569E73536E468E42DCD24 /* SettingsBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBridge.swift; sourceTree = "<group>"; };
@@ -141,7 +139,6 @@
 				C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */,
 				480527D94926FC7DE12C154E /* DragTile.swift */,
 				7822C9B140D38DF445003C12 /* Info.plist */,
-				CC9982E357E776291CDFF2F4 /* InstallFlow.swift */,
 				3DB051891D91607283BE453E /* SettingsTransfer.swift */,
 				C04C43DB19F97C5AE665D076 /* SetupImages */,
 			);
@@ -306,7 +303,6 @@
 				6B98191F35B7C6F95CCCAA01 /* AppDelegate.swift in Sources */,
 				4A8E9F697CA30E3002F3EB6B /* ChromeInstaller.swift in Sources */,
 				EF8305E4F9966B5108923EE2 /* DragTile.swift in Sources */,
-				5AFF8B29613673CD1C8BEB43 /* InstallFlow.swift in Sources */,
 				5C021D84B4277C1736B2C841 /* SettingsBridge.swift in Sources */,
 				1EF6E4D71ACC3CB9EE13D737 /* SettingsTransfer.swift in Sources */,
 			);
