@@ -6,8 +6,12 @@ import {
   minutesSinceMidnight,
   nextLocalMidnight,
 } from "@core/date";
-import { urlMatchesDomains } from "@core/domains";
-import { shortFormBlock, siteFor } from "@feeds/index";
+import {
+  expandDomainAliases,
+  hostMatchesDomain,
+  urlMatchesDomains,
+} from "@core/domains";
+import { shortFormBlock, siteDefinitions, siteFor } from "@feeds/index";
 import type {
   AccessWindow,
   AppState,
@@ -23,8 +27,18 @@ export function isScheduleActive(
   schedule: WeeklySchedule,
   date: Date,
 ): boolean {
-  const day = date.getDay() as DayOfWeek,
-    minute = minutesSinceMidnight(date);
+  return activeAt(
+    schedule,
+    date.getDay() as DayOfWeek,
+    minutesSinceMidnight(date),
+  );
+}
+/** Whether a weekly schedule is on at a minute of a weekday (no clock or time zone). */
+function activeAt(
+  schedule: WeeklySchedule,
+  day: DayOfWeek,
+  minute: number,
+): boolean {
   if (schedule.startMinute === schedule.endMinute)
     return schedule.days.includes(day);
   if (schedule.startMinute < schedule.endMinute)
@@ -299,4 +313,74 @@ export function nextPolicyBoundary(state: AppState, now: number): number {
       }
   }
   return next;
+}
+
+/**
+ * Two windows contradict when one blocks a website while the other, at the same time, allows
+ * it (an allow window) or opens its feeds (free time): inside the overlap they say opposite
+ * things. Allow + allow, block + block and allow + free time can coexist.
+ */
+export interface WindowConflict {
+  other: AccessWindow;
+  /** Site names (or domains) both windows list. */
+  sites: string[];
+  /** The first overlapping minute of the week, starting Monday. */
+  day: DayOfWeek;
+  minute: number;
+}
+const contradicts = (a: AccessWindow, b: AccessWindow) => {
+  const modes = new Set([a.mode ?? "allow", b.mode ?? "allow"]);
+  return modes.has("block") && modes.size === 2;
+};
+function sharedSites(a: AccessWindow, b: AccessWindow): string[] {
+  const shared = a.domains.filter((d) =>
+    b.domains.some((e) => hostMatchesDomain(d, e) || hostMatchesDomain(e, d)),
+  );
+  const names = shared.map(
+    (d) =>
+      siteDefinitions.find((site) =>
+        expandDomainAliases(site.domains).some((sd) => hostMatchesDomain(d, sd)),
+      )?.name ?? d,
+  );
+  return [...new Set(names)];
+}
+const WEEK_ORDER: DayOfWeek[] = [1, 2, 3, 4, 5, 6, 0];
+/** Conflicts between `window` and the other enabled windows; none when it is disabled. */
+export function windowConflicts(
+  windows: AccessWindow[],
+  window: AccessWindow,
+): WindowConflict[] {
+  if (!window.enabled) return [];
+  const conflicts: WindowConflict[] = [];
+  for (const other of windows) {
+    if (other.id === window.id || !other.enabled || !contradicts(window, other))
+      continue;
+    const sites = sharedSites(window, other);
+    if (!sites.length) continue;
+    search: for (const day of WEEK_ORDER)
+      for (let minute = 0; minute < 1440; minute++)
+        if (activeAt(window, day, minute) && activeAt(other, day, minute)) {
+          conflicts.push({ other, sites, day, minute });
+          break search;
+        }
+  }
+  return conflicts;
+}
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const listSites = (sites: string[]) =>
+  sites.length < 3
+    ? sites.join(" and ")
+    : `${sites.slice(0, -1).join(", ")} and ${sites.at(-1)}`;
+/** A sentence explaining a conflict, for errors and the window editor. */
+export function describeConflict(
+  window: AccessWindow,
+  conflict: WindowConflict,
+): string {
+  const hour = Math.floor(conflict.minute / 60),
+    minute = String(conflict.minute % 60).padStart(2, "0");
+  const time = `${((hour + 11) % 12) + 1}:${minute} ${hour < 12 ? "AM" : "PM"}`;
+  const blocking = (window.mode ?? "allow") === "block" ? window : conflict.other;
+  const opening = blocking === window ? conflict.other : window;
+  const kind = opening.mode === "free" ? "opens their feeds" : "allows them";
+  return `“${blocking.label}” blocks ${listSites(conflict.sites)} while “${opening.label}” ${kind} (overlap starts ${DAY_NAMES[conflict.day]} ${time}). Change the times, days or websites so they don’t overlap.`;
 }

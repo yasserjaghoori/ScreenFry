@@ -9,6 +9,7 @@ import {
   verifyPassword,
 } from "./password";
 import { pruneUsage } from "./tracking";
+import { describeConflict, windowConflicts } from "@policy/index";
 import type { StateStore } from "./store";
 import type {
   AccessWindow,
@@ -211,6 +212,8 @@ export async function saveWindow(
 ): Promise<ActionResult<AppState>> {
   const { window, error } = sanitizeWindow(input);
   if (!window) return fail(error!);
+  const conflict = windowConflicts((await ctx.store.get()).windows, window)[0];
+  if (conflict) return fail(describeConflict(window, conflict));
   return protectedUpdate(ctx, (s) => ({
     ...s,
     windows: [...s.windows.filter((w) => w.id !== window.id), window],
@@ -331,6 +334,8 @@ export async function importSettings(
   for (const input of data.windows) {
     const { window, error } = sanitizeWindow(input);
     if (!window) return fail(`Windows: ${error}`);
+    const conflict = windowConflicts(windows, window)[0];
+    if (conflict) return fail(`Windows: ${describeConflict(window, conflict)}`);
     windows.push(window);
   }
   return protectedUpdate(ctx, (s) => {

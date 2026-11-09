@@ -11,11 +11,11 @@ import {
 import {
   describeDays,
   formatMinuteOfDay,
-  fromTimeInput,
-  toTimeInput,
 } from "../ui/format";
 import { Switch } from "../ui/SiteControls";
 import { confirmLoosen } from "../ui/ConfirmLoosen";
+import { TimePicker } from "../ui/TimePicker";
+import { describeConflict, windowConflicts } from "@policy/index";
 import type { Notice } from "./index";
 const days: DayOfWeek[] = [1, 2, 3, 4, 5, 6, 0];
 const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -48,6 +48,17 @@ export function Windows({
       w.domains.filter((d) => !supportedDomains.includes(d)).join(", "),
     );
   }
+  /** The editor's websites: ticked sites plus anything typed under Other websites. */
+  const editedDomains = (w: AccessWindow) => [
+    ...w.domains.filter((d) => supportedDomains.includes(d)),
+    ...custom.split(/[\s,]+/).filter(Boolean),
+  ];
+  const editingConflict =
+    editing &&
+    windowConflicts(state.windows, {
+      ...editing,
+      domains: editedDomains(editing),
+    })[0];
   async function save(w: AccessWindow) {
     setBusy(true);
     const r = await send<AppState>({ type: "SAVE_WINDOW", window: w });
@@ -149,6 +160,11 @@ export function Windows({
                 </span>
               ))}
             </div>
+            {windowConflicts(state.windows, w).map((conflict) => (
+              <p className="window-conflict" role="alert" key={conflict.other.id}>
+                {describeConflict(w, conflict)}
+              </p>
+            ))}
             <div className="row window-actions">
               <button className="button secondary" onClick={() => edit(w)}>
                 Edit window
@@ -185,13 +201,8 @@ export function Windows({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                const domains = [
-                  ...editing.domains.filter((d) =>
-                    supportedDomains.includes(d),
-                  ),
-                  ...custom.split(/[\s,]+/).filter(Boolean),
-                ];
-                void save({ ...editing, domains });
+                if (editingConflict) return;
+                void save({ ...editing, domains: editedDomains(editing) });
               }}
             >
               <h2 id="window-title">
@@ -277,31 +288,21 @@ export function Windows({
               <div className="form-grid">
                 <div className="field">
                   <label htmlFor="window-start">From</label>
-                  <input
+                  <TimePicker
                     id="window-start"
-                    type="time"
-                    required
-                    value={toTimeInput(editing.startMinute)}
-                    onChange={(e) =>
-                      setEditing({
-                        ...editing,
-                        startMinute: fromTimeInput(e.target.value),
-                      })
+                    value={editing.startMinute % 1440}
+                    onChange={(startMinute) =>
+                      setEditing({ ...editing, startMinute })
                     }
                   />
                 </div>
                 <div className="field">
                   <label htmlFor="window-end">Until</label>
-                  <input
+                  <TimePicker
                     id="window-end"
-                    type="time"
-                    required
-                    value={toTimeInput(editing.endMinute % 1440)}
-                    onChange={(e) =>
-                      setEditing({
-                        ...editing,
-                        endMinute: fromTimeInput(e.target.value),
-                      })
+                    value={editing.endMinute % 1440}
+                    onChange={(endMinute) =>
+                      setEditing({ ...editing, endMinute })
                     }
                   />
                 </div>
@@ -384,10 +385,16 @@ export function Windows({
                   />
                 </label>
               </fieldset>
-              {error && (
-                <p className="error" role="alert">
-                  {error}
+              {editingConflict ? (
+                <p className="window-conflict" role="alert">
+                  {describeConflict(editing, editingConflict)}
                 </p>
+              ) : (
+                error && (
+                  <p className="error" role="alert">
+                    {error}
+                  </p>
+                )
               )}
               <div className="focus-actions">
                 <button
@@ -397,7 +404,10 @@ export function Windows({
                 >
                   Cancel
                 </button>
-                <button className="button" disabled={busy}>
+                <button
+                  className="button"
+                  disabled={busy || Boolean(editingConflict)}
+                >
                   {busy ? "Saving…" : "Save window"}
                 </button>
               </div>
