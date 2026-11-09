@@ -381,6 +381,10 @@ export function describeConflict(
   const time = `${((hour + 11) % 12) + 1}:${minute} ${hour < 12 ? "AM" : "PM"}`;
   const blocking = (window.mode ?? "allow") === "block" ? window : conflict.other;
   const opening = blocking === window ? conflict.other : window;
-  const kind = opening.mode === "free" ? "opens their feeds" : "allows them";
+  const one = conflict.sites.length === 1;
+  const kind =
+    opening.mode === "free"
+      ? `opens ${one ? "its" : "their"} feeds`
+      : `allows ${one ? "it" : "them"}`;
   return `“${blocking.label}” blocks ${listSites(conflict.sites)} while “${opening.label}” ${kind} (overlap starts ${DAY_NAMES[conflict.day]} ${time}). Change the times, days or websites so they don’t overlap.`;
 }

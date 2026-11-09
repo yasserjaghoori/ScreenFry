@@ -199,6 +199,7 @@ export function Windows({
             aria-labelledby="window-title"
           >
             <form
+              className="window-form"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (editingConflict) return;
@@ -307,7 +308,7 @@ export function Windows({
                   />
                 </div>
               </div>
-              <p className="muted small">
+              <p className="muted small window-time-hint">
                 An end before the start crosses midnight. Equal times mean all
                 day.
               </p>

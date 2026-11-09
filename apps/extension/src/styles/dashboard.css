@@ -369,6 +369,15 @@
 .window-days {
   margin-top: 20px;
 }
+/* The window editor: one even gap between every section. */
+.window-form {
+  display: grid;
+  gap: 26px;
+}
+.window-form > *,
+.window-form > .window-conflict { margin: 0; }
+.window-form .window-time-hint { margin-top: -16px; }
+.window-form .focus-actions { margin-top: 0; }
 .day-pills {
   display: flex;
   gap: 7px;
