@@ -129,7 +129,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let installer = others.first(where: { $0.path.hasPrefix("/Volumes/") }) {
             installerVolume = URL(fileURLWithPath: "/Volumes").appendingPathComponent(installer.pathComponents[2])
             ejectButton.isHidden = false
-            notice.stringValue = "The ScreenFry installer is still open. Eject it now that ScreenFry is in Applications."
+            // Only say what's known: a ScreenFry disk image is mounted. It may be one you haven't
+            // installed from yet, so don't claim it's finished or which version it holds.
+            notice.stringValue = "A ScreenFry installer disk is still mounted. Eject it when you’re done with it."
             notice.isHidden = false
         } else if let other = others.first {
             notice.stringValue = "Another copy of ScreenFry is installed at \(other.deletingLastPathComponent().path). Keep only one: move the other copy to the Trash."
