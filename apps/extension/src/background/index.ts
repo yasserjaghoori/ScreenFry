@@ -24,6 +24,7 @@ import { chromeStateStore } from "@browser/storage";
 import { activeShortForm, siteDefinitions } from "@feeds/index";
 import {
   extensionPageUrl,
+  OPEN_SCREENFRY_ADDRESS,
   openScreenFryPage,
   networkBlockAction,
   networkResourceTypes,
@@ -160,6 +161,22 @@ async function syncNetworkRules(state: AppState) {
       short.label,
     );
   });
+  // The Mac app's "Open ScreenFry Settings" address, sent to ScreenFry's page before Chrome
+  // tries to load it, so it works even while this background is asleep. (Safari can't
+  // redirect pages to the extension; there the tab listener below handles it.)
+  if (browser !== "safari")
+    addRules.push({
+      id: 60_000,
+      priority: 2,
+      action: {
+        type: "redirect" as chrome.declarativeNetRequest.RuleActionType,
+        redirect: { regexSubstitution: `${chrome.runtime.getURL("blocked.html")}?open=\\1` },
+      },
+      condition: {
+        regexFilter: `^${escapeRegex(OPEN_SCREENFRY_ADDRESS)}([a-z]*).*$`,
+        resourceTypes: ["main_frame"] as chrome.declarativeNetRequest.ResourceType[],
+      },
+    });
   const signature = JSON.stringify(addRules);
   // Already installed during this background lifetime: skip the browser round trip.
   if (signature === lastNetworkRules) return;

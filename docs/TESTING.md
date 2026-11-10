@@ -16,6 +16,12 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Fry Time rewards, Quora and Open Settings in Chrome — November 10, 2026
+
+- Open ScreenFry Settings didn't work in Sam's Chrome, though it did in throwaway profiles (headless and visible). Chrome now redirects the placeholder address with a network rule, before it tries to load it, so ScreenFry's background doesn't need to be awake; the tab listener stays for Safari. The network route was checked on its own with the listener switched off.
+- Earn goals can pay a different amount each time (1st, 2nd, 3rd…; with no limit the last amount repeats). Tests also pin down that earned Fry Time works outside windows and that windows' and earned minutes stay separate.
+- Quora added, checked against signed-in Quora (it labels its parts with `dom_annotate_*` classes). The time picker's down arrow now goes to later times. The installer background has drips (Finder shows backgrounds as still images, so they're drawn mid-fall).
+
 ## Shorts choice, Open ScreenFry Settings and Accept all — November 10, 2026
 
 - Shorts, Reels and X's video feed are now one three-way choice (Allowed, From links only, Blocked) instead of a switch plus an indented research switch, which drew its connector line through the text in the popup and let research mode be switched on while it did nothing.

@@ -1093,3 +1093,9 @@
 @media (max-width: 640px) { .loadout-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .earn-fry { display: grid; gap: 12px; margin-top: 12px; }
 .earn-fry select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font: inherit; }
+/* Fry Time earned, different each time: one small box per payout. */
+.fry-schedule {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}

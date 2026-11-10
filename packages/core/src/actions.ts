@@ -294,14 +294,25 @@ export function sanitizeEarnGoal(input: EarnGoal): { goal?: EarnGoal; error?: st
       bySite[key] = value;
     }
   }
-  if (keys.some((key) => (bySite?.[key] ?? fryMinutes) === undefined))
+  // Different amounts each time it's earned (the same on every website).
+  let schedule: number[] | undefined;
+  if (!bySite && Array.isArray(input.fryMinutesSchedule) && input.fryMinutesSchedule.length) {
+    schedule = input.fryMinutesSchedule.slice(0, repeats || 48);
+    if (schedule.some((m) => !minutes(m) || m === 0))
+      return { error: "Fry Time earned each time must be between 1 and 1440 minutes." };
+    if (schedule.every((m) => m === schedule![0])) schedule = undefined;
+  }
+  const first = schedule?.[0] ?? fryMinutes;
+  if (keys.some((key) => (bySite?.[key] ?? first) === undefined))
     return { error: "Choose how much Fry Time each website earns." };
   return {
     goal: {
       ...base,
       reward: "fry",
       repeats,
-      ...(bySite ? { fryMinutesBySite: bySite } : { fryMinutes }),
+      ...(bySite
+        ? { fryMinutesBySite: bySite }
+        : { fryMinutes: first, ...(schedule ? { fryMinutesSchedule: schedule } : {}) }),
     },
   };
 }

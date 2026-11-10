@@ -158,6 +158,10 @@ export function migrateState(
                       reward: "fry" as const,
                       repeats: typeof g.repeats === "number" ? g.repeats : 1,
                       ...(typeof g.fryMinutes === "number" ? { fryMinutes: g.fryMinutes } : {}),
+                      ...(Array.isArray(g.fryMinutesSchedule) &&
+                      g.fryMinutesSchedule.every((m: unknown) => typeof m === "number")
+                        ? { fryMinutesSchedule: g.fryMinutesSchedule as number[] }
+                        : {}),
                       ...(object(g.fryMinutesBySite)
                         ? {
                             fryMinutesBySite: Object.fromEntries(

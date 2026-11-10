@@ -138,6 +138,7 @@ describe("storage and schema migration", () => {
       "tiktok",
       "facebook",
       "linkedin",
+      "quora",
     ]);
     expect(state.settingsPassword).toBeUndefined();
     expect(state.windows).toEqual([]);

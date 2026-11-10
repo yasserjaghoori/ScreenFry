@@ -9,7 +9,8 @@ export type FeedSite =
   | "substack"
   | "tiktok"
   | "facebook"
-  | "linkedin";
+  | "linkedin"
+  | "quora";
 export interface DailyAllowance {
   defaultMinutes: number;
   byWeekday?: Partial<Record<DayOfWeek, number>>;
@@ -68,6 +69,12 @@ export interface EarnGoal {
   fryMinutes?: number;
   /** Fry Time reward: minutes per website (site id like "youtube", else domain) instead. */
   fryMinutesBySite?: Record<string, number>;
+  /**
+   * Fry Time reward, different each time: minutes for the 1st, 2nd, 3rd… completion on every
+   * website (the last amount repeats after that). `fryMinutes` holds the first, for older
+   * versions.
+   */
+  fryMinutesSchedule?: number[];
 }
 /** One loadout: the same website settings a share code holds. */
 export interface LoadoutSettings {

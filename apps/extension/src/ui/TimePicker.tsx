@@ -214,7 +214,10 @@ export function TimePicker({
   );
 }
 
-/** Up arrow, a number you can type over, down arrow. Arrow keys step too. */
+/**
+ * Like a wheel: the up arrow goes back to earlier numbers and the down arrow on to later
+ * ones (Sam's request), with a number you can type over in between. Arrow keys match.
+ */
 function Stepper({
   label,
   value,
@@ -233,7 +236,7 @@ function Stepper({
   };
   return (
     <div className="time-stepper">
-      <button type="button" tabIndex={-1} aria-label={`Increase ${label.toLowerCase()}`} onClick={() => onStep(1)}>
+      <button type="button" tabIndex={-1} aria-label={`Decrease ${label.toLowerCase()}`} onClick={() => onStep(-1)}>
         <Chevron up />
       </button>
       <input
@@ -248,14 +251,14 @@ function Stepper({
           if (e.key === "ArrowUp" || e.key === "ArrowDown") {
             e.preventDefault();
             setDraft(undefined);
-            onStep(e.key === "ArrowUp" ? 1 : -1);
+            onStep(e.key === "ArrowDown" ? 1 : -1);
           } else if (e.key === "Enter") {
             e.preventDefault();
             commit();
           }
         }}
       />
-      <button type="button" tabIndex={-1} aria-label={`Decrease ${label.toLowerCase()}`} onClick={() => onStep(-1)}>
+      <button type="button" tabIndex={-1} aria-label={`Increase ${label.toLowerCase()}`} onClick={() => onStep(1)}>
         <Chevron />
       </button>
     </div>

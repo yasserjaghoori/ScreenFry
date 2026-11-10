@@ -726,6 +726,38 @@ export const siteDefinitions: SiteDefinition[] = [
       videos: element("Block video playback", "Video", ["video"], undefined, true),
     },
   },
+  {
+    site: "quora",
+    color: "#b92b27",
+    symbol: "Q",
+    name: "Quora",
+    domains: ["quora.com"],
+    // Checked against signed-in Quora (Nov 2026): it marks its parts with "dom_annotate_*"
+    // classes, and its top bar links use full addresses.
+    elements: {
+      home: element("Hide home feed", "Feeds", [".dom_annotate_multifeed_home", "#mainContent"], at("/"), true),
+      following: element(
+        "Hide Following feed",
+        "Feeds",
+        ["#mainContent"],
+        at("/following"),
+        true,
+      ),
+      relatedQuestions: element("Hide related questions", "Question page", [".dom_annotate_related_questions"]),
+      ads: element("Hide ads and promoted answers", "Question page", [
+        ".dom_annotate_ad_promoted_answer",
+        ".dom_annotate_ad_image_ad",
+        ".dom_annotate_google_ad",
+        ".dom_annotate_multifeed_bundle_BrandSafetyAdBundle",
+      ]),
+      spacesSidebar: element("Hide Spaces sidebar", "Sidebar", [".dom_annotate_feed_switcher"]),
+      followingButton: element("Hide Following button", "Navigation", ['a[href$="quora.com/following"]']),
+      answerButton: element("Hide Answer button", "Navigation", ['a[href$="quora.com/answer"]']),
+      spacesButton: element("Hide Spaces button", "Navigation", ['a[href$="quora.com/spaces"]']),
+      notificationsButton: element("Hide Notifications button", "Navigation", ['a[href$="quora.com/notifications"]']),
+      videos: element("Block video playback", "Video", ["video"], undefined, true),
+    },
+  },
 ];
 export function siteFor(host: string): SiteDefinition | undefined {
   return siteDefinitions.find((site) =>

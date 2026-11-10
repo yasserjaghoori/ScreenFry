@@ -198,3 +198,24 @@ describe("share codes", () => {
     expect((await friend.store.get()).earnGoals?.map((g) => g.id)).toEqual(["g"]);
   });
 });
+
+describe("Fry Time rewards that differ each time", () => {
+  it("survive a share code", async () => {
+    const s = createDefaultState();
+    const goal = {
+      id: "g",
+      label: "Spanish",
+      enabled: true,
+      goalDomains: ["duolingo.com"],
+      minutes: 20,
+      lockedDomains: ["youtube.com", "youtu.be", "youtube-nocookie.com"],
+      reward: "fry" as const,
+      repeats: 3,
+      fryMinutes: 1,
+      fryMinutesSchedule: [1, 5, 10],
+    };
+    const code = await encodeShareCode({ ...s, earnGoals: [goal] });
+    const back = (await decodeShareCode(code)) as { earnGoals?: unknown[] };
+    expect(back.earnGoals?.[0]).toMatchObject({ repeats: 3, fryMinutes: 1, fryMinutesSchedule: [1, 5, 10] });
+  });
+});
