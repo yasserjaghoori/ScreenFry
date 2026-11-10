@@ -182,3 +182,13 @@
   color: var(--warn);
   border-color: color-mix(in srgb, var(--warn) 30%, transparent);
 }
+.popup .shorts-choice .segmented {
+  gap: 6px;
+}
+.popup .shorts-choice .segmented button {
+  padding: 8px 9px;
+  font-size: 12px;
+}
+.popup .shorts-choice .segmented button span {
+  font-size: 10.5px;
+}

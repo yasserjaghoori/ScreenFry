@@ -820,7 +820,7 @@ function ShareSettings({
 
 /**
  * A slideshow of what a share code changes: one slide per website, each setting shown as
- * now → after. The apply button waits on the last slide so every change gets seen.
+ * now → after. The apply button sits on the last slide; "Accept all" applies without paging.
  */
 function ShareSlides({
   slides,
@@ -857,10 +857,17 @@ function ShareSlides({
         if (e.key === "ArrowLeft") go(at - 1);
       }}
     >
-      <p className="share-slides-head">
-        This code makes <strong>{total} change{total === 1 ? "" : "s"}</strong>
-        {websites ? ` across ${websites} website${websites === 1 ? "" : "s"}` : ""}.
-      </p>
+      <div className="share-slides-head">
+        <p>
+          This code makes <strong>{total} change{total === 1 ? "" : "s"}</strong>
+          {websites ? ` across ${websites} website${websites === 1 ? "" : "s"}` : ""}.
+        </p>
+        {!last && (
+          <button type="button" className="button secondary" disabled={busy} onClick={onApply}>
+            {busy ? "Saving…" : `Accept all ${total} changes`}
+          </button>
+        )}
+      </div>
       <article
         key={`${slide.key}-${at}`}
         className={`share-slide ${direction > 0 ? "from-right" : "from-left"}`}

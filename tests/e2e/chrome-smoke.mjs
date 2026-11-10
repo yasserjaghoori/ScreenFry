@@ -964,6 +964,20 @@ try {
       `document.querySelector('.site-summary h2').textContent==='TikTok'`,
     ),
   );
+  {
+    // The Mac app's "Open ScreenFry Settings" sends the browser to a placeholder address.
+    const { targetId } = await cdp("Target.createTarget", {
+      url: "https://open.screenfry.invalid/settings",
+    });
+    check(
+      "the Mac app's Open ScreenFry Settings lands on the settings page",
+      await waitFor(
+        async () => /\/dashboard\.html(\?[^#]*)?#settings$/.test(await urlOf(targetId)),
+        "settings page from the Mac app",
+      ),
+    );
+    await cdp("Target.closeTarget", { targetId });
+  }
   check(
     "popup closes when its tab navigates or another tab is selected",
     await evaluate(

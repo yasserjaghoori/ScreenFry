@@ -32,6 +32,12 @@ export function Switch({
     />
   );
 }
+type ShortsChoice = "allow" | "links" | "block";
+const SHORTS_CHOICES: { value: ShortsChoice; label: string; detail: (noun: string) => string }[] = [
+  { value: "allow", label: "Allowed", detail: () => "No changes" },
+  { value: "links", label: "From links only", detail: () => "Research mode: one at a time" },
+  { value: "block", label: "Blocked", detail: (noun) => `No ${noun} at all` },
+];
 export function SiteControls({
   state,
   site,
@@ -119,6 +125,37 @@ export function SiteControls({
       type: "SET_FEEDS",
       feedSettings: next,
     });
+    setBusy(false);
+    if (result.ok) onState(result.data);
+    else onError(result.error);
+  }
+  // Short-form video: Allowed, From links only (research mode) or Blocked.
+  const research = definition.research;
+  const feedsHere = state.feedSettings.sites[site] ?? {};
+  const shortsChoice: ShortsChoice = !research?.requires || !feedsHere[research.requires]
+    ? "allow"
+    : feedsHere[research.setting]
+      ? "links"
+      : "block";
+  const shortsNoun = (definition.shortForm?.label ?? "videos").replace(`${definition.name} `, "");
+  async function chooseShorts(choice: ShortsChoice) {
+    if (!research?.requires || choice === shortsChoice) return;
+    if (!(await passwordGate(state))) return;
+    const strictness = { allow: 0, links: 1, block: 2 };
+    if (
+      strictness[choice] < strictness[shortsChoice] &&
+      !(await confirmLoosen(
+        choice === "allow"
+          ? `Are you sure you want to start watching ${definition.shortForm?.label} again?`
+          : `Let ${definition.shortForm?.label} opened from links play again?`,
+      ))
+    )
+      return;
+    setBusy(true);
+    const next = structuredClone(state.feedSettings);
+    next.sites[site][research.requires] = choice !== "allow";
+    next.sites[site][research.setting] = choice === "links";
+    const result = await send<AppState>({ type: "SET_FEEDS", feedSettings: next });
     setBusy(false);
     if (result.ok) onState(result.data);
     else onError(result.error);
@@ -257,39 +294,51 @@ export function SiteControls({
           <div className="control-group">
             {Object.entries(definition.elements)
               .filter(([, e]) => e.group === group)
-              .map(([key, element]) => {
-                const parentOff =
-                  element.requires !== undefined &&
-                  state.feedSettings.sites[site]?.[element.requires] !== true;
-                return (
-                  <div
-                    className={`control-row${element.requires ? " sub" : ""}${element.note ? " noted" : ""}`}
-                    key={key}
-                  >
-                    <span>
-                      {element.label}
-                      {element.note && (
-                        <small className="control-row-note">
-                          {parentOff
-                            ? `Turn on ${definition.elements[element.requires!].label} first. ${element.note}`
-                            : element.note}
-                        </small>
-                      )}
-                    </span>
-                    <Switch
-                      label={element.label}
-                      checked={state.feedSettings.sites[site]?.[key] === true}
-                      disabled={busy || parentOff}
-                      onChange={() => void toggle(key)}
-                    />
+              // Research mode and "block entirely" are one three-way choice below.
+              .filter(([key, element]) => !element.requires && key !== research?.requires)
+              .map(([key, element]) => (
+                <div className={`control-row${element.note ? " noted" : ""}`} key={key}>
+                  <span>
+                    {element.label}
+                    {element.note && <small className="control-row-note">{element.note}</small>}
+                  </span>
+                  <Switch
+                    label={element.label}
+                    checked={state.feedSettings.sites[site]?.[key] === true}
+                    disabled={busy}
+                    onChange={() => void toggle(key)}
+                  />
+                </div>
+              ))}
+            {research?.requires &&
+              definition.shortForm &&
+              definition.elements[research.requires].group === group && (
+                <div className="control-row shorts-choice">
+                  <span>{definition.shortForm.label}</span>
+                  <div className="segmented" role="radiogroup" aria-label={definition.shortForm.label}>
+                    {SHORTS_CHOICES.map((choice) => (
+                      <button
+                        key={choice.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={shortsChoice === choice.value}
+                        className={shortsChoice === choice.value ? "selected" : ""}
+                        disabled={busy}
+                        onClick={() => void chooseShorts(choice.value)}
+                      >
+                        {choice.label}
+                        <span>{choice.detail(shortsNoun)}</span>
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
+                </div>
+              )}
           </div>
           {group === "Short-form video" && definition.shortForm && (
             <p className="control-note">
-              Blocking entirely stops playback too, including direct links,
-              notifications and in-site navigation.
+              {shortsChoice === "links"
+                ? `From links only: a ${shortsNoun.replace(/s$/, "")} opened from a link plays, but you can’t scroll on to the next one or open its creator’s page. Load the page again to open another link. ${shortsNoun} shelves and buttons stay hidden.`
+                : `Blocked stops playback entirely, including direct links, notifications and in-site navigation.`}
             </p>
           )}
         </section>

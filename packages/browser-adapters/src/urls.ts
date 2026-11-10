@@ -1,5 +1,17 @@
 import type { BrowserKind } from "@shared/index";
 
+/**
+ * The Mac app opens ScreenFry's settings by sending the browser to this address, which never
+ * loads (`.invalid` is reserved); ScreenFry swaps the tab for its own page. The path names
+ * the dashboard section, e.g. `/settings`.
+ */
+export const OPEN_SCREENFRY_ADDRESS = "https://open.screenfry.invalid/";
+export function openScreenFryPage(url: string | undefined): string | undefined {
+  if (!url?.startsWith(OPEN_SCREENFRY_ADDRESS)) return;
+  const page = url.slice(OPEN_SCREENFRY_ADDRESS.length).split(/[/?#]/)[0];
+  return ["websites", "windows", "experimental", "settings"].includes(page) ? page : "websites";
+}
+
 /** Keep the packaged resource path separate from query and fragment components. */
 export function extensionPageUrl(
   page: string,

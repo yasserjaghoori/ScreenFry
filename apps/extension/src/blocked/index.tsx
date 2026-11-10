@@ -123,20 +123,7 @@ function Blocked() {
               {shortForm ? "Back to website" : "Continue to site"}
             </button>
           )}
-          <button
-            className="button secondary"
-            onClick={() =>
-              void chrome.tabs.create({
-                url: chrome.runtime.getURL("dashboard.html"),
-              })
-            }
-          >
-            Open ScreenFry
-          </button>
         </div>
-        <p className="fine-print">
-          No extra-time bypass. Changes follow your optional settings password.
-        </p>
       </section>
     </main>
   );

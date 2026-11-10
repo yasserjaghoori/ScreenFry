@@ -24,6 +24,7 @@ import { chromeStateStore } from "@browser/storage";
 import { activeShortForm, siteDefinitions } from "@feeds/index";
 import {
   extensionPageUrl,
+  openScreenFryPage,
   networkBlockAction,
   networkResourceTypes,
 } from "@browser/urls";
@@ -646,7 +647,28 @@ chrome.runtime.onMessage.addListener((request: Request, sender, respond) => {
 chrome.tabs.onActivated.addListener(() => {
   void reevaluate();
 });
+/** The Mac app's "Open ScreenFry Settings": swap its placeholder tab for the dashboard. */
+async function openFromApp(id: number, tab: chrome.tabs.Tab, page: string) {
+  const url = extensionPageUrl("dashboard.html", {}, page);
+  try {
+    // Safari can hang moving a web tab to an extension page, so it gets a new tab instead.
+    if (browser === "safari") {
+      await withTimeout(chrome.tabs.create({ url, windowId: tab.windowId, active: true }));
+      await withTimeout(chrome.tabs.remove(id));
+    } else await withTimeout(chrome.tabs.update(id, { url, active: true }));
+  } catch {
+    /* closed meanwhile */
+  }
+}
+const openingFromApp = new Set<number>();
 chrome.tabs.onUpdated.addListener((id, change, tab) => {
+  const fromApp = openScreenFryPage(change.url ?? tab.url);
+  if (fromApp) {
+    if (openingFromApp.has(id)) return;
+    openingFromApp.add(id);
+    void openFromApp(id, tab, fromApp).finally(() => openingFromApp.delete(id));
+    return;
+  }
   if (change.url) {
     for (const key of Object.keys(media))
       if (key.startsWith(`${id}:`)) delete media[key];
