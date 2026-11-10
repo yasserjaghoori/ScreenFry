@@ -219,6 +219,7 @@ function Popup() {
           Websites ↗
         </button>
         <button onClick={() => void open("windows")}>Windows ↗</button>
+        <button onClick={() => void open("earn")}>Earn ↗</button>
       </nav>
       <SitePicker
         value={site}

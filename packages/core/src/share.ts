@@ -114,7 +114,7 @@ function pack(settings: Shareable): Payload {
       entry.push(
         g.enabled ? 0 : 1,
         g.repeats ?? 1,
-        g.fryMinutesBySite ?? g.fryMinutesSchedule ?? g.fryMinutes ?? 0,
+        g.fryMinutesSchedule ?? g.fryMinutes ?? 0,
       );
     else if (!g.enabled) entry.push(1);
     (p.e ??= []).push(entry);
@@ -184,7 +184,11 @@ function unpack(p: Payload): SettingsExport {
       else if (Array.isArray(fry)) {
         g.fryMinutesSchedule = fry;
         g.fryMinutes = fry[0];
-      } else if (fry && typeof fry === "object") g.fryMinutesBySite = fry;
+      } else if (fry && typeof fry === "object") {
+        // Older codes gave minutes per website; it's one shared amount now (the smallest).
+        const values = Object.values(fry).filter((v) => typeof v === "number" && v > 0);
+        if (values.length) g.fryMinutes = Math.min(...values);
+      }
     }
     return g;
   });

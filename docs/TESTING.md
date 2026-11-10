@@ -16,6 +16,12 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Earn page, shared Fry Time and Chrome's Open Settings — November 10, 2026
+
+- Open ScreenFry Settings still didn't open in Sam's Chrome: neither the placeholder-address network rule nor the tab listener fired there (both work in throwaway profiles; his older network rules work, so the new one was likely never installed). Opening ScreenFry's own `chrome-extension://<id>/dashboard.html#settings` address from outside Chrome does work there, so the app now does that. Chrome reports its id at check-in, and the app can also work it out from the folder Chrome loads ScreenFry from (checked against Sam's install).
+- Earned Fry Time is one pool per goal shared by its websites and adds up across completions (tests: 2 + 1 minutes on two websites from 5 earned, then 5 more leaves 7). Per-website amounts are gone (old ones become the smallest). Only active time counts toward goals: the tab in front with the user not idle.
+- Earn has its own page and popup button; Experimental keeps loadouts.
+
 ## Fry Time rewards, Quora and Open Settings in Chrome — November 10, 2026
 
 - Open ScreenFry Settings didn't work in Sam's Chrome, though it did in throwaway profiles (headless and visible). Chrome now redirects the placeholder address with a network rule, before it tries to load it, so ScreenFry's background doesn't need to be awake; the tab listener stays for Safari. The network route was checked on its own with the listener switched off.

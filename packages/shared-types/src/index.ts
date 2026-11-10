@@ -65,10 +65,11 @@ export interface EarnGoal {
   reward?: "unlock" | "fry";
   /** Fry Time reward: how many times a day the goal pays out; 0 means no limit (default 1). */
   repeats?: number;
-  /** Fry Time reward: minutes earned on each website per completion. */
+  /**
+   * Fry Time reward: minutes earned per completion. Earned Fry Time is one pool shared by
+   * all the goal's websites (2 minutes on X and 3 on YouTube use 5).
+   */
   fryMinutes?: number;
-  /** Fry Time reward: minutes per website (site id like "youtube", else domain) instead. */
-  fryMinutesBySite?: Record<string, number>;
   /**
    * Fry Time reward, different each time: minutes for the 1st, 2nd, 3rd… completion on every
    * website (the last amount repeats after that). `fryMinutes` holds the first, for older

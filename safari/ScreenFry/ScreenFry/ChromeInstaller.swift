@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Keeps ScreenFry's Chrome extension in a fixed folder that Chrome loads as an unpacked
@@ -10,6 +11,17 @@ enum ChromeInstaller {
         return support
             .appendingPathComponent("ScreenFry", isDirectory: true)
             .appendingPathComponent("Chrome Extension", isDirectory: true)
+    }
+
+    /// The id Chrome gives an unpacked extension loaded from `folder`: the first 32 hex digits
+    /// of the SHA-256 of its path, written with the letters a–p.
+    static var unpackedExtensionId: String {
+        SHA256.hash(data: Data(folder.path.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+            .prefix(32)
+            .map { String(UnicodeScalar(UInt8(97) + UInt8(Int(String($0), radix: 16)!))) }
+            .joined()
     }
 
     /// The Chrome build shipped inside ScreenFry.app.

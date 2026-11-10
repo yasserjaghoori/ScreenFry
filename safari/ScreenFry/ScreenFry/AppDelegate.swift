@@ -558,13 +558,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return b
     }
 
-    /// The extension can't be opened by its address from outside the browser, so the app opens
-    /// an address that never loads (`.invalid` is reserved) and ScreenFry in that browser
-    /// swaps the tab for its settings page.
+    /// Chrome opens ScreenFry's settings page by its own address (its id, as reported at
+    /// check-in or worked out from the folder Chrome loads it from). Safari's extension
+    /// address changes per install, so Safari gets an address that never loads (`.invalid` is
+    /// reserved) and ScreenFry there swaps the tab for its settings page.
     @objc private func openScreenFrySettings(_ sender: NSButton) {
-        let bundleID = sender.tag == 0 ? "com.apple.Safari" : Self.chromeBundleID
+        let chrome = sender.tag == 1
+        let bundleID = chrome ? Self.chromeBundleID : "com.apple.Safari"
+        let address = chrome
+            ? "chrome-extension://\(SettingsTransfer.extensionId(.chrome) ?? ChromeInstaller.unpackedExtensionId)/dashboard.html#settings"
+            : "https://open.screenfry.invalid/settings"
         guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
-              let page = URL(string: "https://open.screenfry.invalid/settings") else { return }
+              let page = URL(string: address) else { return }
         NSWorkspace.shared.open([page], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { _, error in
             if let error { NSLog("ScreenFry: unable to open settings: \(error.localizedDescription)") }
         }

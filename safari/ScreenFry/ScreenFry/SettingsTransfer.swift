@@ -33,6 +33,13 @@ enum SettingsTransfer {
         return (at, record["version"] as? String ?? "", record["passwordProtected"] as? Bool ?? false)
     }
 
+    /// ScreenFry's extension id in the browser, as it last reported it (Chrome checks in with
+    /// it from 0.7.3).
+    static func extensionId(_ browser: SettingsBrowser) -> String? {
+        let id = SettingsBridge.read(browser.bridge.checkInURL)?["extensionId"] as? String
+        return id?.isEmpty == false ? id : nil
+    }
+
     /// Asks the browser's copy of ScreenFry to restore its defaults at its next check-in.
     static func queueReset(_ browser: SettingsBrowser) throws {
         let bridge = browser.bridge
