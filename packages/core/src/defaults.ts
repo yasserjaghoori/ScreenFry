@@ -15,6 +15,10 @@ import { LOADOUT_COUNT } from "@shared/index";
 import { defaultRules } from "./sites";
 import { siteDefinitions } from "@feeds/index";
 export const USAGE_RETENTION_DAYS = 120;
+/** Controls renamed after release, new key → old key: Facebook's top bar has Reels, not Video. */
+const RENAMED_FEED_KEYS: Record<string, string> = {
+  "facebook.reelsButton": "videoButton",
+};
 export const feedDefaults: FeedSettings = {
   globalEnabled: true,
   sites: Object.fromEntries(
@@ -274,7 +278,9 @@ export function migrateState(
   for (const site of Object.keys(feedDefaults.sites) as FeedSite[]) {
     for (const key of Object.keys(feedDefaults.sites[site]))
       state.feedSettings.sites[site][key] =
-        !masterOff && feeds?.sites?.[site]?.[key] === true;
+        !masterOff &&
+        (feeds?.sites?.[site]?.[key] === true ||
+          feeds?.sites?.[site]?.[RENAMED_FEED_KEYS[`${site}.${key}`] ?? ""] === true);
   }
   if (object(raw.protection)) {
     const p = raw.protection;

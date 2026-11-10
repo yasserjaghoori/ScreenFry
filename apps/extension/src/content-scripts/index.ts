@@ -4,13 +4,13 @@ import {
   activeShortForm,
   buildBlockingCss,
   enabledElements,
+  researchMode,
   shortFormBlock,
   siteFor,
 } from "@feeds/index";
 import type { TabMessage } from "@browser/messages";
 import { STATE_KEY } from "@browser/storage";
 import { hostMatchesDomain } from "@core/domains";
-import { tiktokVideoId } from "@feeds/tiktok";
 import { createBlockedScreen } from "./blocked-screen";
 import { createBatchedTask } from "@browser/scheduling";
 import {
@@ -22,9 +22,10 @@ import type { AppState, FeedSettings, PolicyDecision } from "@shared/index";
 const isTop = window === window.top;
 let state: AppState | undefined;
 let pageBlocked = false;
-let linkedVideoUrl = tiktokVideoId(location.href) ? location.href : undefined;
+/** Research mode: the first short-form video this page reached, and the pages before it. */
+let linked: { url: string; id: string } | undefined;
+const visitedBefore = new Set<string>();
 const blockedScreen = createBlockedScreen();
-let scrollGuardsInstalled = false;
 const STYLE = "screenfry-feed-blocker";
 /** The free-time window that was pausing feed blocking at the last evaluation. */
 let freeTimeLabel: string | undefined;
@@ -40,20 +41,35 @@ function feeds(): FeedSettings | undefined {
     feedsCache = { state, href: location.href, second, feeds: effectiveFeedSettings(state, location.href, Date.now()) };
   return feedsCache.feeds;
 }
-function singleVideoEnabled() {
+function research() {
   const settings = feeds();
-  return (
-    settings?.globalEnabled &&
-    settings.sites.tiktok.singleVideo &&
-    siteFor(location.hostname)?.site === "tiktok"
-  );
+  return settings && researchMode(settings, location.hostname);
 }
+const pageKey = (href: string) => {
+  const url = new URL(href);
+  return url.origin + url.pathname.replace(/\/+$/, "");
+};
+/** Notes the linked video (or a page before it) for research mode. */
+function trackResearch() {
+  const mode = research();
+  if (!mode) {
+    linked = undefined;
+    visitedBefore.clear();
+    return;
+  }
+  if (linked) return;
+  const id = mode.videoId(new URL(location.href));
+  if (id) linked = { url: location.href, id };
+  else visitedBefore.add(pageKey(location.href));
+}
+/** Research mode: anything past the linked video in this page, such as the next video or
+ * its creator’s profile. Pages visited before it stay open. */
 function beyondLinkedVideo() {
-  return (
-    singleVideoEnabled() &&
-    linkedVideoUrl &&
-    tiktokVideoId(location.href) !== tiktokVideoId(linkedVideoUrl)
-  );
+  const mode = research();
+  if (!mode || !linked) return false;
+  const id = mode.videoId(new URL(location.href));
+  if (id) return id !== linked.id;
+  return !visitedBefore.has(pageKey(location.href));
 }
 function applyCss(css: string) {
   let sheet = document.getElementById(STYLE) as HTMLStyleElement | null;
@@ -83,34 +99,77 @@ function documentShortForm(): string | undefined {
   if (document.querySelector(short.playerSelectors.join(",")))
     return short.label;
 }
-function blockedMedia(media: HTMLMediaElement): boolean {
-  if (!state) return false;
-  if (
+/**
+ * What may not play here, worked out once per address, settings and second rather than for
+ * every video on every media event: busy pages (TikTok and X Explore) hold dozens of videos.
+ */
+let mediaRulesCache:
+  | { state: AppState; href: string; second: number; blocked: boolean; all: boolean; selector: string }
+  | undefined;
+function mediaRules() {
+  const second = Math.floor(Date.now() / 1000);
+  const c = mediaRulesCache;
+  if (c && c.state === state && c.href === location.href && c.second === second && c.blocked === pageBlocked)
+    return c;
+  const settings = feeds()!;
+  const all =
     pageBlocked ||
     beyondLinkedVideo() ||
-    currentDecision().status === "blocked"
-  )
-    return true;
-  const settings = feeds()!;
-  if (shortFormBlock(settings, location.href) || documentShortForm())
-    return true;
-  return enabledElements(settings, location.href).some(
-    (element) =>
-      element.pauseMedia &&
-      element.selectors.some((selector) => {
-        try {
-          return Boolean(media.matches(selector) || media.closest(selector));
-        } catch {
-          return false;
-        }
-      }),
-  );
+    currentDecision().status === "blocked" ||
+    Boolean(shortFormBlock(settings, location.href) || documentShortForm());
+  const selectors = enabledElements(settings, location.href)
+    .filter((element) => element.pauseMedia)
+    .flatMap((element) => element.selectors)
+    .filter((selector) => {
+      try {
+        document.createDocumentFragment().querySelector(selector);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  return (mediaRulesCache = {
+    state: state!,
+    href: location.href,
+    second,
+    blocked: pageBlocked,
+    all,
+    selector: selectors.join(","),
+  });
+}
+function blockedMedia(media: HTMLMediaElement): boolean {
+  if (!state) return false;
+  const rules = mediaRules();
+  return rules.all || Boolean(rules.selector && media.closest(rules.selector));
+}
+/**
+ * Some sites start a video again the moment it is paused. Answering every restart in turn
+ * kept Safari busy without end, so a video that keeps restarting is also muted and after
+ * that paused at most once a second.
+ */
+const pauses = new WeakMap<HTMLMediaElement, { count: number; since: number; last: number }>();
+function pauseBlocked(media: HTMLMediaElement) {
+  const now = Date.now();
+  let record = pauses.get(media);
+  if (!record || now - record.since > 5_000) record = { count: 0, since: now, last: 0 };
+  pauses.set(media, record);
+  record.count += 1;
+  if (record.count > 3) {
+    media.muted = true;
+    media.autoplay = false;
+    if (now - record.last < 1_000) {
+      queueMediaCheck();
+      return;
+    }
+  }
+  record.last = now;
+  media.pause();
 }
 function pauseRestrictedMedia() {
   for (const media of document.querySelectorAll<HTMLMediaElement>(
     "video,audio",
   ))
-    if (blockedMedia(media) && !media.paused) media.pause();
+    if (!media.paused && blockedMedia(media)) pauseBlocked(media);
 }
 function reportMedia() {
   const playing = [
@@ -162,9 +221,7 @@ function currentDecision(): PolicyDecision {
 function evaluate() {
   if (!state || !/^https?:/.test(location.href) || !document.documentElement)
     return;
-  if (!singleVideoEnabled()) linkedVideoUrl = undefined;
-  else if (!linkedVideoUrl && tiktokVideoId(location.href))
-    linkedVideoUrl = location.href;
+  trackResearch();
   syncScrollGuards();
   const decision = currentDecision();
   const short = documentShortForm();
@@ -176,8 +233,8 @@ function evaluate() {
     for (const media of document.querySelectorAll<HTMLMediaElement>(
       "video,audio",
     ))
-      if (!media.paused) media.pause();
-    const label = short ?? decision.ruleLabel ?? "This website";
+      if (!media.paused) pauseBlocked(media);
+    const label = short ?? decision.ruleLabel ?? siteFor(location.hostname)?.name ?? "This website";
     if (!isTop) {
       applyCss(
         "html{visibility:hidden!important}video,audio{display:none!important}",
@@ -193,7 +250,7 @@ function evaluate() {
         ? { ...decision, status: "blocked", reasons: ["short-form"] }
         : decision,
       label,
-      single ? linkedVideoUrl : undefined,
+      single ? linked?.url : undefined,
     );
     overlay.update({ status: "allowed", reasons: [] });
     reportMedia();
@@ -219,6 +276,12 @@ function evaluate() {
 // Busy pages (TikTok, X) change their layout many times a second; checking at most four
 // times a second is plenty, and the one-second timer covers the clock.
 const queueEvaluation = createBatchedTask(evaluate, 250);
+/** Media events come in bursts; pausing and reporting playback once per burst is enough. */
+const queueMediaCheck = createBatchedTask(() => {
+  if (!state) return;
+  pauseRestrictedMedia();
+  reportMedia();
+}, 250);
 const overlay = (() => {
   let host: HTMLElement | undefined, pill: HTMLElement, toast: HTMLElement;
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -298,11 +361,23 @@ let started = false;
 function start() {
   if (started) return;
   started = true;
+  // Usage is saved often while something plays. A tab in the background only needs the
+  // newest state when it is shown again (its media is still checked on media events).
+  let pendingState: unknown;
+  const applyPending = () => {
+    if (pendingState === undefined) return;
+    state = migrateState(pendingState);
+    pendingState = undefined;
+    queueEvaluation();
+  };
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes[STATE_KEY]) {
-      state = migrateState(changes[STATE_KEY].newValue);
-      queueEvaluation();
+      pendingState = changes[STATE_KEY].newValue;
+      if (document.visibilityState === "visible") applyPending();
     }
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") applyPending();
   });
   startPageWatchers();
 }
@@ -324,42 +399,33 @@ async function load() {
 // entry points can't slip through; everything else waits for the state check.
 if (siteFor(location.hostname)) start();
 void load();
+let guardedResearch: ReturnType<typeof research> | undefined;
 function guardScroll(event: Event) {
-  // Block player scrolling, not scrolling through comments or typing in a field.
-  if (
-    !singleVideoEnabled() ||
-    !linkedVideoUrl ||
-    !(event.target instanceof Element)
-  )
-    return;
-  if (
-    event.target.closest(
-      'input,textarea,[contenteditable="true"],[data-e2e*="comment"]',
-    )
-  )
-    return;
+  // Block moving on to the next video, not scrolling comments or typing in a field.
+  const mode = guardedResearch;
+  if (!mode || !linked || !(event.target instanceof Element)) return;
+  const keep = ['input', 'textarea', '[contenteditable="true"]', ...(mode.keepScrolling ?? [])].join(",");
+  if (event.target.closest(keep)) return;
   const keyboard = event instanceof KeyboardEvent;
   if (
     keyboard &&
-    !["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(event.key)
+    !["ArrowDown", "ArrowUp", "PageDown", "PageUp", " "].includes(event.key)
   )
     return;
-  if (
-    keyboard ||
-    event.target.closest(
-      'video,[data-e2e="browse-video"],[data-e2e="feed-video"]',
-    )
-  ) {
+  if (keyboard || event.target.closest(mode.scrollSelectors.join(","))) {
     event.preventDefault();
     event.stopImmediatePropagation();
   }
 }
+let scrollGuardsInstalled = false;
 function syncScrollGuards() {
-  const enabled = Boolean(singleVideoEnabled() && linkedVideoUrl);
+  const mode = research();
+  guardedResearch = mode && linked && !beyondLinkedVideo() ? mode : undefined;
+  const enabled = Boolean(guardedResearch);
   if (enabled === scrollGuardsInstalled) return;
   scrollGuardsInstalled = enabled;
   for (const event of ["wheel", "touchmove", "keydown"]) {
-    // These need preventDefault, but only while TikTok's linked-video mode is on.
+    // These need preventDefault, but only while a linked video is open in research mode.
     if (enabled)
       window.addEventListener(event, guardScroll, {
         capture: true,
@@ -416,9 +482,8 @@ function startPageWatchers() {
           !e.target.paused &&
           blockedMedia(e.target)
         )
-          e.target.pause();
-        queueEvaluation();
-        reportMedia();
+          pauseBlocked(e.target);
+        queueMediaCheck();
       },
       true,
     );

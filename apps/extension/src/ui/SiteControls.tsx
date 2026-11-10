@@ -99,12 +99,17 @@ export function SiteControls({
   }
   async function toggle(key: string) {
     if (!(await passwordGate(state))) return;
-    if (state.feedSettings.sites[site]?.[key] === true) {
+    const on = state.feedSettings.sites[site]?.[key] === true;
+    const element = definition.elements[key];
+    // Research mode under a "block entirely" switch loosens that block when turned on.
+    const loosens = element.requires ? !on : on;
+    if (loosens) {
       const shortForm = definition.shortForm;
-      const question =
-        shortForm?.setting === key
+      const question = element.requires
+        ? `Let ${shortForm?.label ?? "videos"} opened from links play again?`
+        : shortForm?.setting === key
           ? `Are you sure you want to start watching ${shortForm.label} again?`
-          : loosenQuestion(definition.elements[key].label, definition.name);
+          : loosenQuestion(element.label, definition.name);
       if (!(await confirmLoosen(question))) return;
     }
     setBusy(true);
@@ -252,29 +257,39 @@ export function SiteControls({
           <div className="control-group">
             {Object.entries(definition.elements)
               .filter(([, e]) => e.group === group)
-              .map(([key, element]) => (
-                <div className="control-row" key={key}>
-                  <span>{element.label}</span>
-                  <Switch
-                    label={element.label}
-                    checked={state.feedSettings.sites[site]?.[key] === true}
-                    disabled={busy}
-                    onChange={() => void toggle(key)}
-                  />
-                </div>
-              ))}
+              .map(([key, element]) => {
+                const parentOff =
+                  element.requires !== undefined &&
+                  state.feedSettings.sites[site]?.[element.requires] !== true;
+                return (
+                  <div
+                    className={`control-row${element.requires ? " sub" : ""}${element.note ? " noted" : ""}`}
+                    key={key}
+                  >
+                    <span>
+                      {element.label}
+                      {element.note && (
+                        <small className="control-row-note">
+                          {parentOff
+                            ? `Turn on ${definition.elements[element.requires!].label} first. ${element.note}`
+                            : element.note}
+                        </small>
+                      )}
+                    </span>
+                    <Switch
+                      label={element.label}
+                      checked={state.feedSettings.sites[site]?.[key] === true}
+                      disabled={busy || parentOff}
+                      onChange={() => void toggle(key)}
+                    />
+                  </div>
+                );
+              })}
           </div>
-          {group === "Short-form video" && (
+          {group === "Short-form video" && definition.shortForm && (
             <p className="control-note">
-              Blocks playback too, including direct links, notifications and
-              in-site navigation.
-            </p>
-          )}
-          {site === "tiktok" && group === "Video page" && (
-            <p className="control-note">
-              Only play the linked video stops the next-video scroll on direct
-              video links. Comments still scroll normally. Use Block TikTok
-              above to block the entire website.
+              Blocking entirely stops playback too, including direct links,
+              notifications and in-site navigation.
             </p>
           )}
         </section>

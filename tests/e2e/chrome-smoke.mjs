@@ -445,6 +445,38 @@ try {
   );
   check("short-form player modal is blocked even without a Shorts URL", true);
   feeds = (await getState()).feedSettings;
+  feeds.sites.youtube.shortsFromLinks = true;
+  await send({ type: "SET_FEEDS", feedSettings: feeds });
+  const linkedShort = await open(site("/shorts/linked"));
+  await sleep(600);
+  const blockedHere = (page) =>
+    evaluate(page.session, `!!document.querySelector('screenfry-blocked')`);
+  check(
+    "research mode plays a Short opened from a link",
+    !(await urlOf(linkedShort.id)).includes("blocked.html") &&
+      !(await blockedHere(linkedShort)),
+  );
+  for (const [name, path] of [
+    ["the next Short", "/shorts/next"],
+    ["the creator's channel", "/@creator"],
+  ]) {
+    await evaluate(
+      linkedShort.session,
+      `history.pushState({},'', '${path}');document.dispatchEvent(new Event('yt-navigate-finish'))`,
+    );
+    await waitFor(() => blockedHere(linkedShort), `research mode: ${name}`);
+    check(`research mode blocks moving on to ${name}`, true);
+  }
+  await evaluate(
+    linkedShort.session,
+    `history.pushState({},'', '/shorts/linked');document.dispatchEvent(new Event('yt-navigate-finish'))`,
+  );
+  await waitFor(async () => !(await blockedHere(linkedShort)), "back to the linked Short");
+  check("research mode lets you back to the linked Short", true);
+  await cdp("Target.closeTarget", { targetId: linkedShort.id });
+  feeds.sites.youtube.shortsFromLinks = false;
+  await send({ type: "SET_FEEDS", feedSettings: feeds });
+  feeds = (await getState()).feedSettings;
   feeds.sites.youtube.shorts = false;
   await send({ type: "SET_FEEDS", feedSettings: feeds });
   const off = await open(site("/shorts/fixture"));
@@ -470,14 +502,16 @@ try {
     true,
   );
   await evaluate(media.session, `document.querySelector('#media').pause()`);
-  await sleep(600);
-  const tracked = await evaluate(
-    controller.session,
-    `chrome.storage.session.get('trackingSessionsV3')`,
-  );
+  // Playback changes settle for a moment before usage is checkpointed.
   check(
     "paused background tabs stop counting",
-    !tracked.trackingSessionsV3.some((t) => t.url === mediaUrl),
+    await waitFor(async () => {
+      const tracked = await evaluate(
+        controller.session,
+        `chrome.storage.session.get('trackingSessionsV3')`,
+      );
+      return !tracked.trackingSessionsV3.some((t) => t.url === mediaUrl);
+    }, "paused tab to stop counting", 4000),
   );
   for (const host of ["x.com", "reddit.com", "substack.com"]) {
     const key = host.split(".")[0];
@@ -512,6 +546,30 @@ try {
       ),
     );
     await cdp("Target.closeTarget", { targetId: videoPage.id });
+  }
+  {
+    // A site that restarts a video the moment it is paused (Explore pages do) must not keep
+    // ScreenFry and the page answering each other without end.
+    let controls = (await getState()).feedSettings;
+    controls.sites.x.videos = true;
+    await send({ type: "SET_FEEDS", feedSettings: controls });
+    const stubborn = await open("https://x.com/watch?fixture=stubborn");
+    const plays = await evaluate(
+      stubborn.session,
+      `new Promise((done)=>{const m=document.querySelector('#media');let plays=0;
+        m.addEventListener('play',()=>plays++);
+        m.addEventListener('pause',()=>m.play().catch(()=>{}));
+        m.play().catch(()=>{});
+        setTimeout(()=>done({plays, muted:m.muted}),3000);})`,
+    );
+    check(
+      "a page restarting a blocked video is answered at most about once a second",
+      plays.plays <= 10 && plays.muted,
+    );
+    controls = (await getState()).feedSettings;
+    controls.sites.x.videos = false;
+    await send({ type: "SET_FEEDS", feedSettings: controls });
+    await cdp("Target.closeTarget", { targetId: stubborn.id });
   }
   // Content scripts cannot make privileged settings changes, even when password protection is off.
   const tiktok = await open("https://tiktok.com/@fixture/video/123");

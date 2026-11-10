@@ -52,6 +52,20 @@ function blockedPageUrl(url: string, decision: PolicyDecision): string {
     label: decision.ruleLabel ?? "This website",
   });
 }
+/**
+ * Safari tabs already told about their block, by address: the page keeps its blocked screen
+ * on its own, so asking it again on every reevaluation only made busy pages busier.
+ */
+const toldBlocked = new Map<number, string>();
+/** Playback starting and stopping (hover previews on Explore pages) settles within a second. */
+let mediaTimer: ReturnType<typeof setTimeout> | undefined;
+function queueMediaReevaluation() {
+  if (mediaTimer) return;
+  mediaTimer = setTimeout(() => {
+    mediaTimer = undefined;
+    void reevaluate(true);
+  }, 1_000);
+}
 async function enforceTab(
   id: number,
   url: string | undefined,
@@ -60,10 +74,13 @@ async function enforceTab(
 ) {
   if (!url || !parseWebUrl(url)) return;
   const decision = evaluatePolicy(state, url, now);
+  if (decision.status !== "blocked") toldBlocked.delete(id);
   if (decision.status === "blocked")
     try {
       // Safari renders a local isolated notice; cross-scheme tab updates can hang.
       if (browser === "safari") {
+        if (toldBlocked.get(id) === url) return;
+        toldBlocked.set(id, url);
         await withTimeout(
           chrome.tabs.sendMessage(
             id,
@@ -77,7 +94,7 @@ async function enforceTab(
         );
       }
     } catch {
-      /* closed tab */
+      toldBlocked.delete(id); // closed tab, or try again next time
     }
 }
 async function enforceAllTabs(state: AppState) {
@@ -477,7 +494,7 @@ async function handle(
       }
       // Only a change in playback matters. Repeated "still playing" reports refresh the
       // timestamp above; reevaluating on each one made video pages churn every frame.
-      if (previous?.playing !== request.playing) void reevaluate(true);
+      if (previous?.playing !== request.playing) queueMediaReevaluation();
       return { ok: true, data: null };
     }
     case "SHOW_BLOCKED_PAGE": {
@@ -646,6 +663,7 @@ chrome.tabs.onUpdated.addListener((id, change, tab) => {
   if (tab.incognito) void noteObservedPrivateTab();
 });
 chrome.tabs.onRemoved.addListener((id) => {
+  toldBlocked.delete(id);
   for (const key of Object.keys(media))
     if (key.startsWith(`${id}:`)) delete media[key];
   void reevaluate();
