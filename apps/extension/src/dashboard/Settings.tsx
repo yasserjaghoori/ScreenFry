@@ -149,39 +149,6 @@ export function Settings({
         <h2>Website controls</h2>
         <div className="setting-row">
           <div>
-            <strong>Feed and button blocking</strong>
-            <p className="muted small">
-              Applies your individual website toggles, including Shorts and
-              Reels blocking.
-            </p>
-          </div>
-          <Switch
-            label="Feed and button blocking"
-            checked={state.feedSettings.globalEnabled}
-            onChange={async () => {
-              if (!(await passwordGate(state))) return;
-              if (
-                state.feedSettings.globalEnabled &&
-                !(await confirmLoosen(
-                  "Turn off all feed and button blocking?",
-                  "Feeds, Shorts and Reels come back on every website.",
-                ))
-              )
-                return;
-              const r = await send<AppState>({
-                type: "SET_FEEDS",
-                feedSettings: {
-                  ...state.feedSettings,
-                  globalEnabled: !state.feedSettings.globalEnabled,
-                },
-              });
-              if (r.ok) onState(r.data);
-              else onNotice({ kind: "error", text: r.error });
-            }}
-          />
-        </div>
-        <div className="setting-row">
-          <div>
             <strong>Time-limit warnings</strong>
             <p className="muted small">
               A reminder with 5 minutes and 1 minute left.

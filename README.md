@@ -14,10 +14,9 @@
 | **Block Shorts and Reels** | Blocks playback, not just the button: recognized direct links, notifications and in-page players are caught. TikTok has whole-site blocking and a linked-video-only option. |
 | **Daily limits** | Give each website its own daily allowance, or none. When it runs out, the whole site is blocked, including tabs already open. Resets at midnight. |
 | **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
-| **Experimental** | Two early features on their own page: **Earn your website time** and **share codes** (see below). |
+| **Experimental** | Early features on their own page: **Earn your website time**, and **loadouts** with share codes (see below). |
 | **Optional password** | Protect your settings from impulsive changes. It never grants extra time. The first time you change anything without one, ScreenFry explains it once and offers to set it up ("Not now" goes ahead with your change). |
-| **ScreenFry Presets** | The Mac app exports and imports each browser's websites, limits, windows and feed blocking as a presets file, one browser at a time or all at once. |
-| **Start over** | **Restore defaults** at the bottom of Settings erases everything ScreenFry keeps in that browser, password included (it asks for the password first). **Reset All Data…** in the Mac app does it for every browser that doesn't have a password on. |
+| **Start over** | **Restore defaults** at the bottom of Settings erases everything ScreenFry keeps in that browser, loadouts and password included (it asks for the password first). **Reset All Data…** in the Mac app does it for every browser that doesn't have a password on. |
 | **Countdown** | Block screens show when the website is back and a live hours, minutes and seconds countdown. |
 | **Private** | Everything stays on your device. No account, server or analytics, and no record of the sites you visit. |
 
@@ -27,10 +26,12 @@
 | --- | --- |
 | **YouTube** | Home and subscriptions feeds · recommended videos beside the player, comments and end screens · **block Shorts entirely** · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
 | **Instagram** | Home feed and Stories · Explore feed · **block Reels entirely** · Home, Search, Explore, Reels, Messages, Notifications and Create buttons · suggested accounts |
-| **X** | For You and Following feeds (separately) · Create Post box · trends, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback |
+| **X** | For You and Following feeds (separately) · Create Post box · trends, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback · **block the video feed entirely** (the full-screen viewer you can scroll through endlessly) |
 | **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
 | **Substack** | Home and Notes feeds · Home, Notes, Explore, Notifications and Chat buttons · video playback |
 | **TikTok** | For You, Following and Explore feeds · **only play the linked video** · comments · “You may like” recommendations and suggested accounts · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons |
+| **Facebook** | News Feed and Stories · sponsored and contacts sidebar · Video feed · **block Reels entirely** · Video, Marketplace, Gaming and Notifications buttons. Messenger stays separate. |
+| **LinkedIn** | Home feed · LinkedIn News and Add to your feed · Notifications and Messaging buttons · video playback |
 
 Every control starts **off**: a fresh install changes nothing until you choose. More websites can be added with one entry each; see [Adding a website](docs/ADDING_A_SITE.md).
 
@@ -63,8 +64,12 @@ Windows can't contradict each other. A block window that overlaps an allow or Fr
 
 The **Experimental** page holds features that work but may still change.
 
-- **Earn your website time:** pick a goal website (say duolingo.com), how many minutes to spend there each day, and the websites to lock until then. The locked websites are blocked every day until the goal is met, then open right away and lock again at midnight. Time on the goal website counts like a daily limit does (focused tab or playback, once per website), and only on that website. A goal website can't be one of its own locked websites, and one goal can't lock another goal's website (it could never be earned). The block screen says how many minutes are left and links to the goal website.
-- **Share your setup:** **Copy my share code** puts your websites, limits, windows, earn goals and feed blocking into one line of text (no usage, history or password). Paste a friend's code to preview what it sets, then **Use these settings** to replace yours. Applying a code is validated like a presets file, follows your own password, and keeps today's usage for websites you already had. A pasted presets file works too.
+- **Earn your website time:** pick a goal website (say duolingo.com), how many minutes to spend there, and what meeting the goal does:
+  - **Unlock websites:** the websites you choose stay blocked every day until the goal is met, then open right away and lock again at midnight. The block screen says how many minutes are left and links to the goal website.
+  - **Earn Fry Time:** each time the goal is met, feed blocking pauses on the websites you choose for some minutes (the same for all, or custom per website), used whenever you visit them that day. A goal can pay out once, several times or as often as you like each day.
+
+  Time on the goal website counts like a daily limit does (focused tab or playback, once per website), and only on that website. A goal website can't be one of its own websites, and an unlocking goal can't lock another goal's website (it could never be earned).
+- **Share your setup, with loadouts:** keep up to five setups (websites, limits, windows, earn goals and feed blocking) as **loadouts**. The one in use is your live settings; **Use this loadout** saves it and switches, through your password. **Copy share code** puts one loadout into a line of text (no usage, history or password) to send to a friend; paste a code into an empty loadout to fill it, or into a full one to replace it. Every loadout starts empty, and Restore defaults or Reset All Data empties them all.
 
 ## Install
 

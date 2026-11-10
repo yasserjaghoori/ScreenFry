@@ -136,6 +136,8 @@ describe("storage and schema migration", () => {
       "reddit",
       "substack",
       "tiktok",
+      "facebook",
+      "linkedin",
     ]);
     expect(state.settingsPassword).toBeUndefined();
     expect(state.windows).toEqual([]);

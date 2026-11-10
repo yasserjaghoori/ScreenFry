@@ -299,16 +299,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         noticeRow.spacing = 10
         let uninstallButton = NSButton(title: "Uninstall…", target: self, action: #selector(uninstall(_:)))
         uninstallButton.bezelStyle = .inline
-        let exportAll = NSButton(title: "Export All Presets…", target: self, action: #selector(exportAllSettings(_:)))
-        exportAll.bezelStyle = .inline
-        exportAll.toolTip = "Save every browser’s ScreenFry Presets in one file."
-        let importAll = NSButton(title: "Import All Presets…", target: self, action: #selector(importAllSettings(_:)))
-        importAll.bezelStyle = .inline
-        importAll.toolTip = "Apply a ScreenFry Presets file to every browser."
         let resetAll = NSButton(title: "Reset All Data…", target: self, action: #selector(resetAllData(_:)))
         resetAll.bezelStyle = .inline
-        resetAll.toolTip = "Restore ScreenFry’s defaults in every browser: presets, usage and settings passwords."
-        let footer = NSStackView(views: [uninstallButton, resetAll, exportAll, importAll])
+        resetAll.toolTip = "Restore ScreenFry’s defaults in every browser: settings, loadouts, usage and settings passwords."
+        let footer = NSStackView(views: [uninstallButton, resetAll])
         footer.orientation = .horizontal
         footer.spacing = 10
         let stack = NSStackView(views: [header, noticeRow, browsers, footer])
@@ -592,31 +586,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
 
-    // MARK: Settings export and import
+    // MARK: Browser connection
 
-    /// The bottom rows of a browser card: Export / Import buttons and their status.
+    /// The bottom of a browser card: whether ScreenFry there has connected, and any reset.
     private func transferRows(_ browser: SettingsBrowser) -> [NSView] {
-        let title = NSTextField(labelWithString: "ScreenFry Presets")
-        title.font = .systemFont(ofSize: 13, weight: .semibold)
-        let export = NSButton(title: "Export…", target: self, action: #selector(exportBrowserSettings(_:)))
-        export.bezelStyle = .rounded
-        export.identifier = NSUserInterfaceItemIdentifier(browser.rawValue)
-        export.toolTip = "Save ScreenFry’s websites, limits, windows and feed blocking from \(browser.name) as a presets file."
-        let importButton = NSButton(title: "Import…", target: self, action: #selector(importBrowserSettings(_:)))
-        importButton.bezelStyle = .rounded
-        importButton.identifier = NSUserInterfaceItemIdentifier(browser.rawValue)
-        importButton.toolTip = "Replace ScreenFry’s presets in \(browser.name) with a saved presets file."
-        let spacer = NSView()
-        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let row = NSStackView(views: [title, spacer, export, importButton])
-        row.orientation = .horizontal
-        row.alignment = .centerY
-        row.spacing = 8
         let separator = NSBox()
         separator.boxType = .separator
         let status = helperLabel("")
         transferStatus[browser] = status
-        return [separator, row, status]
+        return [separator, status]
     }
 
     private func refreshTransferStatus() {
@@ -640,98 +618,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     ? "Reset to defaults \(ago(at))."
                     : "\(browser.name) didn’t reset: \(result.error ?? "unknown error")")
             }
-            if SettingsTransfer.pendingImport(browser) {
-                lines.append("Import waiting: ScreenFry in \(browser.name) applies it the next time it checks in.")
-            } else if let result = SettingsTransfer.lastResult(browser), let at = result.at,
-                      Date().timeIntervalSince(at) < 3600 {
-                lines.append(result.ok
-                    ? "Imported \(ago(at))."
-                    : "\(browser.name) didn’t import the file: \(result.error ?? "unknown error")")
-            }
             label.stringValue = lines.joined(separator: " ")
-        }
-    }
-
-    private func browser(of sender: Any?) -> SettingsBrowser? {
-        ((sender as? NSView)?.identifier?.rawValue).flatMap(SettingsBrowser.init(rawValue:))
-    }
-
-    @objc private func exportBrowserSettings(_ sender: Any?) {
-        guard let browser = browser(of: sender) else { return }
-        saveSettings([browser], suggestedName: "ScreenFry \(browser.name) Presets.json")
-    }
-
-    @objc private func exportAllSettings(_ sender: Any?) {
-        saveSettings(transferBrowsers, suggestedName: "ScreenFry Presets.json")
-    }
-
-    private func saveSettings(_ browsers: [SettingsBrowser], suggestedName: String) {
-        guard let data = SettingsTransfer.exportData(browsers) else {
-            let names = browsers.map(\.name).joined(separator: " or ")
-            showAlert("No presets to export yet", "ScreenFry hasn’t heard from \(names) yet. Open the browser with ScreenFry turned on, wait a minute, then try again.")
-            return
-        }
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = suggestedName
-        panel.allowedContentTypes = [.json]
-        panel.canCreateDirectories = true
-        panel.beginSheetModal(for: window) { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
-            do {
-                try data.write(to: url, options: .atomic)
-            } catch {
-                self?.showAlert("Couldn’t save the presets", error.localizedDescription)
-            }
-        }
-    }
-
-    @objc private func importBrowserSettings(_ sender: Any?) {
-        guard let browser = browser(of: sender) else { return }
-        chooseAndImport(into: [browser])
-    }
-
-    @objc private func importAllSettings(_ sender: Any?) {
-        chooseAndImport(into: transferBrowsers)
-    }
-
-    private func chooseAndImport(into browsers: [SettingsBrowser]) {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.json]
-        panel.allowsMultipleSelection = false
-        panel.message = "Choose a ScreenFry Presets file."
-        panel.beginSheetModal(for: window) { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
-            DispatchQueue.main.async { self?.importSettings(from: url, into: browsers) }
-        }
-    }
-
-    private func importSettings(from url: URL, into browsers: [SettingsBrowser]) {
-        let parsed: (single: [String: Any]?, byBrowser: [SettingsBrowser: [String: Any]])
-        do {
-            parsed = try SettingsTransfer.parse(try Data(contentsOf: url))
-        } catch {
-            showAlert("Couldn’t import “\(url.lastPathComponent)”", error.localizedDescription)
-            return
-        }
-        let names = browsers.map(\.name).joined(separator: " and ")
-        let confirm = NSAlert()
-        confirm.messageText = "Replace ScreenFry’s presets in \(names)?"
-        confirm.informativeText = "Websites, limits, windows and feed blocking will match “\(url.lastPathComponent)”. Usage history and any settings password stay as they are. If a settings password is on, turn it off first."
-        confirm.addButton(withTitle: "Import")
-        confirm.addButton(withTitle: "Cancel")
-        guard confirm.runModal() == .alertFirstButtonReturn else { return }
-        var failures: [String] = []
-        for browser in browsers {
-            guard let settings = SettingsTransfer.settings(for: browser, in: parsed) else { continue }
-            do {
-                try SettingsTransfer.queueImport(settings, into: browser)
-            } catch {
-                failures.append("\(browser.name): \(error.localizedDescription)")
-            }
-        }
-        refreshTransferStatus()
-        if !failures.isEmpty {
-            showAlert("Couldn’t queue the import", failures.joined(separator: "\n"))
         }
     }
 
@@ -750,7 +637,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let names = connected.map(\.name).joined(separator: " and ")
         let confirm = NSAlert()
         confirm.messageText = "Reset ScreenFry in \(names)?"
-        var detail = "Every website setting, window, limit and feed switch, all usage and any settings password are erased, as if ScreenFry were just installed. This can’t be undone. Export your presets first if you want to keep them."
+        var detail = "Every website setting, window, limit, feed switch, goal and loadout, all usage and any settings password are erased, as if ScreenFry were just installed. This can’t be undone. Copy a share code first if you want to keep a setup."
         if !protected.isEmpty {
             detail += "\n\n\(protected.map(\.name).joined(separator: " and ")) has a settings password, so it won’t reset from here. Use Restore defaults in ScreenFry’s Settings there; it asks for the password."
         }
@@ -789,7 +676,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Erase Everything removes every trace: ScreenFry in Safari and Chrome first wipes \
         its settings, windows, usage and password (each browser is opened in the background \
-        if it’s closed, and Chrome also removes the extension), then ScreenFry’s files and \
+        if it’s closed, and Chrome also removes the extension). You then switch ScreenFry off \
+        in Safari’s settings, the one thing only you can do, and ScreenFry’s files and \
         preferences on this Mac are deleted.
         """
         alert.addButton(withTitle: "Keep Settings")
@@ -806,13 +694,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // browser it has connected from.
         let connected = transferBrowsers.filter { SettingsTransfer.checkIn($0) != nil }
         guard !connected.isEmpty else {
-            performUninstall(erase: true, erased: [])
+            finishErase(erased: [])
             return
         }
         eraseInBrowsers(connected) { [weak self] erased in
             guard let self else { return }
             let missing = connected.filter { !erased.contains($0) }
-            guard !missing.isEmpty else { return self.performUninstall(erase: true, erased: erased) }
+            guard !missing.isEmpty else { return self.finishErase(erased: erased) }
             let names = missing.map(\.name).joined(separator: " and ")
             let ask = NSAlert()
             ask.messageText = "\(names) didn’t answer"
@@ -822,7 +710,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ask.addButton(withTitle: "Cancel")
             switch ask.runModal() {
             case .alertFirstButtonReturn: self.uninstallEraseRetry(erased: erased, remaining: missing)
-            case .alertSecondButtonReturn: self.performUninstall(erase: true, erased: erased)
+            case .alertSecondButtonReturn: self.finishErase(erased: erased)
             default: break
             }
         }
@@ -831,7 +719,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func uninstallEraseRetry(erased: Set<SettingsBrowser>, remaining: [SettingsBrowser]) {
         // A second try uninstalls either way; the closing note says what was left.
         eraseInBrowsers(remaining) { [weak self] more in
-            self?.performUninstall(erase: true, erased: erased.union(more))
+            self?.finishErase(erased: erased.union(more))
         }
     }
 
@@ -874,6 +762,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         progress.beginSheetModal(for: window) { _ in
             timer.invalidate()
             done(answered())
+        }
+    }
+
+    /// Erase Everything's last step before deleting files. Safari remembers which extensions
+    /// were switched on, even after their app is deleted, in a folder no app may change, so
+    /// a reinstall would start switched on. Only the user can switch it off: open Safari's
+    /// Extensions settings and carry on by itself the moment ScreenFry is off (or on Skip).
+    private func finishErase(erased: Set<SettingsBrowser>) {
+        SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: extensionIdentifier) { [weak self] state, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard state?.isEnabled == true else { return self.performUninstall(erase: true, erased: erased) }
+                self.openSafariSettings(nil)
+                let progress = NSAlert()
+                progress.messageText = "Last step: turn ScreenFry off in Safari"
+                progress.informativeText = "Safari remembers which extensions you switched on, even after an app is deleted, and only you can change that. In Safari’s Extensions settings, uncheck ScreenFry. Uninstalling carries on by itself once it’s off, so a future install starts switched off."
+                let spinner = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 24, height: 24))
+                spinner.style = .spinning
+                spinner.startAnimation(nil)
+                progress.accessoryView = spinner
+                progress.addButton(withTitle: "Open Safari Settings")
+                progress.addButton(withTitle: "Skip")
+                var finished = false
+                let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
+                    guard let self else { return timer.invalidate() }
+                    SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: self.extensionIdentifier) { state, _ in
+                        DispatchQueue.main.async {
+                            guard state?.isEnabled == false, !finished else { return }
+                            timer.invalidate()
+                            self.window.endSheet(progress.window, returnCode: .alertSecondButtonReturn)
+                        }
+                    }
+                }
+                func show() {
+                    progress.beginSheetModal(for: self.window) { [weak self] response in
+                        guard let self else { return }
+                        if response == .alertFirstButtonReturn {
+                            // Reopen the settings and keep waiting.
+                            self.openSafariSettings(nil)
+                            DispatchQueue.main.async { show() }
+                            return
+                        }
+                        finished = true
+                        timer.invalidate()
+                        self.performUninstall(erase: true, erased: erased)
+                    }
+                }
+                show()
+            }
         }
     }
 
@@ -942,7 +879,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         ? "Reinstall any time; Safari and Chrome keep your ScreenFry settings."
                         : chromeLeft
                             ? "If ScreenFry is still on Chrome’s Extensions page, click Remove to delete its settings there.\(finder)"
-                            : "ScreenFry was removed from this Mac\(erased.isEmpty ? "" : ", and its settings were wiped in \(erasedNames)").\(finder) Safari remembers that you once turned ScreenFry on, so after a reinstall it may start switched on, with fresh settings."
+                            : "ScreenFry was removed from this Mac\(erased.isEmpty ? "" : ", and its settings were wiped in \(erasedNames)").\(finder)"
                 }
                 done.runModal()
                 NSApp.terminate(nil)

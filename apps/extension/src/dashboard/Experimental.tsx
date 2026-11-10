@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { send } from "@browser/messages";
 import { launchSites } from "@core/sites";
 import { expandDomainAliases, hostMatchesDomain, normalizeDomain } from "@core/domains";
-import { exportSettings } from "@core/actions";
+import { SETTINGS_FORMAT, loadoutSettings } from "@core/actions";
 import {
   decodeShareCode,
   encodeShareCode,
@@ -10,8 +10,15 @@ import {
   websiteNames,
   type SharedSummary,
 } from "@core/share";
-import { earnRemaining, evaluatePolicy } from "@policy/index";
-import type { AppState, EarnGoal } from "@shared/index";
+import {
+  earnCompletions,
+  earnRemaining,
+  earnedFryRemaining,
+  evaluatePolicy,
+  fryKeyForDomain,
+  isFryGoal,
+} from "@policy/index";
+import { LOADOUT_COUNT, type AppState, type EarnGoal } from "@shared/index";
 import { Switch } from "../ui/SiteControls";
 import { confirmLoosen } from "../ui/ConfirmLoosen";
 import { confirmDialog } from "../ui/ConfirmDialog";
@@ -52,6 +59,14 @@ const blankGoal = (): EarnGoal => ({
   minutes: 30,
   lockedDomains: expandDomainAliases(["youtube.com", "instagram.com", "tiktok.com"]),
 });
+/** "10 min", or each website's own minutes. */
+function describeFryReward(goal: EarnGoal): string {
+  if (!goal.fryMinutesBySite) return `${goal.fryMinutes ?? 0} min`;
+  const parts = [...new Set(goal.lockedDomains.map(fryKeyForDomain))].map(
+    (key) => `${goal.fryMinutesBySite![key] ?? goal.fryMinutes ?? 0} min`,
+  );
+  return [...new Set(parts)].length === 1 ? parts[0] : "custom minutes";
+}
 const listNames = (names: string[]) =>
   names.length < 3 ? names.join(" and ") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 
@@ -102,7 +117,15 @@ function EarnTime({
     if (!before?.enabled) return false;
     if (!after.enabled || after.minutes < before.minutes) return true;
     const kept = expandDomainAliases(after.lockedDomains.map(normalizeDomain));
-    return before.lockedDomains.some((d) => !kept.includes(d));
+    if (!isFryGoal(before))
+      return isFryGoal(after) || before.lockedDomains.some((d) => !kept.includes(d));
+    // A Fry Time goal loosens when it pays out more: more often or more minutes.
+    const times = (g: EarnGoal) => (g.repeats === 0 ? Infinity : (g.repeats ?? 1));
+    const most = (g: EarnGoal) =>
+      Math.max(g.fryMinutes ?? 0, ...Object.values(g.fryMinutesBySite ?? {}));
+    if (!isFryGoal(after)) return false; // back to unlocking: stricter
+    const added = after.lockedDomains.some((d) => !before.lockedDomains.includes(d));
+    return times(after) > times(before) || most(after) > most(before) || added;
   }
   async function save(goal: EarnGoal) {
     if (!(await passwordGate(state))) return;
@@ -159,9 +182,9 @@ function EarnTime({
         </button>
       </div>
       <p className="muted">
-        Pick a website that’s good for you and how long to spend there each day. Until you
-        have, the websites you choose stay blocked. They open as soon as the goal is met
-        and lock again at midnight.
+        Pick a website that’s good for you and how long to spend there. Meeting the goal
+        either unlocks websites you choose (blocked until then, locked again at midnight) or
+        earns Fry Time on them, once a day or as many times as you like.
       </p>
       <p className="muted small">
         Time on the goal website counts like your limits do: the focused tab, or audio and
@@ -176,9 +199,17 @@ function EarnTime({
       <div className="list">
         {goals.map((goal) => {
           const left = earnRemaining(state, goal, now);
+          const fry = isFryGoal(goal);
+          const completions = earnCompletions(state, goal, now);
           const earned = goal.minutes - Math.ceil(left / 60_000);
           const locked = websiteNames(goal.lockedDomains);
           const done = left === 0;
+          const fryLeft = fry
+            ? Math.max(
+                0,
+                ...goal.lockedDomains.map((d) => earnedFryRemaining(state, goal, `https://${d}/`, now)),
+              )
+            : 0;
           return (
             <article
               key={goal.id}
@@ -188,16 +219,32 @@ function EarnTime({
                 <div>
                   <h3>
                     {goal.label}{" "}
-                    {goal.enabled && (
+                    {goal.enabled && !fry && (
                       <span className={`pill ${done ? "good" : "warn"}`}>
                         {done ? "Unlocked today" : "Locked"}
                       </span>
                     )}
+                    {goal.enabled && fry && fryLeft > 0 && (
+                      <span className="pill subtle">Fry Time earned</span>
+                    )}
                   </h3>
                   <p className="earn-rule">
+                    {fry ? "Every " : ""}
                     <strong>{goal.minutes} min</strong> on{" "}
-                    <strong>{websiteNames(goal.goalDomains).join(", ")}</strong> unlocks{" "}
-                    {listNames(locked)}
+                    <strong>{websiteNames(goal.goalDomains).join(", ")}</strong>{" "}
+                    {fry ? (
+                      <>
+                        earns <strong>{describeFryReward(goal)}</strong> of Fry Time on{" "}
+                        {listNames(locked)}
+                        {goal.repeats === 0
+                          ? ", as often as you like"
+                          : (goal.repeats ?? 1) > 1
+                            ? `, up to ${goal.repeats} times a day`
+                            : ", once a day"}
+                      </>
+                    ) : (
+                      <>unlocks {listNames(locked)}</>
+                    )}
                   </p>
                 </div>
                 <Switch
@@ -220,9 +267,11 @@ function EarnTime({
                     <span style={{ width: `${(earned / goal.minutes) * 100}%` }} />
                   </span>
                   <p className="muted small earn-progress">
-                    {done
-                      ? `Goal met. ${listNames(locked)} ${locked.length === 1 ? "is" : "are"} open until midnight.`
-                      : `${earned} of ${goal.minutes} min today · ${Math.ceil(left / 60_000)} min to go`}
+                    {fry
+                      ? `${completions === 0 ? "Not earned yet today" : `Earned ${completions}× today`}${fryLeft > 0 ? ` · ${Math.ceil(fryLeft / 60_000)} min of Fry Time left` : ""}${done ? " · that’s all for today" : ` · ${Math.ceil(left / 60_000)} min to the next`}`
+                      : done
+                        ? `Goal met. ${listNames(locked)} ${locked.length === 1 ? "is" : "are"} open until midnight.`
+                        : `${earned} of ${goal.minutes} min today · ${Math.ceil(left / 60_000)} min to go`}
                   </p>
                 </>
               )}
@@ -315,7 +364,101 @@ function EarnTime({
                 />
               </div>
               <fieldset className="group">
-                <legend>Until then, block</legend>
+                <legend>When the goal is met</legend>
+                <div className="segmented" role="radiogroup">
+                  {(
+                    [
+                      ["unlock", "Unlock websites", "Until then, they’re blocked"],
+                      ["fry", "Earn Fry Time", "No filter on websites for a while"],
+                    ] as const
+                  ).map(([reward, title, hint]) => (
+                    <button
+                      type="button"
+                      key={reward}
+                      role="radio"
+                      aria-checked={(editing.reward ?? "unlock") === reward}
+                      className={(editing.reward ?? "unlock") === reward ? "selected" : ""}
+                      onClick={() =>
+                        setEditing(
+                          reward === "fry"
+                            ? { ...editing, reward, repeats: editing.repeats ?? 1, fryMinutes: editing.fryMinutes ?? 10 }
+                            : { ...editing, reward: undefined },
+                        )
+                      }
+                    >
+                      <strong>{title}</strong>
+                      <span>{hint}</span>
+                    </button>
+                  ))}
+                </div>
+                {isFryGoal(editing) && (
+                  <div className="earn-fry">
+                    <label className="field">
+                      Times a day it can be earned
+                      <select
+                        value={editing.repeats ?? 1}
+                        onChange={(e) => setEditing({ ...editing, repeats: Number(e.target.value) })}
+                      >
+                        {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
+                          <option key={n} value={n}>
+                            {n === 1 ? "Once" : `${n} times`}
+                          </option>
+                        ))}
+                        <option value={0}>No limit</option>
+                      </select>
+                    </label>
+                    <div className="segmented" role="radiogroup">
+                      {(
+                        [
+                          [false, "Same for every website"],
+                          [true, "Custom per website"],
+                        ] as const
+                      ).map(([custom, title]) => (
+                        <button
+                          type="button"
+                          key={title}
+                          role="radio"
+                          aria-checked={Boolean(editing.fryMinutesBySite) === custom}
+                          className={Boolean(editing.fryMinutesBySite) === custom ? "selected" : ""}
+                          onClick={() =>
+                            setEditing(
+                              custom
+                                ? { ...editing, fryMinutes: undefined, fryMinutesBySite: editing.fryMinutesBySite ?? {} }
+                                : { ...editing, fryMinutes: editing.fryMinutes ?? 10, fryMinutesBySite: undefined },
+                            )
+                          }
+                        >
+                          <strong>{title}</strong>
+                        </button>
+                      ))}
+                    </div>
+                    {!editing.fryMinutesBySite && (
+                      <label className="field">
+                        Fry Time earned on each website (minutes)
+                        <input
+                          type="number"
+                          min={1}
+                          max={1440}
+                          required
+                          value={editing.fryMinutes ?? ""}
+                          onChange={(e) =>
+                            setEditing({
+                              ...editing,
+                              fryMinutes: e.target.value === "" ? undefined : Number(e.target.value),
+                            })
+                          }
+                        />
+                      </label>
+                    )}
+                    <p className="muted small">
+                      Each time you meet the goal, feed blocking pauses on these websites for
+                      the minutes you choose, whenever you use them that day.
+                    </p>
+                  </div>
+                )}
+              </fieldset>
+              <fieldset className="group">
+                <legend>{isFryGoal(editing) ? "Websites that earn Fry Time" : "Until then, block"}</legend>
                 <div className="whitelist">
                   {launchSites.map((s) => {
                     const selected = editing.lockedDomains.some((d) =>
@@ -323,21 +466,42 @@ function EarnTime({
                     );
                     const aliases = expandDomainAliases([s.domain]);
                     return (
-                      <label className="check" key={s.id}>
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() =>
-                            setEditing({
-                              ...editing,
-                              lockedDomains: selected
-                                ? editing.lockedDomains.filter((d) => !aliases.includes(d))
-                                : [...editing.lockedDomains, ...aliases],
-                            })
-                          }
-                        />
-                        {s.name}
-                      </label>
+                      <div className="check-row" key={s.id}>
+                        <label className="check">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() =>
+                              setEditing({
+                                ...editing,
+                                lockedDomains: selected
+                                  ? editing.lockedDomains.filter((d) => !aliases.includes(d))
+                                  : [...editing.lockedDomains, ...aliases],
+                              })
+                            }
+                          />
+                          {s.name}
+                        </label>
+                        {selected && editing.fryMinutesBySite && (
+                          <label className="fry-minutes">
+                            <input
+                              type="number"
+                              min={1}
+                              max={1440}
+                              required
+                              aria-label={`${s.name} Fry Time minutes`}
+                              value={editing.fryMinutesBySite[s.id] ?? ""}
+                              onChange={(e) => {
+                                const next = { ...editing.fryMinutesBySite };
+                                if (e.target.value === "") delete next[s.id];
+                                else next[s.id] = Number(e.target.value);
+                                setEditing({ ...editing, fryMinutesBySite: next });
+                              }}
+                            />
+                            min
+                          </label>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -349,6 +513,34 @@ function EarnTime({
                     onChange={(e) => setCustom(e.target.value)}
                   />
                 </label>
+                {editing.fryMinutesBySite && custom.trim() && (
+                  <div className="whitelist">
+                    {[...new Set(custom.split(/[\s,]+/).filter(Boolean).map(normalizeDomain))]
+                      .filter((d) => d && !supportedDomains.includes(d))
+                      .map((domain) => (
+                        <div className="check-row" key={domain}>
+                          <span className="check">{domain}</span>
+                          <label className="fry-minutes">
+                            <input
+                              type="number"
+                              min={1}
+                              max={1440}
+                              required
+                              aria-label={`${domain} Fry Time minutes`}
+                              value={editing.fryMinutesBySite?.[domain] ?? ""}
+                              onChange={(e) => {
+                                const next = { ...editing.fryMinutesBySite };
+                                if (e.target.value === "") delete next[domain];
+                                else next[domain] = Number(e.target.value);
+                                setEditing({ ...editing, fryMinutesBySite: next });
+                              }}
+                            />
+                            min
+                          </label>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </fieldset>
               {error && (
                 <p className="error" role="alert">
@@ -375,6 +567,29 @@ function EarnTime({
   );
 }
 
+/** What a loadout or code sets, as a short list. */
+function SettingsSummary({ summary }: { summary: SharedSummary }) {
+  return (
+    <ul>
+      <li>
+        {summary.blocked.length ? `Blocked: ${listNames(summary.blocked)}` : "No fully blocked websites"}
+      </li>
+      <li>{summary.limits.length ? `Daily limits: ${summary.limits.join(", ")}` : "No daily limits"}</li>
+      <li>{summary.windows.length ? `Windows: ${listNames(summary.windows)}` : "No windows"}</li>
+      {summary.earnGoals.length > 0 && <li>Earn goals: {summary.earnGoals.join("; ")}</li>}
+      <li>
+        {summary.feedBlockingOn
+          ? `${summary.feedBlockers} feed and button blocker${summary.feedBlockers === 1 ? "" : "s"} on`
+          : "Feed and button blocking off"}
+      </li>
+    </ul>
+  );
+}
+
+/**
+ * Share your setup, with loadouts: five slots for whole setups. The loadout in use is your
+ * live settings; switching saves it and applies another. A share code holds one loadout.
+ */
 function ShareSettings({
   state,
   onState,
@@ -384,24 +599,22 @@ function ShareSettings({
   onState: (s: AppState) => void;
   onNotice: (n: Notice) => void;
 }) {
+  const active = state.activeLoadout ?? 0;
+  const [selected, setSelected] = useState(active);
   const [myCode, setMyCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [pasted, setPasted] = useState("");
   const [preview, setPreview] = useState<SharedSummary>();
   const [pasteError, setPasteError] = useState("");
   const [busy, setBusy] = useState(false);
+  const settings = loadoutSettings(state, selected, Date.now());
+  const name = `Loadout ${selected + 1}`;
 
-  async function copyMine() {
-    const code = await encodeShareCode(exportSettings(state, Date.now()));
-    setMyCode(code);
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      setCopied(false);
-    }
-  }
+  useEffect(() => {
+    setMyCode("");
+    setCopied(false);
+    setPasted("");
+  }, [selected]);
   useEffect(() => {
     setPreview(undefined);
     setPasteError("");
@@ -415,95 +628,170 @@ function ShareSettings({
     };
   }, [pasted]);
 
-  async function apply() {
-    if (!(await passwordGate(state))) return;
-    const yes = await confirmDialog({
-      question: "Use these settings?",
-      detail:
-        "Your websites, windows, earn goals and feed blocking will be replaced with the ones in this code. Today’s usage and your password stay as they are.",
-      yes: "Replace my settings",
-      no: "Cancel",
-    });
-    if (!yes) return;
+  async function copyCode() {
+    if (!settings) return;
+    const { savedAt: _saved, ...rest } = settings;
+    const code = await encodeShareCode({ format: SETTINGS_FORMAT, exportedAt: new Date().toISOString(), ...rest });
+    setMyCode(code);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setCopied(false);
+    }
+  }
+  async function run(request: Parameters<typeof send>[0], success: string) {
     setBusy(true);
-    const r = await send<AppState>({ type: "IMPORT_SHARE_CODE", code: pasted });
+    const r = await send<AppState>(request);
     setBusy(false);
     if (!r.ok) return onNotice({ kind: "error", text: r.error });
     onState(r.data);
+    onNotice({ kind: "success", text: success });
+  }
+  async function useLoadout() {
+    if (!(await passwordGate(state))) return;
+    const yes = await confirmDialog({
+      question: `Switch to ${name}?`,
+      detail: `Your websites, windows, earn goals and feed blocking change to ${name}. Your current setup stays saved in Loadout ${active + 1}. Today’s usage and your password stay as they are.`,
+      yes: `Use ${name}`,
+      no: "Cancel",
+    });
+    if (yes) await run({ type: "SWITCH_LOADOUT", index: selected }, `Now using ${name}.`);
+  }
+  async function saveCurrentHere() {
+    if (!(await passwordGate(state))) return;
+    await run({ type: "COPY_TO_LOADOUT", index: selected }, `Your current setup is saved in ${name}.`);
+  }
+  async function empty() {
+    if (!(await passwordGate(state))) return;
+    const yes = await confirmDialog({
+      question: `Empty ${name}?`,
+      detail: "The setup saved in it is deleted. Copy its share code first if you might want it again.",
+      yes: `Empty ${name}`,
+      no: "Cancel",
+    });
+    if (yes) await run({ type: "CLEAR_LOADOUT", index: selected }, `${name} is empty.`);
+  }
+  async function applyCode() {
+    if (!(await passwordGate(state))) return;
+    if (settings) {
+      const inUse = selected === active;
+      const yes = await confirmDialog({
+        question: inUse ? "Replace your current setup?" : `Replace ${name}?`,
+        detail: inUse
+          ? "Your websites, windows, earn goals and feed blocking will be replaced with the ones in this code. Today’s usage and your password stay as they are."
+          : `The setup saved in ${name} will be replaced with this code.`,
+        yes: "Replace",
+        no: "Cancel",
+      });
+      if (!yes) return;
+    }
+    await run({ type: "SET_LOADOUT_FROM_CODE", index: selected, code: pasted }, `${name} now has the shared setup.`);
     setPasted("");
-    onNotice({ kind: "success", text: "Shared settings applied." });
   }
 
   return (
     <section className="card settings-block share">
       <h2>Share your setup</h2>
       <p className="muted">
-        Copy a code with your website settings and send it to a friend, or paste theirs to
-        use the same setup. A code holds your limits, blocks, windows, earn goals and feed
-        blocking. It never includes your usage, history or password.
+        Keep up to five setups as loadouts and switch between them. A share code holds one
+        loadout (its limits, blocks, windows, earn goals and feed blocking), never your usage,
+        history or password. Send it to a friend, or paste theirs into a loadout.
       </p>
-      <div className="share-step">
-        <h3>Your code</h3>
-        <button className="button" onClick={() => void copyMine()}>
-          {copied ? "Copied!" : myCode ? "Copy again" : "Copy my share code"}
-        </button>
-        {myCode && (
-          <textarea
-            className="share-code"
-            readOnly
-            aria-label="Your share code"
-            value={myCode}
-            onFocus={(e) => e.currentTarget.select()}
-          />
-        )}
+      <div className="loadout-tabs" role="tablist" aria-label="Loadouts">
+        {Array.from({ length: LOADOUT_COUNT }, (_, i) => {
+          const filled = i === active || Boolean(state.loadouts?.[i]);
+          return (
+            <button
+              key={i}
+              role="tab"
+              aria-selected={selected === i}
+              className={`loadout-tab ${selected === i ? "selected" : ""} ${filled ? "" : "empty"}`}
+              onClick={() => setSelected(i)}
+            >
+              <strong>Loadout {i + 1}</strong>
+              <span>{i === active ? "In use" : filled ? "Saved" : "Empty"}</span>
+            </button>
+          );
+        })}
       </div>
-      <div className="share-step">
-        <h3>Use someone’s code</h3>
-        <textarea
-          className="share-code"
-          aria-label="Paste a share code"
-          placeholder="Paste a code that starts with SCREENFRY-1-"
-          value={pasted}
-          onChange={(e) => setPasted(e.target.value)}
-        />
-        {pasteError && (
-          <p className="error" role="alert">
-            {pasteError}
-          </p>
-        )}
-        {preview && (
-          <div className="share-preview">
-            <strong>This code sets:</strong>
-            <ul>
-              <li>
-                {preview.blocked.length
-                  ? `Blocked: ${listNames(preview.blocked)}`
-                  : "No fully blocked websites"}
-              </li>
-              <li>
-                {preview.limits.length
-                  ? `Daily limits: ${preview.limits.join(", ")}`
-                  : "No daily limits"}
-              </li>
-              <li>
-                {preview.windows.length
-                  ? `Windows: ${listNames(preview.windows)}`
-                  : "No windows"}
-              </li>
-              {preview.earnGoals.length > 0 && (
-                <li>Earn goals: {preview.earnGoals.join("; ")}</li>
+      <div className="loadout-panel" role="tabpanel" aria-label={name}>
+        {settings ? (
+          <>
+            <div className="share-preview">
+              <strong>
+                {selected === active ? `${name} is in use. Changes you make are saved to it.` : `${name} sets:`}
+              </strong>
+              <SettingsSummary summary={summarizeShared(settings)} />
+            </div>
+            <div className="row wrap loadout-actions">
+              {selected !== active && (
+                <button className="button" disabled={busy} onClick={() => void useLoadout()}>
+                  Use this loadout
+                </button>
               )}
-              <li>
-                {preview.feedBlockingOn
-                  ? `${preview.feedBlockers} feed and button blocker${preview.feedBlockers === 1 ? "" : "s"} on`
-                  : "Feed and button blocking off"}
-              </li>
-            </ul>
-            <button className="button" disabled={busy} onClick={() => void apply()}>
-              {busy ? "Applying…" : "Use these settings"}
+              <button
+                className={`button ${selected === active ? "" : "secondary"}`}
+                onClick={() => void copyCode()}
+              >
+                {copied ? "Copied!" : myCode ? "Copy again" : "Copy share code"}
+              </button>
+              {selected !== active && (
+                <button className="button ghost danger" disabled={busy} onClick={() => void empty()}>
+                  Empty this loadout
+                </button>
+              )}
+            </div>
+            {myCode && (
+              <textarea
+                className="share-code"
+                readOnly
+                aria-label={`${name} share code`}
+                value={myCode}
+                onFocus={(e) => e.currentTarget.select()}
+              />
+            )}
+          </>
+        ) : (
+          <div className="share-preview">
+            <strong>{name} is empty.</strong>
+            <p className="muted small">Paste a code below, or save your current setup here.</p>
+            <button className="button secondary" disabled={busy} onClick={() => void saveCurrentHere()}>
+              Save my current setup here
             </button>
           </div>
         )}
+        <div className="share-step">
+          <h3>{settings ? `Replace ${selected === active ? "it" : name} with a code` : `Put a code in ${name}`}</h3>
+          <textarea
+            className="share-code"
+            aria-label={`Paste a share code into ${name}`}
+            placeholder="Paste a code that starts with SCREENFRY-1-"
+            value={pasted}
+            onChange={(e) => setPasted(e.target.value)}
+          />
+          {pasteError && (
+            <p className="error" role="alert">
+              {pasteError}
+            </p>
+          )}
+          {preview && (
+            <div className="share-preview">
+              <strong>This code sets:</strong>
+              <SettingsSummary summary={preview} />
+              <button className="button" disabled={busy} onClick={() => void applyCode()}>
+                {busy
+                  ? "Saving…"
+                  : !settings
+                    ? `Put it in ${name}`
+                    : selected === active
+                      ? "Replace my current setup"
+                      : `Replace ${name}`}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

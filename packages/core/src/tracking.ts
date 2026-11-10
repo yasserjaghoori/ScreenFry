@@ -3,8 +3,11 @@ import { emptyUsageDay, USAGE_RETENTION_DAYS } from "./defaults";
 import { displayHost } from "./domains";
 import {
   activeFreeTime,
+  earnCapRemaining,
   earnGoalsFor,
   earnRemaining,
+  earnedFryKey,
+  earnedFryRemaining,
   evaluatePolicy,
   evaluateRule,
   freeTimeRemaining,
@@ -15,7 +18,7 @@ import {
   matchingRules,
   nextPolicyBoundary,
 } from "@policy/index";
-import type { AccessWindow, AppState } from "@shared/index";
+import type { AccessWindow, AppState, EarnGoal } from "@shared/index";
 export const MAX_CREDIT_MS = 90_000;
 export const WARNING_THRESHOLDS_MINUTES = [5, 1];
 export type IdleState = "active" | "idle" | "locked";
@@ -80,16 +83,23 @@ function creditSlice(
   /** Fry Time usage keys (window and website) to the URL being used. */
   const freeWindows = new Map<string, { window: AccessWindow; url: string }>();
   const goals = new Set<string>();
+  /** Earned Fry Time keys (goal and website) to the URL using them. */
+  const earnedFry = new Map<string, { goal: EarnGoal; url: string }>();
   for (const url of urls) {
     // Blocked pages and playback outside a window do not consume a future allowance.
     if (evaluatePolicy(state, url, at).status === "blocked") continue;
     for (const rule of matchingRules(state, url)) rules.set(rule.id, url);
     for (const goal of earnGoalsFor(state, url)) goals.add(goal.id);
+    const fry = activeFreeTime(state, url, at);
+    if (fry?.earned) {
+      const goal = state.earnGoals!.find((g) => `earn:${g.id}` === fry.windowId)!;
+      earnedFry.set(earnedFryKey(goal, url), { goal, url });
+    }
     for (const w of freeWindowsFor(state, url))
       if (isScheduleActive(w, new Date(at)))
         freeWindows.set(fryUsageKey(w, fryKeyFor(w, url)), { window: w, url });
   }
-  if (!rules.size && !freeWindows.size && !goals.size) return;
+  if (!rules.size && !freeWindows.size && !goals.size && !earnedFry.size) return;
   const key = localDateKey(new Date(at)),
     day = state.usage[key] ?? emptyUsageDay(key);
   state.usage[key] = day;
@@ -102,11 +112,17 @@ function creditSlice(
     day.millisecondsByWindow[id] =
       (day.millisecondsByWindow[id] ?? 0) + (left === undefined ? ms : Math.min(ms, left));
   }
-  // Earn goals count once per wall-clock second too, and stop counting once met.
+  // Earned Fry Time is used up like a Fry Time window's, per website.
+  for (const [id, { goal, url }] of earnedFry) {
+    const left = earnedFryRemaining(state, goal, url, at);
+    if (left > 0) day.millisecondsByWindow[id] = (day.millisecondsByWindow[id] ?? 0) + Math.min(ms, left);
+  }
+  // Earn goals count once per wall-clock second too, and stop once nothing more can be
+  // earned today (met, or every repeat of a Fry Time goal paid out).
   if (goals.size) day.millisecondsByGoal ??= {};
   for (const id of goals) {
     const goal = state.earnGoals!.find((g) => g.id === id)!;
-    const left = earnRemaining(state, goal, at);
+    const left = earnCapRemaining(state, goal, at);
     if (left > 0)
       day.millisecondsByGoal![id] = (day.millisecondsByGoal![id] ?? 0) + Math.min(ms, left);
   }
@@ -197,7 +213,7 @@ export function nextTrackingBoundary(
   // When free time runs out, feed blocking returns: credit and re-evaluate right then.
   const free = activeFreeTime(state, url, now)?.remainingMilliseconds;
   if (free !== undefined) times.push(now + free);
-  // When an earn goal is met, its locked websites open: credit and re-evaluate right then.
+  // When an earn goal is met (or pays out Fry Time again), re-evaluate right then.
   for (const goal of earnGoalsFor(state, url)) {
     const left = earnRemaining(state, goal, now);
     if (left > 0) times.push(now + left);

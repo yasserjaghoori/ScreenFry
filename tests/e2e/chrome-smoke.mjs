@@ -223,7 +223,7 @@ try {
   check(
     "every registry launch site has a rule",
     (await getState()).rules.map((r) => r.id).join() ===
-      "youtube,instagram,x,reddit,substack,tiktok",
+      "youtube,instagram,x,reddit,substack,tiktok,facebook,linkedin",
   );
   check(
     "onboarding can complete without a password",
@@ -281,7 +281,7 @@ try {
     "window form has day/time and website whitelist controls",
     await evaluate(
       controller.session,
-      `!!document.querySelector('#window-start')&&document.querySelectorAll('.whitelist input').length===6`,
+      `!!document.querySelector('#window-start')&&document.querySelectorAll('.whitelist input').length===8`,
     ),
   );
   await screenshot(controller, "window-editor.png");
@@ -777,10 +777,10 @@ try {
   const popup = await open(`chrome-extension://${extId}/popup.html`);
   await screenshot(popup, "popup.png", 400, 900);
   check(
-    "popup offers the same five website controls",
+    "popup offers every website",
     await evaluate(
       popup.session,
-      `document.querySelectorAll('#site-picker [role=option]').length===6`,
+      `document.querySelectorAll('#site-picker [role=option]').length===8`,
     ),
   );
   const shell = await open(`chrome-extension://${extId}/popup.html`, {
@@ -820,7 +820,7 @@ try {
       coldPopup.session,
       `
       !!document.querySelector('#daily-limit') &&
-      document.querySelectorAll('#site-picker [role=option]').length===6 &&
+      document.querySelectorAll('#site-picker [role=option]').length===8 &&
       startupCalls.refreshes===0 && startupCalls.queries===1 &&
       !!document.querySelector('.popup-access')
     `,

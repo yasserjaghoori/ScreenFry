@@ -125,20 +125,69 @@ export const earnGoalsFor = (state: AppState, url: string) =>
   (state.earnGoals ?? []).filter(
     (g) => g.enabled && urlMatchesDomains(url, g.goalDomains),
   );
-/** Time still needed today on an earn goal's website; 0 once it is earned. */
-export function earnRemaining(state: AppState, goal: EarnGoal, now: number): number {
-  const used =
-    state.usage[localDateKey(new Date(now))]?.millisecondsByGoal?.[goal.id] ?? 0;
-  return Math.max(0, goal.minutes * MINUTE - used);
+const goalUsed = (state: AppState, goal: EarnGoal, now: number) =>
+  state.usage[localDateKey(new Date(now))]?.millisecondsByGoal?.[goal.id] ?? 0;
+export const isFryGoal = (goal: EarnGoal) => goal.reward === "fry";
+/** Times a Fry Time goal can pay out today (Infinity for no limit). */
+const goalCap = (goal: EarnGoal) =>
+  isFryGoal(goal) && goal.repeats === 0 ? Infinity : isFryGoal(goal) ? Math.max(1, goal.repeats ?? 1) : 1;
+/** How many times an earn goal has been met today. */
+export function earnCompletions(state: AppState, goal: EarnGoal, now: number): number {
+  return Math.min(goalCap(goal), Math.floor(goalUsed(state, goal, now) / (goal.minutes * MINUTE)));
 }
-/** Enabled earn goals keeping this website locked right now (goal not met today). */
+/**
+ * Time still needed on the goal website: until it's met (unlock), or until the next payout
+ * of Fry Time (fry). 0 once nothing more can be earned today.
+ */
+export function earnRemaining(state: AppState, goal: EarnGoal, now: number): number {
+  const goalMs = goal.minutes * MINUTE;
+  if (earnCompletions(state, goal, now) >= goalCap(goal)) return 0;
+  return goalMs - (goalUsed(state, goal, now) % goalMs);
+}
+/** Goal time that can still count today (Infinity when a Fry Time goal has no limit). */
+export function earnCapRemaining(state: AppState, goal: EarnGoal, now: number): number {
+  return Math.max(0, goalCap(goal) * goal.minutes * MINUTE - goalUsed(state, goal, now));
+}
+/** Enabled "unlock" goals keeping this website locked right now (goal not met today). */
 export const earnGoalsLocking = (state: AppState, url: string, now: number) =>
   (state.earnGoals ?? []).filter(
     (g) =>
       g.enabled &&
+      !isFryGoal(g) &&
       urlMatchesDomains(url, g.lockedDomains) &&
       earnRemaining(state, g, now) > 0,
   );
+/** Which of a goal's websites a URL is on, as a Fry Time key (site id, else domain). */
+function goalSiteKey(goal: EarnGoal, url: string): string {
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    /* not a web address */
+  }
+  return siteFor(host)?.site ?? goal.lockedDomains.find((d) => hostMatchesDomain(host, d)) ?? host;
+}
+/** Where earned Fry Time used on a website is counted. */
+export const earnedFryKey = (goal: EarnGoal, url: string) => `earn:${goal.id}:${goalSiteKey(goal, url)}`;
+/** Earned Fry Time left today on this website from one goal. */
+export function earnedFryRemaining(state: AppState, goal: EarnGoal, url: string, now: number): number {
+  const key = goalSiteKey(goal, url);
+  const perCompletion = goal.fryMinutesBySite?.[key] ?? goal.fryMinutes ?? 0;
+  const earned = earnCompletions(state, goal, now) * perCompletion * MINUTE;
+  const used =
+    state.usage[localDateKey(new Date(now))]?.millisecondsByWindow?.[earnedFryKey(goal, url)] ?? 0;
+  return Math.max(0, earned - used);
+}
+/** The earn goal whose earned Fry Time is pausing this website's feed blocking, if any. */
+export function activeEarnedFry(state: AppState, url: string, now: number) {
+  let best: { goal: EarnGoal; remaining: number } | undefined;
+  for (const goal of state.earnGoals ?? []) {
+    if (!goal.enabled || !isFryGoal(goal) || !urlMatchesDomains(url, goal.lockedDomains)) continue;
+    const remaining = earnedFryRemaining(state, goal, url, now);
+    if (remaining > 0 && (!best || remaining > best.remaining)) best = { goal, remaining };
+  }
+  return best;
+}
 export const freeWindowsFor = (state: AppState, url: string) =>
   runningWindows(state.windows).filter(
     (w) => w.mode === "free" && urlMatchesDomains(url, w.domains),
@@ -204,6 +253,17 @@ export function activeFreeTime(
         (remaining === undefined || remaining > best.remainingMilliseconds))
     )
       best = { windowId: w.id, label: w.label, remainingMilliseconds: remaining };
+  }
+  // Earned Fry Time is used only when no Fry Time window is already pausing the feeds.
+  if (!best) {
+    const earned = activeEarnedFry(state, url, now);
+    if (earned)
+      best = {
+        windowId: `earn:${earned.goal.id}`,
+        label: earned.goal.label,
+        remainingMilliseconds: earned.remaining,
+        earned: true,
+      };
   }
   return best;
 }

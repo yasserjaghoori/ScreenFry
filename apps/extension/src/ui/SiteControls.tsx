@@ -258,7 +258,7 @@ export function SiteControls({
                   <Switch
                     label={element.label}
                     checked={state.feedSettings.sites[site]?.[key] === true}
-                    disabled={busy || !state.feedSettings.globalEnabled}
+                    disabled={busy}
                     onChange={() => void toggle(key)}
                   />
                 </div>
@@ -279,11 +279,6 @@ export function SiteControls({
           )}
         </section>
       ))}
-      {!state.feedSettings.globalEnabled && (
-        <p className="notice">
-          Feed and button controls are paused. Enable them in Settings.
-        </p>
-      )}
     </div>
   );
 }

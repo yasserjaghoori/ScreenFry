@@ -7,7 +7,9 @@ export type FeedSite =
   | "x"
   | "reddit"
   | "substack"
-  | "tiktok";
+  | "tiktok"
+  | "facebook"
+  | "linkedin";
 export interface DailyAllowance {
   defaultMinutes: number;
   byWeekday?: Partial<Record<DayOfWeek, number>>;
@@ -53,9 +55,30 @@ export interface EarnGoal {
   goalDomains: string[];
   /** Minutes on the goal website needed each day, 1–1440. */
   minutes: number;
-  /** Websites blocked each day until the goal is met. */
+  /**
+   * The goal's websites. With the "unlock" reward they're blocked each day until the goal is
+   * met; with "fry" they get Fry Time each time it's met.
+   */
   lockedDomains: string[];
+  /** What meeting the goal does: "unlock" (default) or "fry" (earn Fry Time). */
+  reward?: "unlock" | "fry";
+  /** Fry Time reward: how many times a day the goal pays out; 0 means no limit (default 1). */
+  repeats?: number;
+  /** Fry Time reward: minutes earned on each website per completion. */
+  fryMinutes?: number;
+  /** Fry Time reward: minutes per website (site id like "youtube", else domain) instead. */
+  fryMinutesBySite?: Record<string, number>;
 }
+/** One loadout: the same website settings a share code holds. */
+export interface LoadoutSettings {
+  savedAt: number;
+  rules: WebsiteRule[];
+  windows: AccessWindow[];
+  earnGoals?: EarnGoal[];
+  feedSettings: FeedSettings;
+  warningsEnabled: boolean;
+}
+export const LOADOUT_COUNT = 5;
 export interface WebsiteRule {
   id: string;
   label: string;
@@ -107,6 +130,13 @@ export interface AppState {
   windows: AccessWindow[];
   /** Earn your website time goals (experimental). */
   earnGoals?: EarnGoal[];
+  /**
+   * Loadouts: up to five saved setups. The one in use (`activeLoadout`, 0–4) is always the
+   * live settings above, so its slot stays null; the others hold a saved copy, or null when
+   * empty. Switching saves the live settings into their slot and applies the other one.
+   */
+  loadouts?: (LoadoutSettings | null)[];
+  activeLoadout?: number;
   usage: Record<string, UsageDay>;
   usageAsOf?: number;
   feedSettings: FeedSettings;
@@ -132,7 +162,13 @@ export interface PolicyDecision {
   remainingMilliseconds?: number;
   allowanceMinutes?: number;
   /** Set while a free-time window has paused this website's feed blocking. */
-  freeTime?: { windowId: string; label: string; remainingMilliseconds?: number };
+  freeTime?: {
+    windowId: string;
+    label: string;
+    remainingMilliseconds?: number;
+    /** Fry Time earned by meeting an earn goal (windowId is "earn:<goal id>"). */
+    earned?: boolean;
+  };
   /**
    * Set when this website has free-time windows but none is pausing its feed blocking now:
    * "used-up" while a window is on but today's minutes are spent, "not-started" outside them.

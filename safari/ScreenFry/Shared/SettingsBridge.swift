@@ -2,10 +2,9 @@ import Foundation
 
 /// File handoff between the ScreenFry Mac app and one browser's copy of the extension.
 /// Browser storage is out of the app's reach, so the extension checks in through native
-/// messaging about once a minute: it reports its version and whether a settings password is
-/// on (`check-in.json`) and sends its website settings (never usage or the password,
-/// `settings.json`). Requests chosen in the app wait in files until the next check-in:
-///   - `pending-import.json`  → the extension applies the settings, answers in `import-result.json`
+/// messaging about once a minute: it reports only its version and whether a settings password
+/// is on (`check-in.json`), never its settings or usage. Requests chosen in the app wait in
+/// files until the next check-in:
 ///   - `pending-reset.json`   → the extension restores its defaults, answers in `reset-result.json`
 ///   - `pending-erase.json` → Erase Everything: the extension wipes its storage (Safari keeps an
 ///     extension's storage after the app is deleted) and Chrome's also removes itself;
@@ -14,20 +13,16 @@ import Foundation
 /// Safari: the sandboxed extension handler uses its own container. Chrome: the app binary,
 /// launched by Chrome as a native messaging host, uses Application Support/ScreenFry.
 struct SettingsBridge {
-    static let snapshotName = "settings.json"
     static let checkInName = "check-in.json"
-    static let pendingName = "pending-import.json"
-    static let resultName = "import-result.json"
+    /// Files from 0.6.x settings export/import, deleted when a browser checks in.
+    static let retiredNames = ["settings.json", "pending-import.json", "import-result.json"]
     static let resetName = "pending-reset.json"
     static let resetResultName = "reset-result.json"
     static let eraseName = "pending-erase.json"
     static let eraseSentName = "erase-sent.json"
 
     let directory: URL
-    var snapshotURL: URL { directory.appendingPathComponent(Self.snapshotName) }
     var checkInURL: URL { directory.appendingPathComponent(Self.checkInName) }
-    var pendingURL: URL { directory.appendingPathComponent(Self.pendingName) }
-    var resultURL: URL { directory.appendingPathComponent(Self.resultName) }
     var resetURL: URL { directory.appendingPathComponent(Self.resetName) }
     var resetResultURL: URL { directory.appendingPathComponent(Self.resetResultName) }
     var eraseURL: URL { directory.appendingPathComponent(Self.eraseName) }
@@ -56,17 +51,16 @@ struct SettingsBridge {
             "version": message["version"] as? String ?? "",
             "passwordProtected": message["passwordProtected"] as? Bool ?? false,
         ], to: checkInURL)
-        for (key, pending, result) in [("importResult", pendingURL, resultURL), ("resetResult", resetURL, resetResultURL)] {
-            guard let outcome = message[key] as? [String: Any], let id = outcome["id"] as? String else { continue }
+        for name in Self.retiredNames {
+            try? fm.removeItem(at: directory.appendingPathComponent(name))
+        }
+        if let outcome = message["resetResult"] as? [String: Any], let id = outcome["id"] as? String {
             var record = outcome
             record["at"] = now
-            Self.write(record, to: result)
-            if Self.read(pending)?["id"] as? String == id {
-                try? fm.removeItem(at: pending)
+            Self.write(record, to: resetResultURL)
+            if Self.read(resetURL)?["id"] as? String == id {
+                try? fm.removeItem(at: resetURL)
             }
-        }
-        if let settings = message["settings"] as? [String: Any] {
-            Self.write(settings, to: snapshotURL)
         }
         var reply: [String: Any] = ["ok": true]
         if fm.fileExists(atPath: eraseURL.path) {
@@ -76,8 +70,6 @@ struct SettingsBridge {
             try? fm.removeItem(at: eraseURL)
         } else if let reset = Self.read(resetURL), reset["id"] is String {
             reply["reset"] = reset
-        } else if let pending = Self.read(pendingURL), pending["id"] is String {
-            reply["import"] = pending
         }
         return reply
     }
