@@ -699,18 +699,30 @@ export const siteDefinitions: SiteDefinition[] = [
     symbol: "L",
     name: "LinkedIn",
     domains: ["linkedin.com", "lnkd.in"],
+    // Checked against signed-in LinkedIn (Nov 2026): its redesign uses generated class names,
+    // so these use test ids, the right column's label and link addresses. The floating
+    // Messaging bar lives in a sealed part of the page that styles can't reach.
     elements: {
       feed: element(
         "Hide home feed",
         "Home page",
-        ['[data-finite-scroll-hotkey-context="FEED"]', "main .scaffold-finite-scroll"],
-        at("/feed", "/feed/"),
+        ['[data-testid="mainFeed"]', '[data-finite-scroll-hotkey-context="FEED"]'],
+        at("/feed"),
         true,
       ),
-      news: element("Hide LinkedIn News", "Sidebar", ["#feed-news-module", '[aria-label="LinkedIn News"]']),
-      suggestions: element("Hide Add to your feed", "Sidebar", ['[aria-label="Add to your feed"]', ".feed-follows-module"]),
-      notificationsButton: element("Hide Notifications button", "Navigation", ['.global-nav a[href*="/notifications/"]']),
-      messagingButton: element("Hide Messaging button", "Navigation", ['.global-nav a[href*="/messaging/"]']),
+      news: element("Hide LinkedIn News", "Sidebar", [
+        'aside[aria-label="Aside"] [data-display-contents="true"]:has(a[href*="/news/"])',
+        "#feed-news-module",
+      ]),
+      games: element("Hide Today’s puzzles", "Sidebar", [
+        'aside[aria-label="Aside"] [data-display-contents="true"]:has(a[href*="/games/"])',
+      ]),
+      notificationsButton: element("Hide Notifications button", "Navigation", [
+        '[data-testid="primary-nav"] li:has(> a[href*="/notifications/"])',
+      ]),
+      messagingButton: element("Hide Messaging button", "Navigation", [
+        '[data-testid="primary-nav"] li:has(> a[href*="/messaging/"])',
+      ]),
       videos: element("Block video playback", "Video", ["video"], undefined, true),
     },
   },

@@ -31,7 +31,7 @@
 | **Substack** | Home and Notes feeds · Home, Subscriptions, Explore, Activity and Chat buttons · video playback |
 | **TikTok** | For You, Following and Explore feeds · **research mode** (only the linked video: no scrolling on, no creator profiles) · comments · “You may like” recommendations and suggested accounts · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons |
 | **Facebook** | Home feed and Stories · sponsored and contacts sidebar · Video feed · **block Reels entirely**, optionally with research mode · Reels, Groups, Marketplace, Gaming and Notifications buttons. Messenger stays separate. |
-| **LinkedIn** | Home feed · LinkedIn News and Add to your feed · Notifications and Messaging buttons · video playback |
+| **LinkedIn** | Home feed · LinkedIn News and Today’s puzzles · Notifications and Messaging buttons · video playback |
 
 **Block entirely vs. research mode:** blocking Shorts, Reels or a video feed entirely means none play, even from a link. Research mode, under that switch, lets one opened from a link play; you can't scroll on to the next or open its creator's page until the page is loaded again.
 
