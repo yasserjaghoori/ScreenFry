@@ -17,11 +17,13 @@ import {
 import { pruneUsage } from "./tracking";
 import { fryKeyForDomain } from "@policy/index";
 import type { StateStore } from "./store";
+import { LOADOUT_COUNT } from "@shared/index";
 import type {
   AccessWindow,
   AppState,
   DayOfWeek,
   EarnGoal,
+  LoadoutSettings,
   FeedSettings,
   FeedSite,
   PrivateAccessStatus,
@@ -264,14 +266,42 @@ export function sanitizeEarnGoal(input: EarnGoal): { goal?: EarnGoal; error?: st
     return { error: "The goal website can’t also be one of the locked websites." };
   if (!minutes(input.minutes) || input.minutes === 0)
     return { error: "The goal must be between 1 and 1440 minutes a day." };
+  const base = {
+    id: String(input.id || crypto.randomUUID()),
+    label: String(input.label || `Earn it on ${goalDomains[0]}`).slice(0, 60),
+    enabled: input.enabled !== false,
+    goalDomains,
+    minutes: input.minutes,
+    lockedDomains,
+  };
+  if (input.reward !== "fry") return { goal: base };
+  // Fry Time reward: minutes for every website, or per website (each one needs some).
+  const repeats = input.repeats ?? 1;
+  if (!Number.isInteger(repeats) || repeats < 0 || repeats > 48)
+    return { error: "Choose how many times a day, from 1 to 48, or no limit." };
+  const keys = [...new Set(lockedDomains.map(fryKeyForDomain))];
+  const fryMinutes = input.fryMinutes;
+  if (fryMinutes !== undefined && (!minutes(fryMinutes) || fryMinutes === 0))
+    return { error: "Fry Time earned must be between 1 and 1440 minutes." };
+  let bySite: Record<string, number> | undefined;
+  if (input.fryMinutesBySite && typeof input.fryMinutesBySite === "object") {
+    bySite = {};
+    for (const key of keys) {
+      const value = input.fryMinutesBySite[key];
+      if (value === undefined || value === null) continue;
+      if (!minutes(value) || value === 0)
+        return { error: "Each website’s Fry Time must be between 1 and 1440 minutes." };
+      bySite[key] = value;
+    }
+  }
+  if (keys.some((key) => (bySite?.[key] ?? fryMinutes) === undefined))
+    return { error: "Choose how much Fry Time each website earns." };
   return {
     goal: {
-      id: String(input.id || crypto.randomUUID()),
-      label: String(input.label || `Earn it on ${goalDomains[0]}`).slice(0, 60),
-      enabled: input.enabled !== false,
-      goalDomains,
-      minutes: input.minutes,
-      lockedDomains,
+      ...base,
+      reward: "fry",
+      repeats,
+      ...(bySite ? { fryMinutesBySite: bySite } : { fryMinutes }),
     },
   };
 }
@@ -283,7 +313,8 @@ function earnGoalClash(goals: EarnGoal[]): string | undefined {
   const enabled = goals.filter((g) => g.enabled);
   for (const goal of enabled)
     for (const other of enabled)
-      if (other.id !== goal.id && overlaps(goal.goalDomains, other.lockedDomains))
+      // Only "unlock" goals lock websites; Fry Time goals never block anything.
+      if (other.id !== goal.id && other.reward !== "fry" && overlaps(goal.goalDomains, other.lockedDomains))
         return `“${other.label}” locks ${goal.goalDomains[0]}, the goal website of “${goal.label}”, so it could never be earned. Change one of them.`;
   return undefined;
 }
@@ -309,12 +340,18 @@ export const deleteEarnGoal = (ctx: ActionContext, id: string) =>
     ...s,
     earnGoals: (s.earnGoals ?? []).filter((g) => g.id !== id),
   }));
+/**
+ * There's no longer a master switch for feed blocking: `globalEnabled` is always true, and
+ * settings saved with it off (older exports and share codes) arrive with every control off,
+ * which is what that meant.
+ */
 function sanitizeFeeds(input: FeedSettings): FeedSettings {
   const sites = structuredClone(feedDefaults.sites);
+  const off = input?.globalEnabled === false;
   for (const site of Object.keys(sites) as FeedSite[])
     for (const key of Object.keys(sites[site]))
-      sites[site][key] = input?.sites?.[site]?.[key] === true;
-  return { globalEnabled: input?.globalEnabled === true, sites };
+      sites[site][key] = !off && input?.sites?.[site]?.[key] === true;
+  return { globalEnabled: true, sites };
 }
 export const setFeeds = (ctx: ActionContext, input: FeedSettings) =>
   protectedUpdate(ctx, (s) => ({ ...s, feedSettings: sanitizeFeeds(input) }));
@@ -397,45 +434,32 @@ export function exportSettings(state: AppState, now: number): SettingsExport {
     warningsEnabled: state.warningsEnabled,
   };
 }
-/** Settings checked like individual edits, ready to apply. */
-export interface ValidSettings {
+export interface CheckedSettings {
   rules: WebsiteRule[];
   windows: AccessWindow[];
-  /** Missing for files from before earn goals, which leave the current goals alone. */
+  /** Undefined for settings from before earn goals, which leave the current goals alone. */
   earnGoals?: EarnGoal[];
   feedSettings: FeedSettings;
   warningsEnabled?: boolean;
-  /** Ids the file itself gave its windows and goals (shared codes give none). */
-  givenIds: Set<string>;
 }
-/** Validates a settings file or decoded share code without saving anything. */
-export function validateSettings(
-  input: unknown,
-  now: number,
-): { ok: true; data: ValidSettings } | { ok: false; error: string } {
+/** Validates settings from a share code or a loadout, like individual edits. */
+export function checkSettings(input: unknown, now: number): { settings?: CheckedSettings; error?: string } {
   const data = input as Partial<SettingsExport> | null;
-  if (
-    !data ||
-    typeof data !== "object" ||
-    (data.format !== SETTINGS_FORMAT && data.format !== "screenfry-export-v3")
-  )
-    return fail("This isn’t a ScreenFry settings file.");
+  if (!data || typeof data !== "object") return { error: "This isn’t a ScreenFry settings file." };
   if (!Array.isArray(data.rules) || !Array.isArray(data.windows))
-    return fail("The settings file is missing websites or windows.");
+    return { error: "The settings file is missing websites or windows." };
   const rules: WebsiteRule[] = [],
-    windows: AccessWindow[] = [],
-    givenIds = new Set<string>();
+    windows: AccessWindow[] = [];
   for (const input of data.rules) {
     const { rule, error } = sanitizeRule(input, now);
-    if (!rule) return fail(`Website settings: ${error}`);
+    if (!rule) return { error: `Website settings: ${error}` };
     if (rules.some((r) => r.domains.some((d) => rule.domains.includes(d))))
-      return fail(`${rule.label} appears more than once.`);
+      return { error: `${rule.label} appears more than once.` };
     rules.push(rule);
   }
   for (const input of data.windows) {
     const { window, error } = sanitizeWindow(input);
-    if (!window) return fail(`Windows: ${error}`);
-    if (input?.id) givenIds.add(window.id);
+    if (!window) return { error: `Windows: ${error}` };
     windows.push(window);
   }
   let earnGoals: EarnGoal[] | undefined;
@@ -443,24 +467,62 @@ export function validateSettings(
     earnGoals = [];
     for (const input of data.earnGoals) {
       const { goal, error } = sanitizeEarnGoal(input);
-      if (!goal) return fail(`Earn your website time: ${error}`);
-      if (input?.id) givenIds.add(goal.id);
+      if (!goal) return { error: `Earn your website time: ${error}` };
       earnGoals.push(goal);
     }
     const clash = earnGoalClash(earnGoals);
-    if (clash) return fail(`Earn your website time: ${clash}`);
+    if (clash) return { error: `Earn your website time: ${clash}` };
   }
   return {
-    ok: true,
-    data: {
+    settings: {
       rules,
       windows,
-      earnGoals,
+      ...(earnGoals ? { earnGoals } : {}),
       feedSettings: sanitizeFeeds(data.feedSettings as FeedSettings),
-      warningsEnabled:
-        typeof data.warningsEnabled === "boolean" ? data.warningsEnabled : undefined,
-      givenIds,
+      ...(typeof data.warningsEnabled === "boolean" ? { warningsEnabled: data.warningsEnabled } : {}),
     },
+  };
+}
+/** Puts checked settings into the live state, keeping this browser's rule ids for its websites. */
+function applySettings(s: AppState, settings: CheckedSettings): AppState {
+  const rules = structuredClone(settings.rules);
+  for (const rule of rules) {
+    // Settings from elsewhere (another browser, a loadout, someone's shared code) carry their
+    // own ids; keep this browser's id for the same website so today's usage still counts.
+    const existing =
+      s.rules.find((r) => r.id === rule.id) ??
+      s.rules.find((r) => overlaps(r.domains, rule.domains));
+    if (existing) {
+      rule.createdAt = existing.createdAt;
+      if (!rules.some((r) => r !== rule && r.id === existing.id)) rule.id = existing.id;
+    }
+  }
+  // Windows and earn goals keep this browser's id when one with the same name (and mode)
+  // exists and the incoming one is new here, so today's Fry Time and earn progress carry on
+  // instead of resetting through a share code or a loadout switch.
+  const windows = structuredClone(settings.windows);
+  for (const w of windows) {
+    if (s.windows.some((x) => x.id === w.id)) continue;
+    const same = s.windows.find(
+      (x) => x.label === w.label && (x.mode ?? "allow") === (w.mode ?? "allow") && !windows.some((y) => y.id === x.id),
+    );
+    if (same) w.id = same.id;
+  }
+  const earnGoals = settings.earnGoals && structuredClone(settings.earnGoals);
+  for (const g of earnGoals ?? []) {
+    if ((s.earnGoals ?? []).some((x) => x.id === g.id)) continue;
+    const same = (s.earnGoals ?? []).find(
+      (x) => x.label === g.label && !earnGoals!.some((y) => y.id === x.id),
+    );
+    if (same) g.id = same.id;
+  }
+  return {
+    ...s,
+    rules,
+    windows,
+    ...(earnGoals ? { earnGoals } : {}),
+    feedSettings: structuredClone(settings.feedSettings),
+    warningsEnabled: settings.warningsEnabled ?? s.warningsEnabled,
   };
 }
 /** Validated like individual edits; a settings password must already be entered to import. */
@@ -468,46 +530,19 @@ export async function importSettings(
   ctx: ActionContext,
   input: unknown,
 ): Promise<ActionResult<AppState>> {
-  const valid = validateSettings(input, ctx.now());
-  if (!valid.ok) return valid;
-  const { rules, windows, earnGoals, feedSettings, warningsEnabled, givenIds } = valid.data;
-  return protectedUpdate(ctx, (s) => {
-    for (const rule of rules) {
-      // Settings from elsewhere (another browser, or someone's shared code) carry their own
-      // ids; keep this browser's id for the same website so today's usage still counts.
-      const existing =
-        s.rules.find((r) => r.id === rule.id) ??
-        s.rules.find((r) => overlaps(r.domains, rule.domains));
-      if (existing) {
-        rule.createdAt = existing.createdAt;
-        if (!rules.some((r) => r !== rule && r.id === existing.id)) rule.id = existing.id;
-      }
-    }
-    // Shared codes carry no window or goal ids: a window or goal with the same name keeps
-    // this browser's id, so today's Fry Time and earn progress carry on instead of resetting.
-    for (const w of windows) {
-      const same = s.windows.find(
-        (x) => x.label === w.label && (x.mode ?? "allow") === w.mode && !windows.some((y) => y.id === x.id),
-      );
-      if (same && !givenIds.has(w.id)) w.id = same.id;
-    }
-    for (const g of earnGoals ?? []) {
-      const same = (s.earnGoals ?? []).find(
-        (x) => x.label === g.label && !earnGoals!.some((y) => y.id === x.id),
-      );
-      if (same && !givenIds.has(g.id)) g.id = same.id;
-    }
-    return {
-      ...s,
-      rules,
-      windows,
-      ...(earnGoals ? { earnGoals } : {}),
-      feedSettings,
-      warningsEnabled: warningsEnabled ?? s.warningsEnabled,
-    };
-  });
+  const data = input as Partial<SettingsExport> | null;
+  if (
+    !data ||
+    typeof data !== "object" ||
+    (data.format !== SETTINGS_FORMAT && data.format !== "screenfry-export-v3")
+  )
+    return fail("This isn’t a ScreenFry settings file.");
+  const { settings, error } = checkSettings(data, ctx.now());
+  if (!settings) return fail(error!);
+  return protectedUpdate(ctx, (s) => applySettings(s, settings));
 }
-/** Applies someone's shared settings code: decoded, then validated exactly like a file. */
+
+/** Applies a pasted share code (or settings JSON) to the live settings. */
 export async function importShareCode(
   ctx: ActionContext,
   code: string,
@@ -519,6 +554,103 @@ export async function importShareCode(
     return fail(error instanceof Error ? error.message : "That share code didn’t work.");
   }
   return importSettings(ctx, data);
+}
+/** Puts a pasted share code into a loadout (see setLoadout). */
+export async function setLoadoutFromCode(
+  ctx: ActionContext,
+  index: number,
+  code: string,
+): Promise<ActionResult<AppState>> {
+  let data: unknown;
+  try {
+    data = await decodeShareCode(code);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "That share code didn’t work.");
+  }
+  return setLoadout(ctx, index, data);
+}
+
+// Loadouts: five slots; the one in use is the live settings, the others saved copies.
+const slot = (index: number) => Number.isInteger(index) && index >= 0 && index < LOADOUT_COUNT;
+/** The live settings as a loadout. */
+export function currentLoadout(state: AppState, now: number): LoadoutSettings {
+  return {
+    savedAt: now,
+    rules: structuredClone(state.rules),
+    windows: structuredClone(state.windows),
+    earnGoals: structuredClone(state.earnGoals ?? []),
+    feedSettings: structuredClone(state.feedSettings),
+    warningsEnabled: state.warningsEnabled,
+  };
+}
+const slots = (s: AppState) =>
+  Array.from({ length: LOADOUT_COUNT }, (_, i) => s.loadouts?.[i] ?? null);
+/** A loadout's settings: the live ones for the loadout in use, else the saved copy (or null). */
+export function loadoutSettings(state: AppState, index: number, now: number): LoadoutSettings | null {
+  if (index === (state.activeLoadout ?? 0)) return currentLoadout(state, now);
+  return slots(state)[index] ?? null;
+}
+/** Starts using another saved loadout; the current setup is saved into its own slot. */
+export async function switchLoadout(ctx: ActionContext, index: number): Promise<ActionResult<AppState>> {
+  if (!slot(index)) return fail("Choose a loadout from 1 to 5.");
+  const state = await ctx.store.get();
+  const active = state.activeLoadout ?? 0;
+  if (index === active) return { ok: true, data: state };
+  const target = slots(state)[index];
+  if (!target) return fail(`Loadout ${index + 1} is empty. Paste a code into it, or save a setup there first.`);
+  const { settings, error } = checkSettings(target, ctx.now());
+  if (!settings) return fail(error!);
+  return protectedUpdate(ctx, (s) => {
+    const next = slots(s);
+    next[s.activeLoadout ?? 0] = currentLoadout(s, ctx.now());
+    next[index] = null;
+    return { ...applySettings(s, settings), loadouts: next, activeLoadout: index };
+  });
+}
+/**
+ * Fills a loadout from settings (a pasted share code). For the loadout in use, that replaces
+ * the live settings; for another, it saves them there without switching.
+ */
+export async function setLoadout(
+  ctx: ActionContext,
+  index: number,
+  input: unknown,
+): Promise<ActionResult<AppState>> {
+  if (!slot(index)) return fail("Choose a loadout from 1 to 5.");
+  const { settings, error } = checkSettings(input, ctx.now());
+  if (!settings) return fail(error!);
+  return protectedUpdate(ctx, (s) => {
+    if (index === (s.activeLoadout ?? 0)) return applySettings(s, settings);
+    const next = slots(s);
+    next[index] = {
+      savedAt: ctx.now(),
+      ...settings,
+      earnGoals: settings.earnGoals ?? [],
+      warningsEnabled: settings.warningsEnabled ?? s.warningsEnabled,
+    };
+    return { ...s, loadouts: next };
+  });
+}
+/** Saves the current setup into another loadout too. */
+export const copyToLoadout = (ctx: ActionContext, index: number) =>
+  !slot(index)
+    ? Promise.resolve(fail("Choose a loadout from 1 to 5."))
+    : protectedUpdate(ctx, (s) => {
+        if (index === (s.activeLoadout ?? 0)) return s;
+        const next = slots(s);
+        next[index] = currentLoadout(s, ctx.now());
+        return { ...s, loadouts: next };
+      });
+/** Empties a saved loadout. The one in use can't be emptied (switch away first). */
+export async function clearLoadout(ctx: ActionContext, index: number): Promise<ActionResult<AppState>> {
+  if (!slot(index)) return fail("Choose a loadout from 1 to 5.");
+  if (index === ((await ctx.store.get()).activeLoadout ?? 0))
+    return fail("That loadout is in use. Switch to another one first.");
+  return protectedUpdate(ctx, (s) => {
+    const next = slots(s);
+    next[index] = null;
+    return { ...s, loadouts: next };
+  });
 }
 export const maintain = (ctx: ActionContext) =>
   ctx.store.update((s) => pruneUsage(s, ctx.now()));

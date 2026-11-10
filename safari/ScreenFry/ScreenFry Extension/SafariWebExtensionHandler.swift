@@ -2,8 +2,8 @@ import Foundation
 import SafariServices
 
 /// Native endpoint for the Safari Web Extension. ScreenFry keeps its state in the extension's
-/// own storage. Two native messages arrive here: `screenfry-sync`, which hands website
-/// settings (and reset requests) to and from the Mac app (see Shared/SettingsBridge.swift),
+/// own storage. Two native messages arrive here: `screenfry-sync`, the extension's check-in
+/// with the Mac app that also picks up reset and erase requests (see Shared/SettingsBridge.swift),
 /// and `screenfry-open-settings`, which opens Safari Settings → Extensions → ScreenFry.
 final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
     func beginRequest(with context: NSExtensionContext) {

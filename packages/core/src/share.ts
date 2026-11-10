@@ -37,19 +37,22 @@ const DAMAGED = "This share code is incomplete or damaged. Ask for it again.";
  *   (flags: 1 blocked, 2 on-page timer, 4 switched off)
  * - w: windows: [label, mode 0 allow / 1 block / 2 Fry Time, day bits, start, end, websites,
  *   Fry minutes (number, per-website object or 0 for the whole window), 1 if switched off]
- * - e: earn goals: [label, minutes, goal website, locked websites, 1 if switched off]
+ * - e: earn goals: [label, minutes, goal website, websites, 1 if switched off else 0, and
+ *   for a Fry Time reward: times a day (0 = no limit), Fry minutes (number or per website)]
  * - f: feed blockers that are on, by site id: "home shorts"
  * - g: 0 when feed blocking is off everywhere; n: 0 when time-limit warnings are off
  */
 interface Payload {
   r?: Record<string, [number, number?, Record<string, number>?]>;
   w?: [string, number, number, number, number, string, (number | Record<string, number>)?, 1?][];
-  e?: [string, number, string, string, 1?][];
+  e?: [string, number, string, string, (0 | 1)?, number?, (number | Record<string, number>)?][];
   f?: Record<string, string>;
   g?: 0;
   n?: 0;
 }
 const MODES = ["allow", "block", "free"] as const;
+/** What a code holds: a settings export or a loadout. */
+type Shareable = Pick<SettingsExport, "rules" | "windows" | "earnGoals" | "feedSettings" | "warningsEnabled">;
 
 /** "youtube.com youtu.be example.com" → "youtube example.com" */
 function packSites(domains: string[]): string {
@@ -67,7 +70,7 @@ function unpackSites(text: unknown): string[] {
 const sameDomains = (a: string[], b: string[]) =>
   [...a].sort().join() === [...b].sort().join();
 
-function pack(settings: SettingsExport): Payload {
+function pack(settings: Shareable): Payload {
   const p: Payload = {};
   const defaults = defaultRules();
   for (const rule of settings.rules) {
@@ -106,7 +109,9 @@ function pack(settings: SettingsExport): Payload {
       packSites(g.goalDomains),
       packSites(g.lockedDomains),
     ];
-    if (!g.enabled) entry.push(1);
+    if (g.reward === "fry")
+      entry.push(g.enabled ? 0 : 1, g.repeats ?? 1, g.fryMinutesBySite ?? g.fryMinutes ?? 0);
+    else if (!g.enabled) entry.push(1);
     (p.e ??= []).push(entry);
   }
   for (const [site, elements] of Object.entries(settings.feedSettings.sites)) {
@@ -158,8 +163,8 @@ function unpack(p: Payload): SettingsExport {
   });
   const earnGoals: EarnGoal[] = (p.e ?? []).map((entry) => {
     if (!Array.isArray(entry)) throw new Error(DAMAGED);
-    const [label, minutes, goal, locked, off] = entry;
-    return {
+    const [label, minutes, goal, locked, off, repeats, fry] = entry;
+    const g: EarnGoal = {
       id: "",
       label,
       minutes,
@@ -167,6 +172,13 @@ function unpack(p: Payload): SettingsExport {
       lockedDomains: unpackSites(locked),
       enabled: off !== 1,
     };
+    if (repeats !== undefined) {
+      g.reward = "fry";
+      g.repeats = repeats;
+      if (typeof fry === "number") g.fryMinutes = fry;
+      else if (fry && typeof fry === "object") g.fryMinutesBySite = fry;
+    }
+    return g;
   });
   const feedSettings: FeedSettings = structuredClone(feedDefaults);
   feedSettings.globalEnabled = p.g !== 0;
@@ -222,7 +234,7 @@ function fromBase64Url(text: string): Uint8Array<ArrayBuffer> {
  * "SF2-" then "z" and the compressed payload, or "j" and the plain payload when compressing
  * wouldn't make it shorter (small setups).
  */
-export async function encodeShareCode(settings: SettingsExport): Promise<string> {
+export async function encodeShareCode(settings: Shareable): Promise<string> {
   const json = new TextEncoder().encode(JSON.stringify(pack(settings)));
   const zipped = await pipe(json, new CompressionStream("deflate-raw"));
   return zipped.length < json.length
@@ -259,3 +271,41 @@ export async function decodeShareCode(code: string): Promise<unknown> {
 }
 const inflate = (data: string) =>
   pipe(fromBase64Url(data), new DecompressionStream("deflate-raw"), MAX_JSON_BYTES);
+
+export interface SharedSummary {
+  blocked: string[];
+  limits: string[];
+  windows: string[];
+  earnGoals: string[];
+  /** Feed and button blockers switched on, across websites. */
+  feedBlockers: number;
+  feedBlockingOn: boolean;
+}
+/** What a loadout or code sets, as a short summary. Tolerates bad input. */
+export function summarizeShared(data: unknown): SharedSummary {
+  const d = (data ?? {}) as Partial<SettingsExport>;
+  const rules = Array.isArray(d.rules) ? d.rules.filter((r) => r && r.enabled !== false) : [];
+  return {
+    blocked: rules.filter((r) => r.blocked).map((r) => String(r.label)),
+    limits: rules
+      .filter((r) => !r.blocked && typeof r.dailyAllowance?.defaultMinutes === "number")
+      .map((r) => `${r.label}: ${r.dailyAllowance!.defaultMinutes} min a day`),
+    windows: Array.isArray(d.windows)
+      ? d.windows.filter((w) => w && w.enabled !== false).map((w) => String(w.label))
+      : [],
+    earnGoals: Array.isArray(d.earnGoals)
+      ? d.earnGoals
+          .filter((g) => g && g.enabled !== false)
+          .map((g) =>
+            g.reward === "fry"
+              ? `${g.minutes} min on ${websiteNames(g.goalDomains ?? []).join(", ")} earns Fry Time on ${websiteNames(g.lockedDomains ?? []).join(", ")}`
+              : `${g.minutes} min on ${websiteNames(g.goalDomains ?? []).join(", ")} unlocks ${websiteNames(g.lockedDomains ?? []).join(", ")}`,
+          )
+      : [],
+    feedBlockers: Object.values(d.feedSettings?.sites ?? {}).reduce(
+      (n, site) => n + Object.values(site ?? {}).filter((on) => on === true).length,
+      0,
+    ),
+    feedBlockingOn: d.feedSettings?.globalEnabled !== false,
+  };
+}

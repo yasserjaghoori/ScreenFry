@@ -13,6 +13,10 @@ export type Request = (
   | { type: "SAVE_EARN_GOAL"; goal: EarnGoal }
   | { type: "DELETE_EARN_GOAL"; goalId: string }
   | { type: "IMPORT_SHARE_CODE"; code: string }
+  | { type: "SWITCH_LOADOUT"; index: number }
+  | { type: "SET_LOADOUT_FROM_CODE"; index: number; code: string }
+  | { type: "COPY_TO_LOADOUT"; index: number }
+  | { type: "CLEAR_LOADOUT"; index: number }
   | { type: "SET_FEEDS"; feedSettings: FeedSettings }
   | {
       type: "SET_PREFERENCES";

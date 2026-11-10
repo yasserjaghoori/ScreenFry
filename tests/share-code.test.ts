@@ -80,6 +80,25 @@ describe("share codes", () => {
     expect(strip(after)).toEqual(strip(before));
   });
 
+  it("keeps Fry Time earn goals intact", async () => {
+    await actions.saveEarnGoal(mine, {
+      id: "fry",
+      label: "Read for Fry Time",
+      enabled: false,
+      goalDomains: ["wikipedia.org"],
+      minutes: 15,
+      lockedDomains: ["youtube.com", "instagram.com"],
+      reward: "fry",
+      repeats: 3,
+      fryMinutesBySite: { youtube: 10, instagram: 5 },
+    });
+    const before = actions.exportSettings(await mine.store.get(), NOW);
+    const after = (await decodeShareCode(await encodeShareCode(before))) as typeof before;
+    const strip = (goals: typeof before.earnGoals) => goals!.map(({ id: _i, ...g }) => g);
+    expect(strip(after.earnGoals)).toEqual(strip(before.earnGoals));
+    expect(actions.checkSettings(after, NOW).error).toBeUndefined();
+  });
+
   it("still reads the older SCREENFRY-1 codes", async () => {
     await actions.saveWindow(mine, lunch);
     const json = new TextEncoder().encode(JSON.stringify(actions.exportSettings(await mine.store.get(), NOW)));
@@ -90,9 +109,8 @@ describe("share codes", () => {
   });
 
   it("shows one slide per website it changes, each setting as now → after", async () => {
-    const incoming = actions.validateSettings(await decodeShareCode(await myCode()), NOW);
-    if (!incoming.ok) throw new Error(incoming.error);
-    const slides = shareSlides(await friend.store.get(), incoming.data as never);
+    const incoming = actions.checkSettings(await decodeShareCode(await myCode()), NOW).settings!;
+    const slides = shareSlides(await friend.store.get(), incoming as never);
     expect(slides.map((s) => s.name)).toEqual(["YouTube", "Reddit", "TikTok", "duolingo.com"]);
     expect(slides[0].changes).toEqual([
       { label: "Daily limit", from: "No limit", to: "15 min a day" },
@@ -106,9 +124,8 @@ describe("share codes", () => {
     ]);
     expect(slides[3].changes[0].to).toBe("20 min here unlocks TikTok");
     // Applying the same settings again changes nothing.
-    const same = actions.validateSettings(await decodeShareCode(await myCode()), NOW);
-    if (!same.ok) throw new Error(same.error);
-    expect(shareSlides(await mine.store.get(), same.data as never)).toEqual([]);
+    const same = actions.checkSettings(await decodeShareCode(await myCode()), NOW).settings!;
+    expect(shareSlides(await mine.store.get(), same as never)).toEqual([]);
   });
 
   it("keeps today's Fry Time and earn progress for windows and goals with the same name", async () => {

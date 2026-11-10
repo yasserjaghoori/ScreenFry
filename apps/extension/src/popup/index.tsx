@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { send, setSettingsCredential } from "@browser/messages";
 import { detectBrowser } from "@browser/platform";
@@ -129,6 +129,16 @@ function Popup() {
       clearTimeout(blurTimer);
     };
   }, []);
+  // One policy check per website per settings change, not one per render.
+  const statusLabels = useMemo(
+    () =>
+      state &&
+      (Object.fromEntries(launchSites.map((s) => [s.id, siteStatus(state, s.id).label])) as Record<
+        FeedSite,
+        string
+      >),
+    [state],
+  );
   const open = (page: string) =>
     chrome.tabs.create({
       url: extensionPageUrl("dashboard.html", { site }, page),
@@ -216,7 +226,7 @@ function Popup() {
           setSite(next);
           setError("");
         }}
-        status={state ? (id) => siteStatus(state, id).label : undefined}
+        status={statusLabels ? (id) => statusLabels[id] : undefined}
       />
       {error && (
         <p className="error" role="alert">

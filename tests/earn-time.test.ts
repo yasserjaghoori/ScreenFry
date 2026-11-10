@@ -130,3 +130,47 @@ describe("earn goal actions", () => {
     expect((await store.reopen().get()).earnGoals?.[0].id).toBe("duo");
   });
 });
+
+describe("earning Fry Time", () => {
+  const fryGoal = (patch: Partial<EarnGoal> = {}) =>
+    goal({ reward: "fry", repeats: 2, fryMinutes: 10, minutes: 20, ...patch });
+  const feedsHidden = (patch: Partial<EarnGoal> = {}) => {
+    const s = withGoal({ reward: "fry", repeats: 2, fryMinutes: 10, minutes: 20, ...patch });
+    s.feedSettings.sites.youtube.home = true;
+    return s;
+  };
+  it("never blocks; each completion pays out Fry Time, up to the repeat limit", () => {
+    const s = feedsHidden();
+    expect(evaluatePolicy(s, YT, NOW).status).toBe("allowed");
+    expect(evaluatePolicy(s, YT, NOW).freeTime).toBeUndefined();
+    spend(s, DUO, NOW, NOW + 20 * MIN);
+    expect(evaluatePolicy(s, YT, NOW + 20 * MIN).freeTime).toMatchObject({
+      windowId: "earn:duo",
+      earned: true,
+      remainingMilliseconds: 10 * MIN,
+    });
+    // Using it counts down; a second completion adds another 10 minutes.
+    spend(s, YT, NOW + 20 * MIN, NOW + 25 * MIN);
+    expect(evaluatePolicy(s, YT, NOW + 25 * MIN).freeTime?.remainingMilliseconds).toBe(5 * MIN);
+    spend(s, DUO, NOW + 25 * MIN, NOW + 65 * MIN); // 40 more minutes, but only one more payout
+    expect(evaluatePolicy(s, YT, NOW + 65 * MIN).freeTime?.remainingMilliseconds).toBe(15 * MIN);
+    expect(s.usage[Object.keys(s.usage)[0]].millisecondsByGoal?.duo).toBe(40 * MIN);
+  });
+  it("supports no limit and custom minutes per website", () => {
+    const s = feedsHidden({ repeats: 0, fryMinutes: undefined, fryMinutesBySite: { youtube: 3, "news.example.org": 7 } });
+    spend(s, DUO, NOW, NOW + 60 * MIN); // three completions
+    expect(evaluatePolicy(s, YT, NOW + 60 * MIN).freeTime?.remainingMilliseconds).toBe(9 * MIN);
+    expect(evaluatePolicy(s, "https://news.example.org/", NOW + 60 * MIN).freeTime?.remainingMilliseconds).toBe(21 * MIN);
+  });
+  it("is validated: minutes for every website, sensible repeats, and it locks nothing", async () => {
+    const store = new MemoryStateStore();
+    const ctx = { store, now: () => NOW };
+    expect((await actions.saveEarnGoal(ctx, fryGoal({ fryMinutes: undefined }))).ok).toBe(false);
+    expect((await actions.saveEarnGoal(ctx, fryGoal({ repeats: 99 }))).ok).toBe(false);
+    const saved = await actions.saveEarnGoal(ctx, fryGoal());
+    expect(saved.ok && saved.data.earnGoals?.[0]).toMatchObject({ reward: "fry", repeats: 2, fryMinutes: 10 });
+    // A Fry Time goal's websites can be another goal's goal website: nothing is locked.
+    const other = goal({ id: "yt", label: "YouTube study", goalDomains: ["youtube.com"], lockedDomains: ["x.com"] });
+    expect((await actions.saveEarnGoal(ctx, other)).ok).toBe(true);
+  });
+});

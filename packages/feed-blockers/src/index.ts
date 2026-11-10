@@ -247,6 +247,15 @@ export const siteDefinitions: SiteDefinition[] = [
     symbol: "𝕏",
     name: "X",
     domains: ["x.com", "twitter.com"],
+    // X opens videos in a full-screen viewer you can scroll through endlessly:
+    // /<account>/status/<id>/video/<n>. Ordinary posts with a video stay as they are.
+    shortForm: {
+      setting: "videoFeed",
+      label: "X video feed",
+      pathSegment: "[^/]+/status/[0-9]+/video",
+      examplePath: "/someone/status/123/video/1",
+      playerSelectors: ['[aria-modal="true"] [data-testid="videoPlayer"]'],
+    },
     elements: {
       forYou: element(
         "Hide For You feed",
@@ -303,6 +312,13 @@ export const siteDefinitions: SiteDefinition[] = [
         "Block video playback",
         "Video",
         ['[data-testid="videoPlayer"]', "video"],
+        undefined,
+        true,
+      ),
+      videoFeed: element(
+        "Block the video feed entirely",
+        "Short-form video",
+        ['[aria-modal="true"] [data-testid="videoPlayer"]'],
         undefined,
         true,
       ),
@@ -524,6 +540,52 @@ export const siteDefinitions: SiteDefinition[] = [
         '[data-e2e="upload-icon"]',
         'a[href*="/upload"]',
       ]),
+    },
+  },
+  {
+    site: "facebook",
+    color: "#1877f2",
+    symbol: "f",
+    name: "Facebook",
+    domains: ["facebook.com", "fb.com", "fb.watch"],
+    shortForm: {
+      setting: "reels",
+      label: "Facebook Reels",
+      pathSegment: "reels?",
+      examplePath: "/reel/123",
+      playerSelectors: ['[aria-label="Reels"] video', 'div[data-pagelet*="Reels"] video'],
+    },
+    elements: {
+      feed: element("Hide News Feed", "Home page", ['[role="main"] [role="feed"]'], at("/", "/home.php"), true),
+      stories: element("Hide Stories", "Home page", ['[aria-label="Stories"]', '[data-pagelet="Stories"]'], at("/", "/home.php")),
+      rightRail: element("Hide sponsored and contacts sidebar", "Home page", ['[role="complementary"]'], at("/", "/home.php")),
+      watch: element("Hide Video feed", "Video", ['[role="main"]'], (url) => /^\/(watch|video)(\/|$)/i.test(url.pathname), true),
+      reels: element("Block Reels entirely", "Short-form video", ['[aria-label="Reels"]', 'div[data-pagelet*="Reels"]'], undefined, true),
+      videoButton: element("Hide Video button", "Navigation", ['a[href*="/watch"][role="link"]', 'a[aria-label="Video"]']),
+      marketplaceButton: element("Hide Marketplace button", "Navigation", ['a[href*="/marketplace"][role="link"]', 'a[aria-label="Marketplace"]']),
+      gamingButton: element("Hide Gaming button", "Navigation", ['a[href*="/gaming"][role="link"]', 'a[aria-label="Gaming"]']),
+      notificationsButton: element("Hide Notifications button", "Navigation", ['[aria-label="Notifications"]']),
+    },
+  },
+  {
+    site: "linkedin",
+    color: "#0a66c2",
+    symbol: "L",
+    name: "LinkedIn",
+    domains: ["linkedin.com", "lnkd.in"],
+    elements: {
+      feed: element(
+        "Hide home feed",
+        "Home page",
+        ['[data-finite-scroll-hotkey-context="FEED"]', "main .scaffold-finite-scroll"],
+        at("/feed", "/feed/"),
+        true,
+      ),
+      news: element("Hide LinkedIn News", "Sidebar", ["#feed-news-module", '[aria-label="LinkedIn News"]']),
+      suggestions: element("Hide Add to your feed", "Sidebar", ['[aria-label="Add to your feed"]', ".feed-follows-module"]),
+      notificationsButton: element("Hide Notifications button", "Navigation", ['.global-nav a[href*="/notifications/"]']),
+      messagingButton: element("Hide Messaging button", "Navigation", ['.global-nav a[href*="/messaging/"]']),
+      videos: element("Block video playback", "Video", ["video"], undefined, true),
     },
   },
 ];

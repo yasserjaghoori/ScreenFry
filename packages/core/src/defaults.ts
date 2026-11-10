@@ -6,10 +6,12 @@ import type {
   EarnGoal,
   FeedSettings,
   FeedSite,
+  LoadoutSettings,
   UsageDay,
   WebsiteRule,
   WeeklySchedule,
 } from "@shared/index";
+import { LOADOUT_COUNT } from "@shared/index";
 import { defaultRules } from "./sites";
 import { siteDefinitions } from "@feeds/index";
 export const USAGE_RETENTION_DAYS = 120;
@@ -147,12 +149,44 @@ export function migrateState(
                 goalDomains: g.goalDomains,
                 minutes: g.minutes,
                 lockedDomains: g.lockedDomains,
+                ...(g.reward === "fry"
+                  ? {
+                      reward: "fry" as const,
+                      repeats: typeof g.repeats === "number" ? g.repeats : 1,
+                      ...(typeof g.fryMinutes === "number" ? { fryMinutes: g.fryMinutes } : {}),
+                      ...(object(g.fryMinutesBySite)
+                        ? {
+                            fryMinutesBySite: Object.fromEntries(
+                              Object.entries(g.fryMinutesBySite).filter(([, v]) => typeof v === "number"),
+                            ) as Record<string, number>,
+                          }
+                        : {}),
+                    }
+                  : {}),
               },
             ]
           : [],
       )
     : [];
   if (goals.length) state.earnGoals = goals;
+  // Loadouts: saved copies in the slots not in use (kept as saved; checked when used).
+  if (Array.isArray(raw.loadouts)) {
+    const saved = (raw.loadouts as unknown[]).slice(0, LOADOUT_COUNT).map((l) =>
+      object(l) && Array.isArray(l.rules) && Array.isArray(l.windows) && object(l.feedSettings)
+        ? (l as unknown as LoadoutSettings)
+        : null,
+    );
+    if (saved.some(Boolean)) state.loadouts = saved;
+  }
+  if (
+    typeof raw.activeLoadout === "number" &&
+    Number.isInteger(raw.activeLoadout) &&
+    raw.activeLoadout >= 0 &&
+    raw.activeLoadout < LOADOUT_COUNT
+  ) {
+    state.activeLoadout = raw.activeLoadout;
+    if (state.loadouts) state.loadouts[raw.activeLoadout] = null;
+  }
   state.rules = Array.isArray(raw.rules)
     ? (raw.rules as Record<string, unknown>[]).filter(object).map(
         (r): WebsiteRule => ({
@@ -222,10 +256,13 @@ export function migrateState(
   const feeds = object(raw.feedSettings)
     ? (raw.feedSettings as unknown as FeedSettings)
     : undefined;
-  state.feedSettings.globalEnabled = feeds?.globalEnabled !== false;
+  // The master switch is gone. Saved with it off meant nothing was hidden, so keep that by
+  // turning every control off (the switch itself stays on from now on).
+  const masterOff = feeds?.globalEnabled === false;
+  state.feedSettings.globalEnabled = true;
   // Retire the redundant TikTok video blocker without silently removing an active block.
   // The old key is dropped below, making this a one-time migration when saved.
-  if (feeds?.globalEnabled !== false && feeds?.sites?.tiktok?.videos === true) {
+  if (!masterOff && feeds?.sites?.tiktok?.videos === true) {
     const rule = state.rules.find((r) => r.domains.includes("tiktok.com"));
     if (rule) {
       rule.blocked = true;
@@ -237,7 +274,7 @@ export function migrateState(
   for (const site of Object.keys(feedDefaults.sites) as FeedSite[]) {
     for (const key of Object.keys(feedDefaults.sites[site]))
       state.feedSettings.sites[site][key] =
-        feeds?.sites?.[site]?.[key] === true;
+        !masterOff && feeds?.sites?.[site]?.[key] === true;
   }
   if (object(raw.protection)) {
     const p = raw.protection;

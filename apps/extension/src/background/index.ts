@@ -367,7 +367,6 @@ function requestNetworkSync(): Promise<void> {
 }
 async function settingsChanged() {
   void reevaluate(true);
-  void syncWithApp();
   // Normally finish rule removal before an immediate revisit. A stalled Safari compiler
   // must still release the controls; the in-flight sync keeps only the newest pending state.
   await withTimeout(requestNetworkSync()).catch(() => undefined);
@@ -551,6 +550,25 @@ async function handle(
       if (r.ok) await settingsChanged();
       return r;
     }
+    case "SWITCH_LOADOUT":
+    case "SET_LOADOUT_FROM_CODE": {
+      const r =
+        request.type === "SWITCH_LOADOUT"
+          ? await actions.switchLoadout(auth, request.index)
+          : await actions.setLoadoutFromCode(auth, request.index, request.code);
+      if (r.ok) {
+        await settingsChanged();
+        void refreshActiveSite(
+          r.data,
+          siteDefinitions.map((s) => s.site),
+        );
+      }
+      return r;
+    }
+    case "COPY_TO_LOADOUT":
+      return actions.copyToLoadout(auth, request.index);
+    case "CLEAR_LOADOUT":
+      return actions.clearLoadout(auth, request.index);
     case "IMPORT_SHARE_CODE": {
       const r = await actions.importShareCode(auth, request.code);
       if (r.ok) {
@@ -699,14 +717,13 @@ async function reloadIfUpdatedOnDisk() {
   }
 }
 /**
- * Settings export/import from the ScreenFry Mac app. The app can't read browser storage, so
- * this side sends its website settings (never usage or the password) to the app's native
- * host and picks up an import the user chose there. Safari routes this to the extension's
- * own native handler; Chrome to the host the app registers. Without the app it's a no-op.
+ * Check-ins with the ScreenFry Mac app: this side reports only its version and whether a
+ * settings password is on (never settings or usage), and picks up Reset All Data or Erase
+ * Everything chosen in the app. Safari routes this to the extension's own native handler;
+ * Chrome to the host the app registers. Without the app it's a no-op.
  */
 const APP_HOST = "com.screenfry.host";
 interface AppReply {
-  import?: { id?: unknown; settings?: unknown };
   /** "Reset all data" chosen in the app. */
   reset?: { id?: unknown };
   /**
@@ -744,7 +761,7 @@ function syncWithApp(): Promise<void> {
   return appSync;
 }
 async function sendToApp(
-  outcome: { importResult?: Outcome; resetResult?: Outcome } = {},
+  outcome: { resetResult?: Outcome } = {},
 ): Promise<AppReply | undefined> {
   const state = await chromeStateStore.get();
   return (await withTimeout(
@@ -753,7 +770,6 @@ async function sendToApp(
       browser,
       version: chrome.runtime.getManifest().version,
       passwordProtected: Boolean(state.settingsPassword),
-      settings: actions.exportSettings(state, Date.now()),
       ...outcome,
     }),
     5000,
@@ -803,33 +819,6 @@ async function exchangeWithApp() {
       });
       return;
     }
-    const pending = reply?.import;
-    if (!pending || typeof pending.id !== "string") return;
-    const hadPassword = Boolean((await chromeStateStore.get()).settingsPassword);
-    const r = await actions.importSettings(ctx, pending.settings);
-    if (r.ok) {
-      void reevaluate(true);
-      await withTimeout(requestNetworkSync()).catch(() => undefined);
-      void refreshActiveSite(
-        r.data,
-        siteDefinitions.map((s) => s.site),
-      );
-    }
-    await sendToApp({
-      importResult: {
-        id: pending.id,
-        ok: r.ok,
-        ...(r.ok
-          ? {}
-          : {
-              error: hadPassword
-                ? passwordMessage(
-                    "Turn it off in ScreenFry’s Settings, import again, then turn it back on.",
-                  )
-                : r.error,
-            }),
-      },
-    });
   } catch {
     /* The Mac app (or its native host) isn't installed; nothing to sync. */
   }

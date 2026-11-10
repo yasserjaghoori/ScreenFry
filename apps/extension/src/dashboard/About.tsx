@@ -38,7 +38,15 @@ export function About() {
       <section className="card settings-block">
         <h2>More</h2>
         <p className="muted">
-          ScreenFry is made by Sam and Yasser.{" "}
+          ScreenFry is made by{" "}
+          <a href="https://bhron.org" target="_blank" rel="noreferrer">
+            Samir
+          </a>{" "}
+          and{" "}
+          <a href="https://unjamlabs.com" target="_blank" rel="noreferrer">
+            Yasser
+          </a>
+          .{" "}
           <a
             href="https://github.com/yasserjaghoori/ScreenFry"
             target="_blank"

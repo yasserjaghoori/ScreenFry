@@ -54,10 +54,13 @@ function windowText(w: AccessWindow): string {
           : "";
   return `${describeDays(w.days)}, ${time}${fry}${w.enabled ? "" : " (off)"}`;
 }
+const off = (g: EarnGoal) => (g.enabled ? "" : " (off)");
 const goalLockText = (g: EarnGoal) =>
-  `Locked until ${g.minutes} min on ${websiteNames(g.goalDomains).join(", ")}${g.enabled ? "" : " (off)"}`;
+  g.reward === "fry"
+    ? `Fry Time for ${g.minutes} min on ${websiteNames(g.goalDomains).join(", ")}${off(g)}`
+    : `Locked until ${g.minutes} min on ${websiteNames(g.goalDomains).join(", ")}${off(g)}`;
 const goalEarnText = (g: EarnGoal) =>
-  `${g.minutes} min here unlocks ${websiteNames(g.lockedDomains).join(", ")}${g.enabled ? "" : " (off)"}`;
+  `${g.minutes} min here ${g.reward === "fry" ? "earns Fry Time on" : "unlocks"} ${websiteNames(g.lockedDomains).join(", ")}${off(g)}`;
 
 /**
  * Rows for things listed by name (windows, earn goals): added, removed or changed, matched
@@ -141,12 +144,6 @@ export function shareSlides(current: AppState | Settings, incoming: Settings): S
     if (changes.length) slides.push({ key: domain, name: domain, changes });
   }
   const everywhere: ShareChange[] = [];
-  if (current.feedSettings.globalEnabled !== incoming.feedSettings.globalEnabled)
-    everywhere.push({
-      label: "Feed and button blocking",
-      from: onOff(current.feedSettings.globalEnabled),
-      to: onOff(incoming.feedSettings.globalEnabled),
-    });
   if (current.warningsEnabled !== incoming.warningsEnabled)
     everywhere.push({
       label: "Time-limit warnings",

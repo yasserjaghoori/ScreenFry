@@ -4,7 +4,7 @@
 
 **Less feed. More day.** ScreenFry is a Chrome and Safari extension that strips the distracting parts out of social websites and limits how long you spend on them, without taking away the useful parts.
 
-> **Status:** development build, version 0.6.6. Releases are signed with a Developer ID (Bhron, LLC) and notarized by Apple. Chrome is covered by automated browser tests. The Mac app and Safari extension build and pass packaging checks, but live behavior on each website is still being verified. See [Testing](docs/TESTING.md).
+> **Status:** development build, version 0.6.9. Releases are signed with a Developer ID (Bhron, LLC) and notarized by Apple. Chrome is covered by automated browser tests. The Mac app and Safari extension build and pass packaging checks, but live behavior on each website is still being verified. See [Testing](docs/TESTING.md).
 
 ## What it does
 
@@ -14,10 +14,9 @@
 | **Block Shorts and Reels** | Blocks playback, not just the button: recognized direct links, notifications and in-page players are caught. TikTok has whole-site blocking and a linked-video-only option. |
 | **Daily limits** | Give each website its own daily allowance, or none. When it runs out, the whole site is blocked, including tabs already open. Resets at midnight. |
 | **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
-| **Experimental** | Two early features on their own page: **Earn your website time** and **share codes** (see below). |
+| **Experimental** | Early features on their own page: **Earn your website time**, and **loadouts** with share codes (see below). |
 | **Optional password** | Protect your settings from impulsive changes. It never grants extra time. The first time you change anything without one, ScreenFry explains it once and offers to set it up ("Not now" goes ahead with your change). |
-| **ScreenFry Presets** | The Mac app exports and imports each browser's websites, limits, windows and feed blocking as a presets file, one browser at a time or all at once. |
-| **Start over** | **Restore defaults** at the bottom of Settings erases everything ScreenFry keeps in that browser, password included (it asks for the password first). **Reset All Data…** in the Mac app does it for every browser that doesn't have a password on. |
+| **Start over** | **Restore defaults** at the bottom of Settings erases everything ScreenFry keeps in that browser, loadouts and password included (it asks for the password first). **Reset All Data…** in the Mac app does it for every browser that doesn't have a password on. |
 | **Countdown** | Block screens show when the website is back and a live hours, minutes and seconds countdown. |
 | **Private** | Everything stays on your device. No account, server or analytics, and no record of the sites you visit. |
 
@@ -27,10 +26,12 @@
 | --- | --- |
 | **YouTube** | Home and subscriptions feeds · recommended videos beside the player, comments and end screens · **block Shorts entirely** · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
 | **Instagram** | Home feed and Stories · Explore feed · **block Reels entirely** · Home, Search, Explore, Reels, Messages, Notifications and Create buttons · suggested accounts |
-| **X** | For You and Following feeds (separately) · Create Post box · trends, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback |
+| **X** | For You and Following feeds (separately) · Create Post box · trends, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback · **block the video feed entirely** (the full-screen viewer you can scroll through endlessly) |
 | **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
 | **Substack** | Home and Notes feeds · Home, Notes, Explore, Notifications and Chat buttons · video playback |
 | **TikTok** | For You, Following and Explore feeds · **only play the linked video** · comments · “You may like” recommendations and suggested accounts · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons |
+| **Facebook** | News Feed and Stories · sponsored and contacts sidebar · Video feed · **block Reels entirely** · Video, Marketplace, Gaming and Notifications buttons. Messenger stays separate. |
+| **LinkedIn** | Home feed · LinkedIn News and Add to your feed · Notifications and Messaging buttons · video playback |
 
 Every control starts **off**: a fresh install changes nothing until you choose. More websites can be added with one entry each; see [Adding a website](docs/ADDING_A_SITE.md).
 
@@ -63,15 +64,19 @@ Windows can't contradict each other. A block window that overlaps an allow or Fr
 
 The **Experimental** page holds features that work but may still change.
 
-- **Earn your website time:** pick a goal website (say duolingo.com), how many minutes to spend there each day, and the websites to lock until then. The locked websites are blocked every day until the goal is met, then open right away and lock again at midnight. Time on the goal website counts like a daily limit does (focused tab or playback, once per website), and only on that website. A goal website can't be one of its own locked websites, and one goal can't lock another goal's website (it could never be earned). The block screen says how many minutes are left and links to the goal website.
-- **Share your setup:** **Copy my share code** puts your websites, limits, windows, earn goals and feed blocking into one short line of text starting with `SF2-` (only what differs from a fresh install, so a typical setup is under 200 characters; no usage, history or password). Paste a friend's code to see a slideshow of what it changes, one slide per website, each setting shown as now → after; **Use these settings** is on the last slide. Applying a code is validated like a presets file, follows your own password, and keeps today's usage, Fry Time and earn progress for websites, windows and goals you already had. Older `SCREENFRY-1-` codes and pasted presets files work too.
+- **Earn your website time:** pick a goal website (say duolingo.com), how many minutes to spend there, and what meeting the goal does:
+  - **Unlock websites:** the websites you choose stay blocked every day until the goal is met, then open right away and lock again at midnight. The block screen says how many minutes are left and links to the goal website.
+  - **Earn Fry Time:** each time the goal is met, feed blocking pauses on the websites you choose for some minutes (the same for all, or custom per website), used whenever you visit them that day. A goal can pay out once, several times or as often as you like each day.
+
+  Time on the goal website counts like a daily limit does (focused tab or playback, once per website), and only on that website. A goal website can't be one of its own websites, and an unlocking goal can't lock another goal's website (it could never be earned).
+- **Share your setup, with loadouts:** keep up to five setups (websites, limits, windows, earn goals and feed blocking) as **loadouts**. The one in use is your live settings; **Use this loadout** saves it and switches, through your password. **Copy share code** puts one loadout into a line of text (no usage, history or password) to send to a friend; paste a code into an empty loadout to fill it, or into a full one to replace it. Codes start with `SF2-` and hold only what differs from a fresh install, so a typical setup is under 200 characters (older `SCREENFRY-1-` codes still work). After pasting, a slideshow shows what the code changes in that loadout, one slide per website with each setting as now → after, and the button to apply it is on the last slide. Applying keeps today's usage, Fry Time and earn progress for websites, windows and goals you already had (matched by website or name). Every loadout starts empty, and Restore defaults or Reset All Data empties them all.
 
 ## Install
 
 ### Download (Mac)
 
 1. Download the latest `ScreenFry-<version>.dmg` from [Releases](https://github.com/yasserjaghoori/ScreenFry/releases).
-2. Open it and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications. ScreenFry closes the installer window for you and shows that it's installed. Opened it straight from the installer? It offers to move itself to Applications.
+2. Open it and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications.
 3. The app walks you through turning on **Safari** (one switch in Safari's settings, then allow it on websites) and **Chrome** (turn on Developer mode, then drag the ScreenFry tile onto Chrome's Extensions page).
 
 Releases are signed with a Developer ID and notarized by Apple, so they open normally and Safari lists the extension without any developer settings.
@@ -91,7 +96,7 @@ Install it the same way as a download.
 
 ### Updating and uninstalling
 
-**Updating:** drag a newer build over the old app (or open it from the installer and choose **Move to Applications**). Both browsers update together and keep their settings, and the app says what version it updated to. Chrome's card shows **Connected** once the new version checks in, with nothing to redo. **Check for Updates…** opens the Releases page until release signing is set up, then uses the automatic updater. Version 0.6.0 changed the app's identifiers, so settings from earlier builds don't carry over: uninstall the old version first and set ScreenFry up again.
+**Updating:** drag a newer build over the old app. Both browsers update together and keep their settings. Chrome's card shows **Connected** once the new version checks in, with nothing to redo. **Check for Updates…** opens the Releases page until release signing is set up, then uses the automatic updater. Version 0.6.0 changed the app's identifiers, so settings from earlier builds don't carry over: uninstall the old version first and set ScreenFry up again.
 
 **Uninstalling:** **ScreenFry → Uninstall…** (also at the bottom of the window). **Keep Settings** removes the app and its extension files; Safari and Chrome keep ScreenFry's settings for a reinstall. **Erase Everything** removes every trace: ScreenFry in Safari and in Chrome first wipes its settings, windows, usage and password (each browser is opened in the background if it's closed; Chrome also removes the extension), then ScreenFry's files and preferences on your Mac are deleted. A browser that doesn't answer within about a minute and a half gets **Try Again** or **Uninstall Anyway**. Safari remembers that you once turned ScreenFry on, so after a reinstall it may start switched on, with fresh settings. Details are in [Distribution](docs/DISTRIBUTION.md).
 
