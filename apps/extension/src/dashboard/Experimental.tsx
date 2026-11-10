@@ -2,14 +2,9 @@ import React, { useEffect, useState } from "react";
 import { send } from "@browser/messages";
 import { launchSites } from "@core/sites";
 import { expandDomainAliases, hostMatchesDomain, normalizeDomain } from "@core/domains";
-import { exportSettings } from "@core/actions";
-import {
-  decodeShareCode,
-  encodeShareCode,
-  summarizeShared,
-  websiteNames,
-  type SharedSummary,
-} from "@core/share";
+import { exportSettings, validateSettings } from "@core/actions";
+import { decodeShareCode, encodeShareCode, websiteNames } from "@core/share";
+import { shareSlides, type ShareSlide } from "../ui/share-changes";
 import { earnRemaining, evaluatePolicy } from "@policy/index";
 import type { AppState, EarnGoal } from "@shared/index";
 import { Switch } from "../ui/SiteControls";
@@ -387,7 +382,7 @@ function ShareSettings({
   const [myCode, setMyCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [pasted, setPasted] = useState("");
-  const [preview, setPreview] = useState<SharedSummary>();
+  const [slides, setSlides] = useState<ShareSlide[]>();
   const [pasteError, setPasteError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -402,18 +397,30 @@ function ShareSettings({
       setCopied(false);
     }
   }
+  // Decode and validate the pasted code as it's typed, then lay out what it would change.
   useEffect(() => {
-    setPreview(undefined);
+    setSlides(undefined);
     setPasteError("");
     if (!pasted.trim()) return;
     let current = true;
     decodeShareCode(pasted)
-      .then((data) => current && setPreview(summarizeShared(data)))
+      .then((data) => {
+        if (!current) return;
+        const valid = validateSettings(data, Date.now());
+        if (!valid.ok) return setPasteError(valid.error);
+        setSlides(
+          shareSlides(state, {
+            ...valid.data,
+            earnGoals: valid.data.earnGoals ?? state.earnGoals,
+            warningsEnabled: valid.data.warningsEnabled ?? state.warningsEnabled,
+          }),
+        );
+      })
       .catch((e: Error) => current && setPasteError(e.message));
     return () => {
       current = false;
     };
-  }, [pasted]);
+  }, [pasted, state]);
 
   async function apply() {
     if (!(await passwordGate(state))) return;
@@ -462,7 +469,7 @@ function ShareSettings({
         <textarea
           className="share-code"
           aria-label="Paste a share code"
-          placeholder="Paste a code that starts with SCREENFRY-1-"
+          placeholder="Paste a code that starts with SF2-"
           value={pasted}
           onChange={(e) => setPasted(e.target.value)}
         />
@@ -471,40 +478,136 @@ function ShareSettings({
             {pasteError}
           </p>
         )}
-        {preview && (
-          <div className="share-preview">
-            <strong>This code sets:</strong>
-            <ul>
-              <li>
-                {preview.blocked.length
-                  ? `Blocked: ${listNames(preview.blocked)}`
-                  : "No fully blocked websites"}
-              </li>
-              <li>
-                {preview.limits.length
-                  ? `Daily limits: ${preview.limits.join(", ")}`
-                  : "No daily limits"}
-              </li>
-              <li>
-                {preview.windows.length
-                  ? `Windows: ${listNames(preview.windows)}`
-                  : "No windows"}
-              </li>
-              {preview.earnGoals.length > 0 && (
-                <li>Earn goals: {preview.earnGoals.join("; ")}</li>
-              )}
-              <li>
-                {preview.feedBlockingOn
-                  ? `${preview.feedBlockers} feed and button blocker${preview.feedBlockers === 1 ? "" : "s"} on`
-                  : "Feed and button blocking off"}
-              </li>
-            </ul>
-            <button className="button" disabled={busy} onClick={() => void apply()}>
-              {busy ? "Applying…" : "Use these settings"}
-            </button>
-          </div>
+        {slides && slides.length === 0 && (
+          <p className="share-same">This code matches your settings. Nothing would change.</p>
+        )}
+        {slides && slides.length > 0 && (
+          // Keyed by content: a usage tick re-renders without jumping back to slide one.
+          <ShareSlides
+            key={JSON.stringify(slides)}
+            slides={slides}
+            busy={busy}
+            onApply={() => void apply()}
+          />
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * A slideshow of what a share code changes: one slide per website, each setting shown as
+ * now → after. The apply button waits on the last slide so every change gets seen.
+ */
+function ShareSlides({
+  slides,
+  busy,
+  onApply,
+}: {
+  slides: ShareSlide[];
+  busy: boolean;
+  onApply: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const at = Math.min(index, slides.length - 1);
+  const slide = slides[at];
+  const last = at === slides.length - 1;
+  const websites = slides.filter((s) => s.key !== "everywhere").length;
+  const total = slides.reduce((n, s) => n + s.changes.length, 0);
+  const go = (to: number) => {
+    if (to < 0 || to >= slides.length || to === at) return;
+    setDirection(to > at ? 1 : -1);
+    setIndex(to);
+  };
+  return (
+    <div
+      className="share-slides"
+      role="group"
+      aria-roledescription="slideshow"
+      aria-label="What this code changes"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowRight") go(at + 1);
+        if (e.key === "ArrowLeft") go(at - 1);
+      }}
+    >
+      <p className="share-slides-head">
+        This code makes <strong>{total} change{total === 1 ? "" : "s"}</strong>
+        {websites ? ` across ${websites} website${websites === 1 ? "" : "s"}` : ""}.
+      </p>
+      <article
+        key={`${slide.key}-${at}`}
+        className={`share-slide ${direction > 0 ? "from-right" : "from-left"}`}
+        aria-roledescription="slide"
+        aria-label={`${at + 1} of ${slides.length}: ${slide.name}`}
+      >
+        <header>
+          <span
+            className="site-avatar small-avatar"
+            style={{ background: slide.color ?? "var(--muted)" }}
+            aria-hidden="true"
+          >
+            {slide.symbol ?? (slide.key === "everywhere" ? "✦" : slide.name[0].toUpperCase())}
+          </span>
+          <div>
+            <h4>{slide.name}</h4>
+            <span className="muted small">
+              {slide.changes.length} change{slide.changes.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <span className="share-slide-count">
+            {at + 1} / {slides.length}
+          </span>
+        </header>
+        <ul className="share-changes">
+          {slide.changes.map((c) => (
+            <li key={c.label}>
+              <span className="share-change-label">{c.label}</span>
+              <span className="share-change-values">
+                <span className="share-from">{c.from}</span>
+                <span className="share-arrow" aria-label="becomes">
+                  →
+                </span>
+                <span className="share-to">{c.to}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </article>
+      <div className="share-nav">
+        <button
+          type="button"
+          className="button secondary"
+          disabled={at === 0}
+          onClick={() => go(at - 1)}
+        >
+          ‹ Back
+        </button>
+        <div className="share-dots" role="tablist" aria-label="Slides">
+          {slides.map((s, i) => (
+            <button
+              key={s.key}
+              type="button"
+              role="tab"
+              aria-selected={i === at}
+              aria-label={s.name}
+              title={s.name}
+              className={i === at ? "active" : ""}
+              onClick={() => go(i)}
+            />
+          ))}
+        </div>
+        {last ? (
+          <button type="button" className="button" disabled={busy} onClick={onApply}>
+            {busy ? "Applying…" : "Use these settings"}
+          </button>
+        ) : (
+          <button type="button" className="button" onClick={() => go(at + 1)}>
+            Next ›
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

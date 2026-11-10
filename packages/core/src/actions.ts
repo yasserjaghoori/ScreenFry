@@ -397,11 +397,22 @@ export function exportSettings(state: AppState, now: number): SettingsExport {
     warningsEnabled: state.warningsEnabled,
   };
 }
-/** Validated like individual edits; a settings password must already be entered to import. */
-export async function importSettings(
-  ctx: ActionContext,
+/** Settings checked like individual edits, ready to apply. */
+export interface ValidSettings {
+  rules: WebsiteRule[];
+  windows: AccessWindow[];
+  /** Missing for files from before earn goals, which leave the current goals alone. */
+  earnGoals?: EarnGoal[];
+  feedSettings: FeedSettings;
+  warningsEnabled?: boolean;
+  /** Ids the file itself gave its windows and goals (shared codes give none). */
+  givenIds: Set<string>;
+}
+/** Validates a settings file or decoded share code without saving anything. */
+export function validateSettings(
   input: unknown,
-): Promise<ActionResult<AppState>> {
+  now: number,
+): { ok: true; data: ValidSettings } | { ok: false; error: string } {
   const data = input as Partial<SettingsExport> | null;
   if (
     !data ||
@@ -411,9 +422,9 @@ export async function importSettings(
     return fail("This isn’t a ScreenFry settings file.");
   if (!Array.isArray(data.rules) || !Array.isArray(data.windows))
     return fail("The settings file is missing websites or windows.");
-  const now = ctx.now(),
-    rules: WebsiteRule[] = [],
-    windows: AccessWindow[] = [];
+  const rules: WebsiteRule[] = [],
+    windows: AccessWindow[] = [],
+    givenIds = new Set<string>();
   for (const input of data.rules) {
     const { rule, error } = sanitizeRule(input, now);
     if (!rule) return fail(`Website settings: ${error}`);
@@ -424,20 +435,42 @@ export async function importSettings(
   for (const input of data.windows) {
     const { window, error } = sanitizeWindow(input);
     if (!window) return fail(`Windows: ${error}`);
+    if (input?.id) givenIds.add(window.id);
     windows.push(window);
   }
-  // Files from before earn goals leave the current goals alone.
   let earnGoals: EarnGoal[] | undefined;
   if (Array.isArray(data.earnGoals)) {
     earnGoals = [];
     for (const input of data.earnGoals) {
       const { goal, error } = sanitizeEarnGoal(input);
       if (!goal) return fail(`Earn your website time: ${error}`);
+      if (input?.id) givenIds.add(goal.id);
       earnGoals.push(goal);
     }
     const clash = earnGoalClash(earnGoals);
     if (clash) return fail(`Earn your website time: ${clash}`);
   }
+  return {
+    ok: true,
+    data: {
+      rules,
+      windows,
+      earnGoals,
+      feedSettings: sanitizeFeeds(data.feedSettings as FeedSettings),
+      warningsEnabled:
+        typeof data.warningsEnabled === "boolean" ? data.warningsEnabled : undefined,
+      givenIds,
+    },
+  };
+}
+/** Validated like individual edits; a settings password must already be entered to import. */
+export async function importSettings(
+  ctx: ActionContext,
+  input: unknown,
+): Promise<ActionResult<AppState>> {
+  const valid = validateSettings(input, ctx.now());
+  if (!valid.ok) return valid;
+  const { rules, windows, earnGoals, feedSettings, warningsEnabled, givenIds } = valid.data;
   return protectedUpdate(ctx, (s) => {
     for (const rule of rules) {
       // Settings from elsewhere (another browser, or someone's shared code) carry their own
@@ -450,16 +483,27 @@ export async function importSettings(
         if (!rules.some((r) => r !== rule && r.id === existing.id)) rule.id = existing.id;
       }
     }
+    // Shared codes carry no window or goal ids: a window or goal with the same name keeps
+    // this browser's id, so today's Fry Time and earn progress carry on instead of resetting.
+    for (const w of windows) {
+      const same = s.windows.find(
+        (x) => x.label === w.label && (x.mode ?? "allow") === w.mode && !windows.some((y) => y.id === x.id),
+      );
+      if (same && !givenIds.has(w.id)) w.id = same.id;
+    }
+    for (const g of earnGoals ?? []) {
+      const same = (s.earnGoals ?? []).find(
+        (x) => x.label === g.label && !earnGoals!.some((y) => y.id === x.id),
+      );
+      if (same && !givenIds.has(g.id)) g.id = same.id;
+    }
     return {
       ...s,
       rules,
       windows,
       ...(earnGoals ? { earnGoals } : {}),
-      feedSettings: sanitizeFeeds(data.feedSettings as FeedSettings),
-      warningsEnabled:
-        typeof data.warningsEnabled === "boolean"
-          ? data.warningsEnabled
-          : s.warningsEnabled,
+      feedSettings,
+      warningsEnabled: warningsEnabled ?? s.warningsEnabled,
     };
   });
 }
