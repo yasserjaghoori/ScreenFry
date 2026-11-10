@@ -434,7 +434,7 @@ export function exportSettings(state: AppState, now: number): SettingsExport {
     warningsEnabled: state.warningsEnabled,
   };
 }
-interface CheckedSettings {
+export interface CheckedSettings {
   rules: WebsiteRule[];
   windows: AccessWindow[];
   /** Undefined for settings from before earn goals, which leave the current goals alone. */
@@ -443,7 +443,7 @@ interface CheckedSettings {
   warningsEnabled?: boolean;
 }
 /** Validates settings from a share code or a loadout, like individual edits. */
-function checkSettings(input: unknown, now: number): { settings?: CheckedSettings; error?: string } {
+export function checkSettings(input: unknown, now: number): { settings?: CheckedSettings; error?: string } {
   const data = input as Partial<SettingsExport> | null;
   if (!data || typeof data !== "object") return { error: "This isn’t a ScreenFry settings file." };
   if (!Array.isArray(data.rules) || !Array.isArray(data.windows))
@@ -497,11 +497,30 @@ function applySettings(s: AppState, settings: CheckedSettings): AppState {
       if (!rules.some((r) => r !== rule && r.id === existing.id)) rule.id = existing.id;
     }
   }
+  // Windows and earn goals keep this browser's id when one with the same name (and mode)
+  // exists and the incoming one is new here, so today's Fry Time and earn progress carry on
+  // instead of resetting through a share code or a loadout switch.
+  const windows = structuredClone(settings.windows);
+  for (const w of windows) {
+    if (s.windows.some((x) => x.id === w.id)) continue;
+    const same = s.windows.find(
+      (x) => x.label === w.label && (x.mode ?? "allow") === (w.mode ?? "allow") && !windows.some((y) => y.id === x.id),
+    );
+    if (same) w.id = same.id;
+  }
+  const earnGoals = settings.earnGoals && structuredClone(settings.earnGoals);
+  for (const g of earnGoals ?? []) {
+    if ((s.earnGoals ?? []).some((x) => x.id === g.id)) continue;
+    const same = (s.earnGoals ?? []).find(
+      (x) => x.label === g.label && !earnGoals!.some((y) => y.id === x.id),
+    );
+    if (same) g.id = same.id;
+  }
   return {
     ...s,
     rules,
-    windows: structuredClone(settings.windows),
-    ...(settings.earnGoals ? { earnGoals: structuredClone(settings.earnGoals) } : {}),
+    windows,
+    ...(earnGoals ? { earnGoals } : {}),
     feedSettings: structuredClone(settings.feedSettings),
     warningsEnabled: settings.warningsEnabled ?? s.warningsEnabled,
   };

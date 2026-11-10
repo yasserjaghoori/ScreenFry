@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { send } from "@browser/messages";
 import { launchSites } from "@core/sites";
 import { expandDomainAliases, hostMatchesDomain, normalizeDomain } from "@core/domains";
-import { SETTINGS_FORMAT, loadoutSettings } from "@core/actions";
+import { checkSettings, loadoutSettings } from "@core/actions";
+import { createDefaultState } from "@core/defaults";
 import {
   decodeShareCode,
   encodeShareCode,
@@ -23,6 +24,7 @@ import { Switch } from "../ui/SiteControls";
 import { confirmLoosen } from "../ui/ConfirmLoosen";
 import { confirmDialog } from "../ui/ConfirmDialog";
 import { passwordGate } from "../ui/PasswordPrompt";
+import { shareSlides, type ShareSlide } from "../ui/share-changes";
 import type { Notice } from "./index";
 
 /**
@@ -604,7 +606,7 @@ function ShareSettings({
   const [myCode, setMyCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [pasted, setPasted] = useState("");
-  const [preview, setPreview] = useState<SharedSummary>();
+  const [slides, setSlides] = useState<ShareSlide[]>();
   const [pasteError, setPasteError] = useState("");
   const [busy, setBusy] = useState(false);
   const settings = loadoutSettings(state, selected, Date.now());
@@ -615,23 +617,38 @@ function ShareSettings({
     setCopied(false);
     setPasted("");
   }, [selected]);
+  // Decode and check the pasted code as it's typed, then lay out what it would change in
+  // this loadout (an empty loadout is compared with a fresh install).
+  const comparedWith = settings ?? createDefaultState();
   useEffect(() => {
-    setPreview(undefined);
+    setSlides(undefined);
     setPasteError("");
     if (!pasted.trim()) return;
     let current = true;
     decodeShareCode(pasted)
-      .then((data) => current && setPreview(summarizeShared(data)))
+      .then((data) => {
+        if (!current) return;
+        const { settings: incoming, error } = checkSettings(data, Date.now());
+        if (!incoming) return setPasteError(error!);
+        setSlides(
+          shareSlides(comparedWith, {
+            ...incoming,
+            earnGoals: incoming.earnGoals ?? comparedWith.earnGoals ?? [],
+            warningsEnabled: incoming.warningsEnabled ?? comparedWith.warningsEnabled,
+          }),
+        );
+      })
       .catch((e: Error) => current && setPasteError(e.message));
     return () => {
       current = false;
     };
-  }, [pasted]);
+    // Recomputed when the code or the compared loadout's settings change, not on usage ticks.
+  }, [pasted, JSON.stringify({ ...comparedWith, savedAt: 0 })]);
 
   async function copyCode() {
     if (!settings) return;
     const { savedAt: _saved, ...rest } = settings;
-    const code = await encodeShareCode({ format: SETTINGS_FORMAT, exportedAt: new Date().toISOString(), ...rest });
+    const code = await encodeShareCode(rest);
     setMyCode(code);
     try {
       await navigator.clipboard.writeText(code);
@@ -767,7 +784,7 @@ function ShareSettings({
           <textarea
             className="share-code"
             aria-label={`Paste a share code into ${name}`}
-            placeholder="Paste a code that starts with SCREENFRY-1-"
+            placeholder="Paste a code that starts with SF2-"
             value={pasted}
             onChange={(e) => setPasted(e.target.value)}
           />
@@ -776,23 +793,146 @@ function ShareSettings({
               {pasteError}
             </p>
           )}
-          {preview && (
-            <div className="share-preview">
-              <strong>This code sets:</strong>
-              <SettingsSummary summary={preview} />
-              <button className="button" disabled={busy} onClick={() => void applyCode()}>
-                {busy
-                  ? "Saving…"
-                  : !settings
-                    ? `Put it in ${name}`
-                    : selected === active
-                      ? "Replace my current setup"
-                      : `Replace ${name}`}
-              </button>
-            </div>
+          {slides && slides.length === 0 && (
+            <p className="share-same">This code matches {selected === active ? "your current setup" : name}. Nothing would change.</p>
+          )}
+          {slides && slides.length > 0 && (
+            // Keyed by content, so a re-render doesn't jump back to the first slide.
+            <ShareSlides
+              key={JSON.stringify(slides)}
+              slides={slides}
+              busy={busy}
+              applyLabel={
+                !settings
+                  ? `Put it in ${name}`
+                  : selected === active
+                    ? "Replace my current setup"
+                    : `Replace ${name}`
+              }
+              onApply={() => void applyCode()}
+            />
           )}
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * A slideshow of what a share code changes: one slide per website, each setting shown as
+ * now → after. The apply button waits on the last slide so every change gets seen.
+ */
+function ShareSlides({
+  slides,
+  busy,
+  applyLabel,
+  onApply,
+}: {
+  slides: ShareSlide[];
+  busy: boolean;
+  applyLabel: string;
+  onApply: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const at = Math.min(index, slides.length - 1);
+  const slide = slides[at];
+  const last = at === slides.length - 1;
+  const websites = slides.filter((s) => s.key !== "everywhere").length;
+  const total = slides.reduce((n, s) => n + s.changes.length, 0);
+  const go = (to: number) => {
+    if (to < 0 || to >= slides.length || to === at) return;
+    setDirection(to > at ? 1 : -1);
+    setIndex(to);
+  };
+  return (
+    <div
+      className="share-slides"
+      role="group"
+      aria-roledescription="slideshow"
+      aria-label="What this code changes"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowRight") go(at + 1);
+        if (e.key === "ArrowLeft") go(at - 1);
+      }}
+    >
+      <p className="share-slides-head">
+        This code makes <strong>{total} change{total === 1 ? "" : "s"}</strong>
+        {websites ? ` across ${websites} website${websites === 1 ? "" : "s"}` : ""}.
+      </p>
+      <article
+        key={`${slide.key}-${at}`}
+        className={`share-slide ${direction > 0 ? "from-right" : "from-left"}`}
+        aria-roledescription="slide"
+        aria-label={`${at + 1} of ${slides.length}: ${slide.name}`}
+      >
+        <header>
+          <span
+            className="site-avatar small-avatar"
+            style={{ background: slide.color ?? "var(--muted)" }}
+            aria-hidden="true"
+          >
+            {slide.symbol ?? (slide.key === "everywhere" ? "✦" : slide.name[0].toUpperCase())}
+          </span>
+          <div>
+            <h4>{slide.name}</h4>
+            <span className="muted small">
+              {slide.changes.length} change{slide.changes.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <span className="share-slide-count">
+            {at + 1} / {slides.length}
+          </span>
+        </header>
+        <ul className="share-changes">
+          {slide.changes.map((c) => (
+            <li key={c.label}>
+              <span className="share-change-label">{c.label}</span>
+              <span className="share-change-values">
+                <span className="share-from">{c.from}</span>
+                <span className="share-arrow" aria-label="becomes">
+                  →
+                </span>
+                <span className="share-to">{c.to}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </article>
+      <div className="share-nav">
+        <button
+          type="button"
+          className="button secondary"
+          disabled={at === 0}
+          onClick={() => go(at - 1)}
+        >
+          ‹ Back
+        </button>
+        <div className="share-dots" role="tablist" aria-label="Slides">
+          {slides.map((s, i) => (
+            <button
+              key={s.key}
+              type="button"
+              role="tab"
+              aria-selected={i === at}
+              aria-label={s.name}
+              title={s.name}
+              className={i === at ? "active" : ""}
+              onClick={() => go(i)}
+            />
+          ))}
+        </div>
+        {last ? (
+          <button type="button" className="button" disabled={busy} onClick={onApply}>
+            {busy ? "Saving…" : applyLabel}
+          </button>
+        ) : (
+          <button type="button" className="button" onClick={() => go(at + 1)}>
+            Next ›
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

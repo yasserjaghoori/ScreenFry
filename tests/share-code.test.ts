@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as actions from "@core/actions";
 import { MemoryStateStore } from "@core/store";
-import { SHARE_PREFIX, decodeShareCode, encodeShareCode, summarizeShared } from "@core/share";
+import { SHARE_PREFIX, decodeShareCode, encodeShareCode } from "@core/share";
+import { createDefaultState } from "@core/defaults";
+import { shareSlides } from "../apps/extension/src/ui/share-changes";
 import { Clock, MIN, at, rule, setUsage } from "./helpers";
 import type { AccessWindow, AppState } from "@shared/index";
 
@@ -41,23 +43,96 @@ async function myCode() {
 }
 
 describe("share codes", () => {
-  it("is one compact line without usage or the password", async () => {
+  it("is one short line without usage or the password", async () => {
     const code = await myCode();
     expect(code.startsWith(SHARE_PREFIX)).toBe(true);
     expect(code).toMatch(/^[A-Za-z0-9_-]+$/);
+    // A limit, a window, an earn goal and a feed blocker fit in a short line.
+    expect(code.length).toBeLessThan(220);
     const data = JSON.stringify(await decodeShareCode(code));
     expect(data).not.toContain("PBKDF2");
     expect(data).not.toContain("usage");
-    expect(data).not.toContain("createdAt");
   });
 
-  it("previews what a code sets", async () => {
-    const summary = summarizeShared(await decodeShareCode(await myCode()));
-    expect(summary.limits).toEqual(["YouTube: 15 min a day"]);
-    expect(summary.windows).toEqual(["Lunch"]);
-    expect(summary.earnGoals).toEqual(["20 min on duolingo.com unlocks TikTok"]);
-    expect(summary.feedBlockers).toBe(1);
-    expect(summarizeShared(null)).toMatchObject({ blocked: [], windows: [] });
+  it("is tiny for a fresh install", async () => {
+    const code = await encodeShareCode(actions.exportSettings(createDefaultState(), NOW));
+    expect(code).toBe("SF2-je30");
+  });
+
+  it("round-trips every kind of setting", async () => {
+    const { store } = mine;
+    await actions.saveRule(mine, rule({ blocked: true, showTimer: true, dailyAllowance: { defaultMinutes: 20, byWeekday: { 6: 60 } } }));
+    await actions.saveRule(mine, rule({ id: "news", label: "news.example.org", domains: ["news.example.org"], dailyAllowance: { defaultMinutes: 5 } }));
+    await actions.saveWindow(mine, { ...lunch, id: "fry", label: "Fry", mode: "free", domains: ["youtube.com", "x.com"], freeMinutesBySite: { youtube: 10 } });
+    await actions.saveWindow(mine, { ...lunch, id: "off", label: "Off", enabled: false, startMinute: 1320, endMinute: 360 });
+    await actions.setPreferences(mine, { warningsEnabled: false });
+    const s = await store.get();
+    s.feedSettings.globalEnabled = false;
+    await store.update(() => s);
+    const before = actions.exportSettings(await store.get(), NOW);
+    const after = (await decodeShareCode(await encodeShareCode(before))) as typeof before;
+    const strip = (x: typeof before) => ({
+      rules: x.rules.map(({ id: _i, createdAt: _c, updatedAt: _u, ...r }) => r).sort((a, b) => a.label.localeCompare(b.label)),
+      windows: x.windows.map(({ id: _i, ...w }) => w),
+      feedSettings: x.feedSettings,
+      warningsEnabled: x.warningsEnabled,
+    });
+    expect(strip(after)).toEqual(strip(before));
+  });
+
+  it("keeps Fry Time earn goals intact", async () => {
+    await actions.saveEarnGoal(mine, {
+      id: "fry",
+      label: "Read for Fry Time",
+      enabled: false,
+      goalDomains: ["wikipedia.org"],
+      minutes: 15,
+      lockedDomains: ["youtube.com", "instagram.com"],
+      reward: "fry",
+      repeats: 3,
+      fryMinutesBySite: { youtube: 10, instagram: 5 },
+    });
+    const before = actions.exportSettings(await mine.store.get(), NOW);
+    const after = (await decodeShareCode(await encodeShareCode(before))) as typeof before;
+    const strip = (goals: typeof before.earnGoals) => goals!.map(({ id: _i, ...g }) => g);
+    expect(strip(after.earnGoals)).toEqual(strip(before.earnGoals));
+    expect(actions.checkSettings(after, NOW).error).toBeUndefined();
+  });
+
+  it("still reads the older SCREENFRY-1 codes", async () => {
+    await actions.saveWindow(mine, lunch);
+    const json = new TextEncoder().encode(JSON.stringify(actions.exportSettings(await mine.store.get(), NOW)));
+    const zipped = new Uint8Array(await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());
+    const v1 = "SCREENFRY-1-" + btoa(String.fromCharCode(...zipped)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    expect((await actions.importShareCode(friend, v1)).ok).toBe(true);
+    expect((await friend.store.get()).windows.map((w) => w.label)).toEqual(["Lunch"]);
+  });
+
+  it("shows one slide per website it changes, each setting as now → after", async () => {
+    const incoming = actions.checkSettings(await decodeShareCode(await myCode()), NOW).settings!;
+    const slides = shareSlides(await friend.store.get(), incoming as never);
+    expect(slides.map((s) => s.name)).toEqual(["YouTube", "Reddit", "TikTok", "duolingo.com"]);
+    expect(slides[0].changes).toEqual([
+      { label: "Daily limit", from: "No limit", to: "15 min a day" },
+      { label: "Block Shorts entirely", from: "Off", to: "On" },
+    ]);
+    expect(slides[1].changes).toEqual([
+      { label: "Allow window “Lunch”", from: "None", to: "Weekdays, 12:00 PM–1:00 PM" },
+    ]);
+    expect(slides[2].changes).toEqual([
+      { label: "Earn goal “Spanish first”", from: "None", to: "Locked until 20 min on duolingo.com" },
+    ]);
+    expect(slides[3].changes[0].to).toBe("20 min here unlocks TikTok");
+    // Applying the same settings again changes nothing.
+    const same = actions.checkSettings(await decodeShareCode(await myCode()), NOW).settings!;
+    expect(shareSlides(await mine.store.get(), same as never)).toEqual([]);
+  });
+
+  it("keeps today's Fry Time and earn progress for windows and goals with the same name", async () => {
+    const code = await myCode();
+    await actions.saveWindow(friend, { ...lunch, id: "friend-lunch" });
+    await actions.importShareCode(friend, code);
+    expect((await friend.store.get()).windows.map((w) => w.id)).toEqual(["friend-lunch"]);
   });
 
   it("applies a friend's code, keeping today's usage for the same website", async () => {
