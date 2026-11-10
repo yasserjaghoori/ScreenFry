@@ -157,17 +157,22 @@ export function migrateState(
                   ? {
                       reward: "fry" as const,
                       repeats: typeof g.repeats === "number" ? g.repeats : 1,
-                      ...(typeof g.fryMinutes === "number" ? { fryMinutes: g.fryMinutes } : {}),
+                      // Minutes per website (0.6.9–0.7.2) became one shared amount: the smallest.
+                      ...(typeof g.fryMinutes === "number"
+                        ? { fryMinutes: g.fryMinutes }
+                        : object(g.fryMinutesBySite) &&
+                            Object.values(g.fryMinutesBySite).some((v) => typeof v === "number")
+                          ? {
+                              fryMinutes: Math.min(
+                                ...Object.values(g.fryMinutesBySite).filter(
+                                  (v): v is number => typeof v === "number",
+                                ),
+                              ),
+                            }
+                          : {}),
                       ...(Array.isArray(g.fryMinutesSchedule) &&
                       g.fryMinutesSchedule.every((m: unknown) => typeof m === "number")
                         ? { fryMinutesSchedule: g.fryMinutesSchedule as number[] }
-                        : {}),
-                      ...(object(g.fryMinutesBySite)
-                        ? {
-                            fryMinutesBySite: Object.fromEntries(
-                              Object.entries(g.fryMinutesBySite).filter(([, v]) => typeof v === "number"),
-                            ) as Record<string, number>,
-                          }
                         : {}),
                     }
                   : {}),

@@ -275,44 +275,35 @@ export function sanitizeEarnGoal(input: EarnGoal): { goal?: EarnGoal; error?: st
     lockedDomains,
   };
   if (input.reward !== "fry") return { goal: base };
-  // Fry Time reward: minutes for every website, or per website (each one needs some).
+  // Fry Time reward: one shared amount each time, or a different amount each time.
   const repeats = input.repeats ?? 1;
   if (!Number.isInteger(repeats) || repeats < 0 || repeats > 48)
     return { error: "Choose how many times a day, from 1 to 48, or no limit." };
-  const keys = [...new Set(lockedDomains.map(fryKeyForDomain))];
-  const fryMinutes = input.fryMinutes;
+  // Codes and saves from 0.6.9–0.7.2 may still give minutes per website: take the smallest.
+  const legacy = (input as { fryMinutesBySite?: Record<string, unknown> }).fryMinutesBySite;
+  const legacyMinutes =
+    legacy && typeof legacy === "object"
+      ? Math.min(...Object.values(legacy).filter((v): v is number => typeof v === "number" && minutes(v) && v > 0))
+      : Infinity;
+  const fryMinutes = input.fryMinutes ?? (Number.isFinite(legacyMinutes) ? legacyMinutes : undefined);
   if (fryMinutes !== undefined && (!minutes(fryMinutes) || fryMinutes === 0))
     return { error: "Fry Time earned must be between 1 and 1440 minutes." };
-  let bySite: Record<string, number> | undefined;
-  if (input.fryMinutesBySite && typeof input.fryMinutesBySite === "object") {
-    bySite = {};
-    for (const key of keys) {
-      const value = input.fryMinutesBySite[key];
-      if (value === undefined || value === null) continue;
-      if (!minutes(value) || value === 0)
-        return { error: "Each website’s Fry Time must be between 1 and 1440 minutes." };
-      bySite[key] = value;
-    }
-  }
-  // Different amounts each time it's earned (the same on every website).
   let schedule: number[] | undefined;
-  if (!bySite && Array.isArray(input.fryMinutesSchedule) && input.fryMinutesSchedule.length) {
+  if (Array.isArray(input.fryMinutesSchedule) && input.fryMinutesSchedule.length) {
     schedule = input.fryMinutesSchedule.slice(0, repeats || 48);
     if (schedule.some((m) => !minutes(m) || m === 0))
       return { error: "Fry Time earned each time must be between 1 and 1440 minutes." };
     if (schedule.every((m) => m === schedule![0])) schedule = undefined;
   }
   const first = schedule?.[0] ?? fryMinutes;
-  if (keys.some((key) => (bySite?.[key] ?? first) === undefined))
-    return { error: "Choose how much Fry Time each website earns." };
+  if (first === undefined) return { error: "Choose how much Fry Time it earns." };
   return {
     goal: {
       ...base,
       reward: "fry",
       repeats,
-      ...(bySite
-        ? { fryMinutesBySite: bySite }
-        : { fryMinutes: first, ...(schedule ? { fryMinutesSchedule: schedule } : {}) }),
+      fryMinutes: first,
+      ...(schedule ? { fryMinutesSchedule: schedule } : {}),
     },
   };
 }

@@ -3,6 +3,7 @@ import * as actions from "@core/actions";
 import { MemoryStateStore } from "@core/store";
 import { creditSessions, creditUsage, nextTrackingBoundary } from "@core/tracking";
 import { evaluatePolicy } from "@policy/index";
+import { migrateState } from "@core/defaults";
 import { blockedCopy } from "../apps/extension/src/ui/blocked-copy";
 import { Clock, MIN, at, rule, stateWith } from "./helpers";
 import type { AppState, EarnGoal } from "@shared/index";
@@ -156,11 +157,32 @@ describe("earning Fry Time", () => {
     expect(evaluatePolicy(s, YT, NOW + 65 * MIN).freeTime?.remainingMilliseconds).toBe(15 * MIN);
     expect(s.usage[Object.keys(s.usage)[0]].millisecondsByGoal?.duo).toBe(40 * MIN);
   });
-  it("supports no limit and custom minutes per website", () => {
-    const s = feedsHidden({ repeats: 0, fryMinutes: undefined, fryMinutesBySite: { youtube: 3, "news.example.org": 7 } });
-    spend(s, DUO, NOW, NOW + 60 * MIN); // three completions
-    expect(evaluatePolicy(s, YT, NOW + 60 * MIN).freeTime?.remainingMilliseconds).toBe(9 * MIN);
-    expect(evaluatePolicy(s, "https://news.example.org/", NOW + 60 * MIN).freeTime?.remainingMilliseconds).toBe(21 * MIN);
+  it("shares one pool across its websites and adds each payout to what's left", () => {
+    const s = feedsHidden({ repeats: 0, fryMinutes: 5 });
+    const NEWS = "https://news.example.org/";
+    spend(s, DUO, NOW, NOW + 20 * MIN); // 5 minutes earned
+    spend(s, YT, NOW + 20 * MIN, NOW + 22 * MIN); // 2 on YouTube
+    expect(evaluatePolicy(s, NEWS, NOW + 22 * MIN).freeTime?.remainingMilliseconds).toBe(3 * MIN);
+    spend(s, NEWS, NOW + 22 * MIN, NOW + 23 * MIN); // 1 on the other website
+    expect(evaluatePolicy(s, YT, NOW + 23 * MIN).freeTime?.remainingMilliseconds).toBe(2 * MIN);
+    // Another 20 minutes of goal time: 5 more on top of the 2 left.
+    spend(s, DUO, NOW + 23 * MIN, NOW + 43 * MIN);
+    expect(evaluatePolicy(s, YT, NOW + 43 * MIN).freeTime?.remainingMilliseconds).toBe(7 * MIN);
+  });
+  it("counts only active time on the goal website", () => {
+    const s = feedsHidden({ repeats: 1, fryMinutes: 5 });
+    // Twenty minutes in a background tab (playing audio, say) earn nothing…
+    const session = (from: number, active: boolean) =>
+      creditSessions(s, [{ tabId: 1, windowId: 1, url: DUO, startedAt: from, active }], from + MIN);
+    for (let t = NOW; t < NOW + 20 * MIN; t += MIN) session(t, false);
+    expect(evaluatePolicy(s, YT, NOW + 20 * MIN).freeTime).toBeUndefined();
+    // …twenty minutes in front and in use earn it.
+    for (let t = NOW + 20 * MIN; t < NOW + 40 * MIN; t += MIN) session(t, true);
+    expect(evaluatePolicy(s, YT, NOW + 40 * MIN).freeTime?.remainingMilliseconds).toBe(5 * MIN);
+  });
+  it("turns old per-website minutes into one shared amount (the smallest)", () => {
+    const old = withGoal({ reward: "fry", repeats: 1, ...({ fryMinutesBySite: { youtube: 3, "news.example.org": 7 } } as object) });
+    expect(migrateState(old).earnGoals?.[0]).toMatchObject({ fryMinutes: 3 });
   });
   it("can pay a different amount each time it's earned", () => {
     const s = feedsHidden({ repeats: 3, fryMinutes: 1, fryMinutesSchedule: [1, 5, 10] });

@@ -50,6 +50,8 @@ struct SettingsBridge {
             "at": now,
             "version": message["version"] as? String ?? "",
             "passwordProtected": message["passwordProtected"] as? Bool ?? false,
+            // Lets the app open ScreenFry's own pages in that browser.
+            "extensionId": message["extensionId"] as? String ?? "",
         ], to: checkInURL)
         for name in Self.retiredNames {
             try? fm.removeItem(at: directory.appendingPathComponent(name))

@@ -157,36 +157,35 @@ export const earnGoalsLocking = (state: AppState, url: string, now: number) =>
       urlMatchesDomains(url, g.lockedDomains) &&
       earnRemaining(state, g, now) > 0,
   );
-/** Which of a goal's websites a URL is on, as a Fry Time key (site id, else domain). */
-function goalSiteKey(goal: EarnGoal, url: string): string {
-  let host = "";
-  try {
-    host = new URL(url).hostname;
-  } catch {
-    /* not a web address */
-  }
-  return siteFor(host)?.site ?? goal.lockedDomains.find((d) => hostMatchesDomain(host, d)) ?? host;
-}
-/** Where earned Fry Time used on a website is counted. */
-export const earnedFryKey = (goal: EarnGoal, url: string) => `earn:${goal.id}:${goalSiteKey(goal, url)}`;
-/** Fry Time a goal pays on one website for its nth completion of the day (1 = first). */
-export function fryMinutesForCompletion(goal: EarnGoal, key: string, n: number): number {
-  const schedule = goal.fryMinutesBySite ? undefined : goal.fryMinutesSchedule;
+/**
+ * Where earned Fry Time is counted: one pool per goal, shared by all its websites, so 2
+ * minutes on X and 3 on YouTube use 5 of it.
+ */
+export const earnedFryKey = (goal: EarnGoal) => `earn:${goal.id}`;
+/** Fry Time a goal pays for its nth completion of the day (1 = first). */
+export function fryMinutesForCompletion(goal: EarnGoal, n: number): number {
+  const schedule = goal.fryMinutesSchedule;
   if (schedule?.length) return schedule[Math.min(n, schedule.length) - 1];
-  return goal.fryMinutesBySite?.[key] ?? goal.fryMinutes ?? 0;
+  return goal.fryMinutes ?? 0;
 }
-/** Fry Time earned on one website after this many completions. */
-export function fryEarnedMinutes(goal: EarnGoal, key: string, completions: number): number {
+/** Fry Time earned after this many completions: every payout adds to the pool. */
+export function fryEarnedMinutes(goal: EarnGoal, completions: number): number {
   let total = 0;
-  for (let n = 1; n <= completions; n++) total += fryMinutesForCompletion(goal, key, n);
+  for (let n = 1; n <= completions; n++) total += fryMinutesForCompletion(goal, n);
   return total;
 }
-/** Earned Fry Time left today on this website from one goal. */
-export function earnedFryRemaining(state: AppState, goal: EarnGoal, url: string, now: number): number {
-  const key = goalSiteKey(goal, url);
-  const earned = fryEarnedMinutes(goal, key, earnCompletions(state, goal, now)) * MINUTE;
-  const used =
-    state.usage[localDateKey(new Date(now))]?.millisecondsByWindow?.[earnedFryKey(goal, url)] ?? 0;
+/**
+ * Earned Fry Time left today from one goal, on any of its websites: everything earned so
+ * far minus everything used (5 earned, 2 used, 5 more earned leaves 8).
+ */
+export function earnedFryRemaining(state: AppState, goal: EarnGoal, now: number): number {
+  const earned = fryEarnedMinutes(goal, earnCompletions(state, goal, now)) * MINUTE;
+  const key = earnedFryKey(goal);
+  const byWindow = state.usage[localDateKey(new Date(now))]?.millisecondsByWindow ?? {};
+  // Before 0.7.3 it was counted per website ("earn:<goal>:<site>"); those count too.
+  const used = Object.entries(byWindow)
+    .filter(([k]) => k === key || k.startsWith(`${key}:`))
+    .reduce((total, [, ms]) => total + ms, 0);
   return Math.max(0, earned - used);
 }
 /** The earn goal whose earned Fry Time is pausing this website's feed blocking, if any. */
@@ -194,7 +193,7 @@ export function activeEarnedFry(state: AppState, url: string, now: number) {
   let best: { goal: EarnGoal; remaining: number } | undefined;
   for (const goal of state.earnGoals ?? []) {
     if (!goal.enabled || !isFryGoal(goal) || !urlMatchesDomains(url, goal.lockedDomains)) continue;
-    const remaining = earnedFryRemaining(state, goal, url, now);
+    const remaining = earnedFryRemaining(state, goal, now);
     if (remaining > 0 && (!best || remaining > best.remaining)) best = { goal, remaining };
   }
   return best;

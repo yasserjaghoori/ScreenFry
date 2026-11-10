@@ -27,6 +27,12 @@ export interface TrackingSession {
   windowId: number;
   url: string;
   startedAt: number;
+  /**
+   * The tab was in front and the user was active (input within the last minute). Only such
+   * time counts toward earn goals; background playback still counts for limits. Missing on
+   * sessions saved before 0.7.3, which count as active.
+   */
+  active?: boolean;
 }
 export interface TabLike {
   id?: number;
@@ -78,6 +84,7 @@ function creditSlice(
   at: number,
   ms: number,
   warnings: CreditWarning[],
+  activeUrls: Set<string> = new Set(urls),
 ) {
   const rules = new Map<string, string>();
   /** Fry Time usage keys (window and website) to the URL being used. */
@@ -89,11 +96,12 @@ function creditSlice(
     // Blocked pages and playback outside a window do not consume a future allowance.
     if (evaluatePolicy(state, url, at).status === "blocked") continue;
     for (const rule of matchingRules(state, url)) rules.set(rule.id, url);
-    for (const goal of earnGoalsFor(state, url)) goals.add(goal.id);
+    // Earn goals count only active time: the tab in front and someone using it.
+    if (activeUrls.has(url)) for (const goal of earnGoalsFor(state, url)) goals.add(goal.id);
     const fry = activeFreeTime(state, url, at);
     if (fry?.earned) {
       const goal = state.earnGoals!.find((g) => `earn:${g.id}` === fry.windowId)!;
-      earnedFry.set(earnedFryKey(goal, url), { goal, url });
+      earnedFry.set(earnedFryKey(goal), { goal, url });
     }
     for (const w of freeWindowsFor(state, url))
       if (isScheduleActive(w, new Date(at)))
@@ -114,7 +122,7 @@ function creditSlice(
   }
   // Earned Fry Time is used up like a Fry Time window's, per website.
   for (const [id, { goal, url }] of earnedFry) {
-    const left = earnedFryRemaining(state, goal, url, at);
+    const left = earnedFryRemaining(state, goal, at);
     if (left > 0) day.millisecondsByWindow[id] = (day.millisecondsByWindow[id] ?? 0) + Math.min(ms, left);
   }
   // Earn goals count once per wall-clock second too, and stop once nothing more can be
@@ -176,6 +184,11 @@ export function creditSessions(
       ),
     ];
     if (!urls.length) continue;
+    const activeUrls = new Set(
+      ranges
+        .filter((s) => s.startedAt <= at && s.end >= end && s.active !== false)
+        .map((s) => s.url),
+    );
     credited += end - at;
     while (at < end) {
       const next = Math.min(
@@ -183,7 +196,7 @@ export function creditSessions(
         nextLocalMidnight(new Date(at)),
         nextPolicyBoundary(state, at),
       );
-      creditSlice(state, urls, at, next - at, warnings);
+      creditSlice(state, urls, at, next - at, warnings, activeUrls);
       at = next;
     }
   }

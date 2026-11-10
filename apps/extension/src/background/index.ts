@@ -263,15 +263,25 @@ async function findTrackableTabs(state: AppState) {
         key.startsWith(`${t.id}:`) && m.playing && now - m.at < 30_000,
     ),
   }));
+  const focusedWindow = window.focused ? window.id : undefined;
   return pickTrackedTabs(
     enriched.filter((t) => trackedUrl(state, t.url ?? "")),
-    window.focused ? window.id : undefined,
+    focusedWindow,
     idle,
-  );
+  ).map((t) => ({
+    ...t,
+    // In front and in use: what earn goals count.
+    activeUse: t.active && t.windowId === focusedWindow && idle === "active",
+  }));
 }
-const sameTabs = (a: TrackingSession[], b: { id?: number; url?: string }[]) =>
+const sameTabs = (
+  a: TrackingSession[],
+  b: { id?: number; url?: string; activeUse?: boolean }[],
+) =>
   a.length === b.length &&
-  a.every((s) => b.some((t) => t.id === s.tabId && t.url === s.url));
+  a.every((s) =>
+    b.some((t) => t.id === s.tabId && t.url === s.url && (s.active ?? true) === t.activeUse),
+  );
 /**
  * Credits elapsed time and restarts sessions. Event-driven calls (tab activation, page loads,
  * media reports) skip the write when the tracked tabs haven't changed: sessions keep their
@@ -324,6 +334,7 @@ async function checkpointTracking(force: boolean) {
       windowId: t.windowId,
       url: t.url!,
       startedAt: now,
+      active: t.activeUse,
     })),
   );
 }
@@ -826,6 +837,7 @@ async function sendToApp(
       type: "screenfry-sync",
       browser,
       version: chrome.runtime.getManifest().version,
+      extensionId: chrome.runtime.id,
       passwordProtected: Boolean(state.settingsPassword),
       ...outcome,
     }),

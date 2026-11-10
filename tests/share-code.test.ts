@@ -90,8 +90,8 @@ describe("share codes", () => {
       lockedDomains: ["youtube.com", "instagram.com"],
       reward: "fry",
       repeats: 3,
-      fryMinutesBySite: { youtube: 10, instagram: 5 },
-    });
+      fryMinutesSchedule: [5, 10, 15],
+    } as never);
     const before = actions.exportSettings(await mine.store.get(), NOW);
     const after = (await decodeShareCode(await encodeShareCode(before))) as typeof before;
     const strip = (goals: typeof before.earnGoals) => goals!.map(({ id: _i, ...g }) => g);
