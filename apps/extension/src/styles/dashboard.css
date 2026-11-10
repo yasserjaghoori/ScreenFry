@@ -303,6 +303,31 @@
 .control-row + .control-row {
   border-top: 1px solid var(--line);
 }
+/* A switch that only applies under the one above it, such as research mode. */
+.control-row.sub {
+  padding-left: 42px;
+  position: relative;
+}
+.control-row.sub::before {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: 0;
+  bottom: 50%;
+  width: 12px;
+  border-left: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
+  border-bottom-left-radius: 8px;
+}
+.control-row.noted > span {
+  display: grid;
+  gap: 3px;
+}
+.control-row-note {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
 .control-row select {
   flex-shrink: 0;
   max-width: 185px;

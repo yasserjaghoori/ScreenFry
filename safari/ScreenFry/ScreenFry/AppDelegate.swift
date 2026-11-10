@@ -672,7 +672,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = "Uninstall ScreenFry?"
         alert.informativeText = """
         Keep Settings removes the app and its extensions’ files. Safari and Chrome keep \
-        ScreenFry’s settings, so reinstalling picks them up again.
+        ScreenFry’s settings (and Safari keeps it switched on), so reinstalling picks them \
+        up again.
 
         Erase Everything removes every trace: ScreenFry in Safari and Chrome first wipes \
         its settings, windows, usage and password (each browser is opened in the background \
@@ -768,12 +769,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Erase Everything's last step before deleting files. Safari remembers which extensions
     /// were switched on, even after their app is deleted, in a folder no app may change, so
     /// a reinstall would start switched on. Only the user can switch it off: open Safari's
-    /// Extensions settings and carry on by itself the moment ScreenFry is off (or on Skip).
+    /// Extensions settings and carry on by itself the moment ScreenFry is off. When Safari
+    /// can't say (it sometimes doesn't answer), the step is shown anyway, and finishing while
+    /// ScreenFry is still on asks first instead of passing silently.
     private func finishErase(erased: Set<SettingsBrowser>) {
         SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: extensionIdentifier) { [weak self] state, _ in
             DispatchQueue.main.async {
                 guard let self else { return }
-                guard state?.isEnabled == true else { return self.performUninstall(erase: true, erased: erased) }
+                if state?.isEnabled == false { return self.performUninstall(erase: true, erased: erased) }
                 self.openSafariSettings(nil)
                 let progress = NSAlert()
                 progress.messageText = "Last step: turn ScreenFry off in Safari"
@@ -783,13 +786,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 spinner.startAnimation(nil)
                 progress.accessoryView = spinner
                 progress.addButton(withTitle: "Open Safari Settings")
-                progress.addButton(withTitle: "Skip")
+                progress.addButton(withTitle: "Done")
                 var finished = false
                 let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
                     guard let self else { return timer.invalidate() }
                     SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: self.extensionIdentifier) { state, _ in
                         DispatchQueue.main.async {
                             guard state?.isEnabled == false, !finished else { return }
+                            finished = true
                             timer.invalidate()
                             self.window.endSheet(progress.window, returnCode: .alertSecondButtonReturn)
                         }
@@ -804,9 +808,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                             DispatchQueue.main.async { show() }
                             return
                         }
-                        finished = true
-                        timer.invalidate()
-                        self.performUninstall(erase: true, erased: erased)
+                        if finished { return self.performUninstall(erase: true, erased: erased) }
+                        // "Done" while Safari still has ScreenFry on (or won't say): check first.
+                        SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: self.extensionIdentifier) { state, _ in
+                            DispatchQueue.main.async {
+                                if state?.isEnabled == false {
+                                    finished = true
+                                    timer.invalidate()
+                                    return self.performUninstall(erase: true, erased: erased)
+                                }
+                                let warn = NSAlert()
+                                warn.messageText = state == nil
+                                    ? "Is ScreenFry unchecked in Safari?"
+                                    : "ScreenFry is still on in Safari"
+                                warn.informativeText = "If it stays checked, Safari remembers it, and installing ScreenFry again starts with it already switched on."
+                                warn.addButton(withTitle: "Go Back")
+                                warn.addButton(withTitle: "Uninstall Anyway")
+                                if warn.runModal() == .alertSecondButtonReturn {
+                                    finished = true
+                                    timer.invalidate()
+                                    self.performUninstall(erase: true, erased: erased)
+                                } else {
+                                    show()
+                                }
+                            }
+                        }
                     }
                 }
                 show()

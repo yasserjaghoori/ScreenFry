@@ -24,14 +24,16 @@
 
 | Website | Controls |
 | --- | --- |
-| **YouTube** | Home and subscriptions feeds · recommended videos beside the player, comments and end screens · **block Shorts entirely** · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
-| **Instagram** | Home feed and Stories · Explore feed · **block Reels entirely** · Home, Search, Explore, Reels, Messages, Notifications and Create buttons · suggested accounts |
-| **X** | For You and Following feeds (separately) · Create Post box · trends, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback · **block the video feed entirely** (the full-screen viewer you can scroll through endlessly) |
-| **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
-| **Substack** | Home and Notes feeds · Home, Notes, Explore, Notifications and Chat buttons · video playback |
-| **TikTok** | For You, Following and Explore feeds · **only play the linked video** · comments · “You may like” recommendations and suggested accounts · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons |
-| **Facebook** | News Feed and Stories · sponsored and contacts sidebar · Video feed · **block Reels entirely** · Video, Marketplace, Gaming and Notifications buttons. Messenger stays separate. |
+| **YouTube** | Home and subscriptions feeds · recommended videos beside the player, comments and end screens · **block Shorts entirely**, optionally with **research mode** (a Short opened from a link still plays, nothing past it) · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
+| **Instagram** | Home feed and Stories · Explore feed · **block Reels entirely**, optionally with research mode · Home, Search, Explore, Reels, Messages, Notifications and Create buttons · suggested accounts |
+| **X** | For You and Following feeds (separately) · Create Post box · trends and news, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback · **block the video feed entirely** (the full-screen viewer you can scroll through endlessly), optionally with research mode |
+| **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts and Recent Posts · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
+| **Substack** | Home and Notes feeds · Home, Subscriptions, Explore, Activity and Chat buttons · video playback |
+| **TikTok** | For You, Following and Explore feeds · **research mode** (only the linked video: no scrolling on, no creator profiles) · comments · “You may like” recommendations and suggested accounts · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons |
+| **Facebook** | Home feed and Stories · sponsored and contacts sidebar · Video feed · **block Reels entirely**, optionally with research mode · Reels, Groups, Marketplace, Gaming and Notifications buttons. Messenger stays separate. |
 | **LinkedIn** | Home feed · LinkedIn News and Add to your feed · Notifications and Messaging buttons · video playback |
+
+**Block entirely vs. research mode:** blocking Shorts, Reels or a video feed entirely means none play, even from a link. Research mode, under that switch, lets one opened from a link play; you can't scroll on to the next or open its creator's page until the page is loaded again.
 
 Every control starts **off**: a fresh install changes nothing until you choose. More websites can be added with one entry each; see [Adding a website](docs/ADDING_A_SITE.md).
 

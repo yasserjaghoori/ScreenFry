@@ -16,6 +16,13 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Research mode, live selector check and Explore freeze — November 9, 2026
+
+- Selectors were checked against the live, signed-in sites in Chrome. Facebook's feed has no `role="feed"` any more (now found by its "Feed posts" heading), its top bar has Reels and Groups rather than Video, and Notifications sits in a wrapper with its unread badge. TikTok video pages moved "You may like" into a tab beside Comments, and suggested accounts are on profile pages. Substack's menu items are labelled links, mostly without addresses, and there is no Notes button. X's "Today’s News" and scores sit outside the trends section. Reddit's Recent Posts (`recent-posts`) is from published filters, as Reddit can't be opened from the test browser. LinkedIn needs a signed-in check.
+- Explore freeze: a page that restarts a paused video (Explore grids do) and ScreenFry answered each other without end. A video that keeps restarting is now muted and paused at most once a second, media checks are batched, background tabs apply new state when shown, playback changes are settled for a second before usage is saved, and Safari tabs are told about a block once per address. A new integration check fails without the fix.
+- Research mode (Shorts, Reels, X video feed, TikTok) and the safer Safari off-switch step (shown even when Safari won't report; finishing while still on asks first).
+- `npm run check` passed **156 unit tests**; `npm run test:e2e` passed **68 checks**. The Mac app compiles.
+
 ## Loadouts, Fry Time goals, Facebook and LinkedIn — November 9, 2026
 
 - `npm run check` passed **145 unit tests** (new: loadouts switch/fill/copy/empty/reset and password, Fry Time goals with repeats and per-website minutes, the old feed master switch migrating to every control off) and `npm run test:e2e` passed **63 checks** (site counts updated to eight).
