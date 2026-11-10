@@ -33,7 +33,7 @@
 | **Facebook** | Home feed and Stories · sponsored and contacts sidebar · Video feed · **block Reels entirely**, optionally with research mode · Reels, Groups, Marketplace, Gaming and Notifications buttons. Messenger stays separate. |
 | **LinkedIn** | Home feed · LinkedIn News and Today’s puzzles · Notifications and Messaging buttons · video playback |
 
-**Block entirely vs. research mode:** blocking Shorts, Reels or a video feed entirely means none play, even from a link. Research mode, under that switch, lets one opened from a link play; you can't scroll on to the next or open its creator's page until the page is loaded again.
+**Shorts, Reels and video feeds** are one choice per website: **Allowed**, **From links only** (research mode: one opened from a link plays, but you can't scroll on to the next or open its creator's page until the page is loaded again, and shelves and buttons stay hidden) or **Blocked** (none play, even from a link).
 
 Every control starts **off**: a fresh install changes nothing until you choose. More websites can be added with one entry each; see [Adding a website](docs/ADDING_A_SITE.md).
 

@@ -16,6 +16,14 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Shorts choice, Open ScreenFry Settings and Accept all — November 10, 2026
+
+- Shorts, Reels and X's video feed are now one three-way choice (Allowed, From links only, Blocked) instead of a switch plus an indented research switch, which drew its connector line through the text in the popup and let research mode be switched on while it did nothing.
+- Research mode checked on live YouTube in a throwaway Chrome profile with this build: the linked Short plays, the down arrow is stopped, and forcing the next Short shows the blocked screen. Live TikTok wouldn't load in a headless browser.
+- The Mac app's Open ScreenFry Settings (per browser, once ScreenFry runs there) opens `https://open.screenfry.invalid/settings`, which never loads; ScreenFry swaps the tab for its settings page. Covered by a new integration check; Safari's side needs the release build.
+- Share code previews have Accept all. The blocked page lost its Open ScreenFry button and the "No extra-time bypass" line.
+- `npm run check` passed **157 unit tests**; `npm run test:e2e` passed **69 checks**. The Mac app compiles.
+
 ## Research mode, live selector check and Explore freeze — November 9, 2026
 
 - Selectors were checked against the live, signed-in sites in Chrome. Facebook's feed has no `role="feed"` any more (now found by its "Feed posts" heading), its top bar has Reels and Groups rather than Video, and Notifications sits in a wrapper with its unread badge. TikTok video pages moved "You may like" into a tab beside Comments, and suggested accounts are on profile pages. Substack's menu items are labelled links, mostly without addresses, and there is no Notes button. X's "Today’s News" and scores sit outside the trends section. Reddit's Recent Posts (`recent-posts`) is from published filters, as Reddit can't be opened from the test browser. LinkedIn's redesign dropped every old hook; the feed (`mainFeed`), News, Today’s puzzles and top-bar buttons now use test ids and link addresses, checked signed in. Its floating Messaging bar is in a closed-off part of the page and can't be hidden with styles.

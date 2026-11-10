@@ -34,6 +34,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let safariStatus = NSTextField(labelWithString: "Checking Safari…")
     private let chromeDot = NSView()
     private let chromeStatus = NSTextField(labelWithString: "")
+    /// Open ScreenFry's settings page in each browser, shown once ScreenFry runs there.
+    private lazy var safariOpenButton = openSettingsButton(tag: 0)
+    private lazy var chromeOpenButton = openSettingsButton(tag: 1)
     private var chromeDropAccepted = false
     private var chromePreparationError: String?
     private lazy var chromeConfirmation = NSButton(checkboxWithTitle: "ScreenFry appears in Chrome’s Extensions page", target: self, action: #selector(confirmChromeSetup(_:)))
@@ -239,7 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             helperLabel("Already enabled? In Edit Websites, set Other Websites to Allow. Optional: turn on Allow in Private Browsing."),
         ]
         safariRows += transferRows(.safari)
-        let safari = card(title: "Safari", dot: safariDot, status: safariStatus, rows: safariRows)
+        let safari = card(title: "Safari", dot: safariDot, status: safariStatus, rows: safariRows, accessory: safariOpenButton)
 
         let chromeInstalled = chromeIsInstalled
         var chromeRows: [NSView] = []
@@ -272,7 +275,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             chromeRows = [helperLabel("Google Chrome isn’t installed. Install it, then reopen ScreenFry to set it up.")]
         }
-        let chrome = card(title: "Chrome", dot: chromeDot, status: chromeStatus, rows: chromeRows)
+        let chrome = card(title: "Chrome", dot: chromeDot, status: chromeStatus, rows: chromeRows, accessory: chromeInstalled ? chromeOpenButton : nil)
 
         let request = NSButton(title: "Browser not listed here? Press here to request a new one.", target: self, action: #selector(requestBrowser(_:)))
         request.isBordered = false
@@ -341,7 +344,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// A rounded section with a title, status dot, numbered steps and buttons.
-    private func card(title: String, dot: NSView, status: NSTextField, rows: [NSView]) -> NSView {
+    private func card(title: String, dot: NSView, status: NSTextField, rows: [NSView], accessory: NSView? = nil) -> NSView {
         let box = NSView()
         box.wantsLayer = true
         box.layer?.cornerRadius = 14
@@ -360,9 +363,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let statusRow = NSStackView(views: [dot, status])
         statusRow.spacing = 6
         statusRow.alignment = .centerY
-        let top = NSStackView(views: [heading, statusRow])
+        // The spacer takes the slack so the accessory button sits at the right edge.
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+        spacer.setContentCompressionResistancePriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+        let top = NSStackView(views: [heading, statusRow, spacer] + (accessory.map { [$0] } ?? []))
         top.orientation = .horizontal
-        top.alignment = .firstBaseline
+        top.distribution = .fill
+        top.alignment = .centerY
         top.spacing = 12
 
         let stack = NSStackView(views: [top] + rows)
@@ -374,6 +382,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 row.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
             }
         }
+        top.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         stack.translatesAutoresizingMaskIntoConstraints = false
         box.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -494,6 +503,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let chromeCheckIn = SettingsTransfer.checkIn(.chrome)
         chromeSteps.isHidden = chromeCheckIn != nil && !chromeStepsShownByUser
         chromeStepsToggle.isHidden = chromeCheckIn == nil
+        chromeOpenButton.isHidden = chromeCheckIn == nil
         chromeStepsToggle.title = chromeSteps.isHidden ? "Show setup steps" : "Hide setup steps"
         if let error = chromePreparationError {
             chromeStatus.stringValue = "Couldn’t prepare Chrome: \(error)"
@@ -522,6 +532,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: extensionIdentifier) { [weak self] state, error in
             DispatchQueue.main.async {
                 guard let self else { return }
+                self.safariOpenButton.isHidden = state?.isEnabled != true
                 if let state {
                     self.safariStatus.stringValue = state.isEnabled
                         ? "On in Safari"
@@ -537,6 +548,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: Actions
+
+    private func openSettingsButton(tag: Int) -> NSButton {
+        let b = button("Open ScreenFry Settings", #selector(openScreenFrySettings(_:)), primary: true)
+        b.controlSize = .regular
+        b.tag = tag
+        b.isHidden = true
+        b.toolTip = "Opens ScreenFry’s settings page in this browser."
+        return b
+    }
+
+    /// The extension can't be opened by its address from outside the browser, so the app opens
+    /// an address that never loads (`.invalid` is reserved) and ScreenFry in that browser
+    /// swaps the tab for its settings page.
+    @objc private func openScreenFrySettings(_ sender: NSButton) {
+        let bundleID = sender.tag == 0 ? "com.apple.Safari" : Self.chromeBundleID
+        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
+              let page = URL(string: "https://open.screenfry.invalid/settings") else { return }
+        NSWorkspace.shared.open([page], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+            if let error { NSLog("ScreenFry: unable to open settings: \(error.localizedDescription)") }
+        }
+    }
 
     @objc private func openSafariSettings(_ sender: Any?) {
         SFSafariApplication.showPreferencesForExtension(withIdentifier: extensionIdentifier) { error in

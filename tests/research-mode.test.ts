@@ -87,3 +87,13 @@ describe("renamed and removed controls", () => {
     expect(buildBlockingCss(feedSettings, "https://www.facebook.com/")).toContain('a[href^="/groups/"]');
   });
 });
+
+describe("opening ScreenFry from the Mac app", () => {
+  it("reads the section from the placeholder address", async () => {
+    const { openScreenFryPage } = await import("@browser/urls");
+    expect(openScreenFryPage("https://open.screenfry.invalid/settings")).toBe("settings");
+    expect(openScreenFryPage("https://open.screenfry.invalid/nonsense")).toBe("websites");
+    expect(openScreenFryPage("https://example.com/settings")).toBeUndefined();
+    expect(openScreenFryPage(undefined)).toBeUndefined();
+  });
+});

@@ -303,21 +303,16 @@
 .control-row + .control-row {
   border-top: 1px solid var(--line);
 }
-/* A switch that only applies under the one above it, such as research mode. */
-.control-row.sub {
-  padding-left: 42px;
-  position: relative;
+.control-row.shorts-choice {
+  display: grid;
+  gap: 10px;
+  justify-content: stretch;
 }
-.control-row.sub::before {
-  content: "";
-  position: absolute;
-  left: 22px;
-  top: 0;
-  bottom: 50%;
-  width: 12px;
-  border-left: 2px solid var(--line);
-  border-bottom: 2px solid var(--line);
-  border-bottom-left-radius: 8px;
+.control-row.shorts-choice .segmented {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.control-row.shorts-choice .segmented button {
+  min-width: 0;
 }
 .control-row.noted > span {
   display: grid;
@@ -1005,7 +1000,8 @@
   overflow: hidden;
 }
 .share-slides:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.share-slides-head { margin: 0; font-size: 14px; color: var(--muted); }
+.share-slides-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+.share-slides-head p { margin: 0; }
 .share-slides-head strong { color: var(--ink); }
 .share-slide {
   background: var(--paper);
