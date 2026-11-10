@@ -169,11 +169,22 @@ function goalSiteKey(goal: EarnGoal, url: string): string {
 }
 /** Where earned Fry Time used on a website is counted. */
 export const earnedFryKey = (goal: EarnGoal, url: string) => `earn:${goal.id}:${goalSiteKey(goal, url)}`;
+/** Fry Time a goal pays on one website for its nth completion of the day (1 = first). */
+export function fryMinutesForCompletion(goal: EarnGoal, key: string, n: number): number {
+  const schedule = goal.fryMinutesBySite ? undefined : goal.fryMinutesSchedule;
+  if (schedule?.length) return schedule[Math.min(n, schedule.length) - 1];
+  return goal.fryMinutesBySite?.[key] ?? goal.fryMinutes ?? 0;
+}
+/** Fry Time earned on one website after this many completions. */
+export function fryEarnedMinutes(goal: EarnGoal, key: string, completions: number): number {
+  let total = 0;
+  for (let n = 1; n <= completions; n++) total += fryMinutesForCompletion(goal, key, n);
+  return total;
+}
 /** Earned Fry Time left today on this website from one goal. */
 export function earnedFryRemaining(state: AppState, goal: EarnGoal, url: string, now: number): number {
   const key = goalSiteKey(goal, url);
-  const perCompletion = goal.fryMinutesBySite?.[key] ?? goal.fryMinutes ?? 0;
-  const earned = earnCompletions(state, goal, now) * perCompletion * MINUTE;
+  const earned = fryEarnedMinutes(goal, key, earnCompletions(state, goal, now)) * MINUTE;
   const used =
     state.usage[localDateKey(new Date(now))]?.millisecondsByWindow?.[earnedFryKey(goal, url)] ?? 0;
   return Math.max(0, earned - used);

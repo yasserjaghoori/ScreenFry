@@ -38,14 +38,15 @@ const DAMAGED = "This share code is incomplete or damaged. Ask for it again.";
  * - w: windows: [label, mode 0 allow / 1 block / 2 Fry Time, day bits, start, end, websites,
  *   Fry minutes (number, per-website object or 0 for the whole window), 1 if switched off]
  * - e: earn goals: [label, minutes, goal website, websites, 1 if switched off else 0, and
- *   for a Fry Time reward: times a day (0 = no limit), Fry minutes (number or per website)]
+ *   for a Fry Time reward: times a day (0 = no limit), Fry minutes (number, per website, or a
+ *   list for the 1st, 2nd… time)]
  * - f: feed blockers that are on, by site id: "home shorts"
  * - g: 0 when feed blocking is off everywhere; n: 0 when time-limit warnings are off
  */
 interface Payload {
   r?: Record<string, [number, number?, Record<string, number>?]>;
   w?: [string, number, number, number, number, string, (number | Record<string, number>)?, 1?][];
-  e?: [string, number, string, string, (0 | 1)?, number?, (number | Record<string, number>)?][];
+  e?: [string, number, string, string, (0 | 1)?, number?, (number | number[] | Record<string, number>)?][];
   f?: Record<string, string>;
   g?: 0;
   n?: 0;
@@ -110,7 +111,11 @@ function pack(settings: Shareable): Payload {
       packSites(g.lockedDomains),
     ];
     if (g.reward === "fry")
-      entry.push(g.enabled ? 0 : 1, g.repeats ?? 1, g.fryMinutesBySite ?? g.fryMinutes ?? 0);
+      entry.push(
+        g.enabled ? 0 : 1,
+        g.repeats ?? 1,
+        g.fryMinutesBySite ?? g.fryMinutesSchedule ?? g.fryMinutes ?? 0,
+      );
     else if (!g.enabled) entry.push(1);
     (p.e ??= []).push(entry);
   }
@@ -176,7 +181,10 @@ function unpack(p: Payload): SettingsExport {
       g.reward = "fry";
       g.repeats = repeats;
       if (typeof fry === "number") g.fryMinutes = fry;
-      else if (fry && typeof fry === "object") g.fryMinutesBySite = fry;
+      else if (Array.isArray(fry)) {
+        g.fryMinutesSchedule = fry;
+        g.fryMinutes = fry[0];
+      } else if (fry && typeof fry === "object") g.fryMinutesBySite = fry;
     }
     return g;
   });

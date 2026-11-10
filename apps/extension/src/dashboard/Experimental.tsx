@@ -61,8 +61,15 @@ const blankGoal = (): EarnGoal => ({
   minutes: 30,
   lockedDomains: expandDomainAliases(["youtube.com", "instagram.com", "tiktok.com"]),
 });
-/** "10 min", or each website's own minutes. */
+const ordinal = (n: number) =>
+  `${n}${n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th"}`;
+/** How many amounts a "different each time" reward lists: one per payout, 3 with no limit. */
+const scheduleLength = (repeats: number | undefined) => (repeats === 0 ? 3 : Math.max(2, repeats ?? 1));
+/** "10 min", "1, 5 then 10 min", or each website's own minutes. */
 function describeFryReward(goal: EarnGoal): string {
+  const schedule = goal.fryMinutesBySite ? undefined : goal.fryMinutesSchedule;
+  if (schedule?.length)
+    return `${schedule.slice(0, -1).join(", ")} then ${schedule[schedule.length - 1]} min`;
   if (!goal.fryMinutesBySite) return `${goal.fryMinutes ?? 0} min`;
   const parts = [...new Set(goal.lockedDomains.map(fryKeyForDomain))].map(
     (key) => `${goal.fryMinutesBySite![key] ?? goal.fryMinutes ?? 0} min`,
@@ -124,7 +131,7 @@ function EarnTime({
     // A Fry Time goal loosens when it pays out more: more often or more minutes.
     const times = (g: EarnGoal) => (g.repeats === 0 ? Infinity : (g.repeats ?? 1));
     const most = (g: EarnGoal) =>
-      Math.max(g.fryMinutes ?? 0, ...Object.values(g.fryMinutesBySite ?? {}));
+      Math.max(g.fryMinutes ?? 0, ...Object.values(g.fryMinutesBySite ?? {}), ...(g.fryMinutesSchedule ?? []));
     if (!isFryGoal(after)) return false; // back to unlocking: stricter
     const added = after.lockedDomains.some((d) => !before.lockedDomains.includes(d));
     return times(after) > times(before) || most(after) > most(before) || added;
@@ -399,7 +406,22 @@ function EarnTime({
                       Times a day it can be earned
                       <select
                         value={editing.repeats ?? 1}
-                        onChange={(e) => setEditing({ ...editing, repeats: Number(e.target.value) })}
+                        onChange={(e) => {
+                          const repeats = Number(e.target.value);
+                          const schedule = editing.fryMinutesSchedule;
+                          setEditing({
+                            ...editing,
+                            repeats,
+                            // Once a day leaves nothing to vary; otherwise one amount per time.
+                            fryMinutesSchedule:
+                              !schedule || repeats === 1
+                                ? undefined
+                                : Array.from(
+                                    { length: scheduleLength(repeats) },
+                                    (_, i) => schedule[Math.min(i, schedule.length - 1)],
+                                  ),
+                          });
+                        }}
                       >
                         {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
                           <option key={n} value={n}>
@@ -412,29 +434,60 @@ function EarnTime({
                     <div className="segmented" role="radiogroup">
                       {(
                         [
-                          [false, "Same for every website"],
-                          [true, "Custom per website"],
+                          ["same", "Same every time", "On every website"],
+                          ...(editing.repeats === 1
+                            ? []
+                            : ([["schedule", "Different each time", "e.g. 1, then 5, then 10 min"]] as const)),
+                          ["site", "Custom per website", "Same every time"],
                         ] as const
-                      ).map(([custom, title]) => (
-                        <button
-                          type="button"
-                          key={title}
-                          role="radio"
-                          aria-checked={Boolean(editing.fryMinutesBySite) === custom}
-                          className={Boolean(editing.fryMinutesBySite) === custom ? "selected" : ""}
-                          onClick={() =>
-                            setEditing(
-                              custom
-                                ? { ...editing, fryMinutes: undefined, fryMinutesBySite: editing.fryMinutesBySite ?? {} }
-                                : { ...editing, fryMinutes: editing.fryMinutes ?? 10, fryMinutesBySite: undefined },
-                            )
-                          }
-                        >
-                          <strong>{title}</strong>
-                        </button>
-                      ))}
+                      ).map(([kind, title, hint]) => {
+                        const current = editing.fryMinutesBySite
+                          ? "site"
+                          : editing.fryMinutesSchedule
+                            ? "schedule"
+                            : "same";
+                        const first = editing.fryMinutesSchedule?.[0] ?? editing.fryMinutes ?? 10;
+                        return (
+                          <button
+                            type="button"
+                            key={kind}
+                            role="radio"
+                            aria-checked={current === kind}
+                            className={current === kind ? "selected" : ""}
+                            onClick={() =>
+                              setEditing(
+                                kind === "site"
+                                  ? {
+                                      ...editing,
+                                      fryMinutes: undefined,
+                                      fryMinutesSchedule: undefined,
+                                      fryMinutesBySite: editing.fryMinutesBySite ?? {},
+                                    }
+                                  : kind === "schedule"
+                                    ? {
+                                        ...editing,
+                                        fryMinutes: first,
+                                        fryMinutesBySite: undefined,
+                                        fryMinutesSchedule:
+                                          editing.fryMinutesSchedule ??
+                                          Array.from({ length: scheduleLength(editing.repeats) }, () => first),
+                                      }
+                                    : {
+                                        ...editing,
+                                        fryMinutes: first,
+                                        fryMinutesBySite: undefined,
+                                        fryMinutesSchedule: undefined,
+                                      },
+                              )
+                            }
+                          >
+                            <strong>{title}</strong>
+                            <span>{hint}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                    {!editing.fryMinutesBySite && (
+                    {!editing.fryMinutesBySite && !editing.fryMinutesSchedule && (
                       <label className="field">
                         Fry Time earned on each website (minutes)
                         <input
@@ -452,8 +505,33 @@ function EarnTime({
                         />
                       </label>
                     )}
+                    {editing.fryMinutesSchedule && (
+                      <div className="fry-schedule">
+                        {editing.fryMinutesSchedule.map((m, i) => (
+                          <label className="field" key={i}>
+                            {ordinal(i + 1)} time
+                            {editing.repeats === 0 && i === editing.fryMinutesSchedule!.length - 1 ? " and after" : ""}{" "}
+                            (min)
+                            <input
+                              type="number"
+                              min={1}
+                              max={1440}
+                              required
+                              value={Number.isNaN(m) ? "" : m}
+                              onChange={(e) => {
+                                const next = [...editing.fryMinutesSchedule!];
+                                next[i] = e.target.value === "" ? NaN : Number(e.target.value);
+                                setEditing({ ...editing, fryMinutes: next[0], fryMinutesSchedule: next });
+                              }}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    )}
                     <p className="muted small">
-                      Each time you meet the goal, feed blocking pauses on these websites for
+                      Earned Fry Time is your own: it works outside Fry Time windows too, and
+                      it never uses up a window’s minutes (during a window, the window’s
+                      minutes go first). Each time you meet the goal, feed blocking pauses on these websites for
                       the minutes you choose, whenever you use them that day.
                     </p>
                   </div>

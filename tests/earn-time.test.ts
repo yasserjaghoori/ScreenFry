@@ -162,11 +162,56 @@ describe("earning Fry Time", () => {
     expect(evaluatePolicy(s, YT, NOW + 60 * MIN).freeTime?.remainingMilliseconds).toBe(9 * MIN);
     expect(evaluatePolicy(s, "https://news.example.org/", NOW + 60 * MIN).freeTime?.remainingMilliseconds).toBe(21 * MIN);
   });
+  it("can pay a different amount each time it's earned", () => {
+    const s = feedsHidden({ repeats: 3, fryMinutes: 1, fryMinutesSchedule: [1, 5, 10] });
+    spend(s, DUO, NOW, NOW + 20 * MIN);
+    expect(evaluatePolicy(s, YT, NOW + 20 * MIN).freeTime?.remainingMilliseconds).toBe(1 * MIN);
+    spend(s, DUO, NOW + 20 * MIN, NOW + 40 * MIN);
+    expect(evaluatePolicy(s, YT, NOW + 40 * MIN).freeTime?.remainingMilliseconds).toBe(6 * MIN);
+    spend(s, DUO, NOW + 40 * MIN, NOW + 80 * MIN); // only one more payout: 10
+    expect(evaluatePolicy(s, YT, NOW + 80 * MIN).freeTime?.remainingMilliseconds).toBe(16 * MIN);
+    // With no limit, the last amount repeats.
+    const open = feedsHidden({ repeats: 0, fryMinutes: 1, fryMinutesSchedule: [1, 5] });
+    spend(open, DUO, NOW, NOW + 60 * MIN);
+    expect(evaluatePolicy(open, YT, NOW + 60 * MIN).freeTime?.remainingMilliseconds).toBe(11 * MIN);
+  });
+  it("keeps earned Fry Time and a Fry Time window's minutes apart", () => {
+    // A 6–8 pm window with 5 minutes, and 10 minutes earned in the morning.
+    const s = feedsHidden({ repeats: 1 });
+    const evening = at(2026, 10, 9, 18);
+    s.windows = [
+      {
+        id: "eve",
+        label: "Evening",
+        enabled: true,
+        mode: "free",
+        days: [0, 1, 2, 3, 4, 5, 6],
+        startMinute: 18 * 60,
+        endMinute: 20 * 60,
+        domains: ["youtube.com", "youtu.be", "youtube-nocookie.com"],
+        freeMinutes: 5,
+      },
+    ];
+    spend(s, DUO, NOW, NOW + 20 * MIN);
+    // Earned outside the window: usable right away.
+    expect(evaluatePolicy(s, YT, NOW + 20 * MIN).freeTime).toMatchObject({ earned: true, remainingMilliseconds: 10 * MIN });
+    spend(s, YT, NOW + 20 * MIN, NOW + 24 * MIN);
+    // The window still has all 5 of its minutes; they go first during it.
+    expect(evaluatePolicy(s, YT, evening).freeTime).toMatchObject({ windowId: "eve", remainingMilliseconds: 5 * MIN });
+    spend(s, YT, evening, evening + 5 * MIN);
+    // Then the 6 earned minutes left are still there, untouched by the window.
+    expect(evaluatePolicy(s, YT, evening + 5 * MIN).freeTime).toMatchObject({ earned: true, remainingMilliseconds: 6 * MIN });
+  });
   it("is validated: minutes for every website, sensible repeats, and it locks nothing", async () => {
     const store = new MemoryStateStore();
     const ctx = { store, now: () => NOW };
     expect((await actions.saveEarnGoal(ctx, fryGoal({ fryMinutes: undefined }))).ok).toBe(false);
     expect((await actions.saveEarnGoal(ctx, fryGoal({ repeats: 99 }))).ok).toBe(false);
+    expect((await actions.saveEarnGoal(ctx, fryGoal({ fryMinutesSchedule: [1, 0] }))).ok).toBe(false);
+    const varied = await actions.saveEarnGoal(ctx, fryGoal({ id: "v", label: "Varied", fryMinutes: undefined, fryMinutesSchedule: [1, 5, 10] }));
+    // Trimmed to the two times a day it can be earned.
+    expect(varied.ok && varied.data.earnGoals?.find((g) => g.id === "v")).toMatchObject({ fryMinutes: 1, fryMinutesSchedule: [1, 5] });
+    await actions.deleteEarnGoal(ctx, "v");
     const saved = await actions.saveEarnGoal(ctx, fryGoal());
     expect(saved.ok && saved.data.earnGoals?.[0]).toMatchObject({ reward: "fry", repeats: 2, fryMinutes: 10 });
     // A Fry Time goal's websites can be another goal's goal website: nothing is locked.

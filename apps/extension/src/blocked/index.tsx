@@ -7,6 +7,7 @@ import { parseWebUrl } from "@core/domains";
 import { shortFormLabels } from "@feeds/index";
 import type { PolicyDecision } from "@shared/index";
 import { blockedCopy, formatCountdown } from "../ui/blocked-copy";
+import { extensionPageUrl, OPEN_SCREENFRY_ADDRESS, openScreenFryPage } from "@browser/urls";
 import "../styles/global.css";
 import "../styles/focus.css";
 import "../styles/fry-animation.css";
@@ -128,4 +129,11 @@ function Blocked() {
     </main>
   );
 }
-createRoot(document.getElementById("root")!).render(<Blocked />);
+// Chrome's network rule sends the Mac app's "Open ScreenFry Settings" here; carry on to the
+// settings page (only as a whole tab, never inside another website's frame).
+const opening = params.get("open");
+if (opening !== null && window.top === window)
+  location.replace(
+    extensionPageUrl("dashboard.html", {}, openScreenFryPage(OPEN_SCREENFRY_ADDRESS + opening) ?? "websites"),
+  );
+else createRoot(document.getElementById("root")!).render(<Blocked />);
