@@ -8,6 +8,7 @@ import { launchSites } from "@core/sites";
 import type { AppState, FeedSite } from "@shared/index";
 import { Icon } from "../ui/Icon";
 import { SiteControls } from "../ui/SiteControls";
+import { AppSetupOffer } from "../ui/AppSetupOffer";
 import { SettingsGate } from "../ui/SettingsGate";
 import { siteStatus } from "../ui/siteStatus";
 import { FryTimeBar, fryTimeSummary } from "../ui/FryTime";
@@ -186,6 +187,11 @@ function Dashboard() {
             </button>
           )}
         </header>
+        <AppSetupOffer
+          state={state}
+          onState={setState}
+          onDone={(text, error) => setNotice({ kind: error ? "error" : "success", text })}
+        />
         {notice && (
           <div className={`banner ${notice.kind}`} role="status">
             {notice.text}

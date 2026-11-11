@@ -1099,3 +1099,12 @@
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: 8px;
 }
+/* An earn goal's live clock: bar, then "12:34 of 30:00 · Counting". */
+.earn-clock { display: grid; gap: 6px; }
+.earn-clock-time { font-variant-numeric: tabular-nums; }
+.earn-strict {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  margin: 4px 0;
+}
+.banner.app-setup { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }

@@ -153,6 +153,7 @@ export function migrateState(
                 goalDomains: g.goalDomains,
                 minutes: g.minutes,
                 lockedDomains: g.lockedDomains,
+                ...(g.strict === true ? { strict: true } : {}),
                 ...(g.reward === "fry"
                   ? {
                       reward: "fry" as const,
@@ -170,7 +171,8 @@ export function migrateState(
                               ),
                             }
                           : {}),
-                      ...(Array.isArray(g.fryMinutesSchedule) &&
+                      ...(g.repeats !== 0 &&
+                      Array.isArray(g.fryMinutesSchedule) &&
                       g.fryMinutesSchedule.every((m: unknown) => typeof m === "number")
                         ? { fryMinutesSchedule: g.fryMinutesSchedule as number[] }
                         : {}),

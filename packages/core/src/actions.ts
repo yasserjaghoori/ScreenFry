@@ -273,6 +273,7 @@ export function sanitizeEarnGoal(input: EarnGoal): { goal?: EarnGoal; error?: st
     goalDomains,
     minutes: input.minutes,
     lockedDomains,
+    ...(input.strict === true ? { strict: true } : {}),
   };
   if (input.reward !== "fry") return { goal: base };
   // Fry Time reward: one shared amount each time, or a different amount each time.
@@ -289,7 +290,8 @@ export function sanitizeEarnGoal(input: EarnGoal): { goal?: EarnGoal; error?: st
   if (fryMinutes !== undefined && (!minutes(fryMinutes) || fryMinutes === 0))
     return { error: "Fry Time earned must be between 1 and 1440 minutes." };
   let schedule: number[] | undefined;
-  if (Array.isArray(input.fryMinutesSchedule) && input.fryMinutesSchedule.length) {
+  // "Different each time" needs a last time: with no limit it's the same every time.
+  if (repeats !== 0 && Array.isArray(input.fryMinutesSchedule) && input.fryMinutesSchedule.length) {
     schedule = input.fryMinutesSchedule.slice(0, repeats || 48);
     if (schedule.some((m) => !minutes(m) || m === 0))
       return { error: "Fry Time earned each time must be between 1 and 1440 minutes." };

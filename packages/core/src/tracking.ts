@@ -3,6 +3,7 @@ import { emptyUsageDay, USAGE_RETENTION_DAYS } from "./defaults";
 import { displayHost } from "./domains";
 import {
   activeFreeTime,
+  fryTimeHasEffect,
   earnCapRemaining,
   earnGoalsFor,
   earnRemaining,
@@ -103,8 +104,10 @@ function creditSlice(
       const goal = state.earnGoals!.find((g) => `earn:${g.id}` === fry.windowId)!;
       earnedFry.set(earnedFryKey(goal), { goal, url });
     }
-    for (const w of freeWindowsFor(state, url))
-      if (isScheduleActive(w, new Date(at)))
+    // Fry Time with nothing to lift (no filters on) uses none of its minutes.
+    if (fryTimeHasEffect(state, url, at))
+      for (const w of freeWindowsFor(state, url))
+        if (isScheduleActive(w, new Date(at)))
         freeWindows.set(fryUsageKey(w, fryKeyFor(w, url)), { window: w, url });
   }
   if (!rules.size && !freeWindows.size && !goals.size && !earnedFry.size) return;
@@ -209,6 +212,27 @@ export const creditUsage = (
   to: number,
 ) =>
   creditSessions(state, [{ tabId: 0, windowId: 0, url, startedAt: from }], to);
+/**
+ * Strict earn goals count only unbroken time: when none of a strict goal's websites is in
+ * active use any more, its time toward the next completion goes back to zero (completions
+ * already made are kept). Returns the goals that were reset.
+ */
+export function resetBrokenStrictGoals(state: AppState, activeUrls: string[], now: number): string[] {
+  const day = state.usage[localDateKey(new Date(now))];
+  const reset: string[] = [];
+  for (const goal of state.earnGoals ?? []) {
+    if (!goal.enabled || !goal.strict) continue;
+    if (activeUrls.some((url) => earnGoalsFor(state, url).some((g) => g.id === goal.id))) continue;
+    const used = day?.millisecondsByGoal?.[goal.id] ?? 0;
+    const step = goal.minutes * 60_000;
+    const kept = Math.floor(used / step) * step;
+    if (used > kept) {
+      day!.millisecondsByGoal![goal.id] = kept;
+      reset.push(goal.id);
+    }
+  }
+  return reset;
+}
 export function pruneUsage(state: AppState, now: number): AppState {
   const cutoff = localDateKey(
     new Date(now - USAGE_RETENTION_DAYS * 86_400_000),

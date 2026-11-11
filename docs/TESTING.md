@@ -16,6 +16,13 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Mac app loadouts, strict earning, live clocks and research redirect — November 10, 2026
+
+- Mac app: five loadouts for every browser (saved from a browser's check-in, pasted, copied, sent with Use in All Browsers through `pending-setup.json`/`setup-result.json`; a password-protected browser offers it in its dashboard instead). Safari's setup steps fold away once it's on; Eject Installer is a rounded square and Open ScreenFry Settings a pill (macOS 26+). The app compiles; the new card wasn't seen running (the installed app shares its bundle id).
+- Research mode: going past the linked video shows a "taking you to the home page" screen that moves on after 3 seconds (integration check reaches the fixture's home page).
+- Fry Time does nothing (and uses no minutes) on a website with no filters or a blocked one. Earn: strict mode, a live clock (goal website pill, popup, Earn page), earn notices, the popup pausing goals, no "different each time" with no limit, and the loosen confirmation asked once per open page.
+- YouTube: Hide Shorts button. `npm run check`: 167 unit tests; `npm run test:e2e`: 69 checks.
+
 ## Earn page, shared Fry Time and Chrome's Open Settings — November 10, 2026
 
 - Open ScreenFry Settings still didn't open in Sam's Chrome: neither the placeholder-address network rule nor the tab listener fired there (both work in throwaway profiles; his older network rules work, so the new one was likely never installed). Opening ScreenFry's own `chrome-extension://<id>/dashboard.html#settings` address from outside Chrome does work there, so the app now does that. Chrome reports its id at check-in, and the app can also work it out from the folder Chrome loads ScreenFry from (checked against Sam's install).

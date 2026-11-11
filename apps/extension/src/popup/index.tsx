@@ -8,6 +8,8 @@ import { migrateState } from "@core/defaults";
 import { launchSites } from "@core/sites";
 import { siteFor } from "@feeds/index";
 import type { AppState, FeedSite } from "@shared/index";
+import { EarnClock, useEarnLive } from "../ui/EarnClock";
+import { earnRemaining } from "@policy/index";
 import { SiteControls } from "../ui/SiteControls";
 import { SettingsGate } from "../ui/SettingsGate";
 import { SitePicker } from "../ui/SitePicker";
@@ -16,6 +18,32 @@ import "../styles/global.css";
 import "../styles/dashboard.css";
 import "../styles/popup.css";
 const SAFARI_ACCESS_NOTICE_DISMISSED = "safariSiteAccessNoticeDismissed";
+// While this popup is open, earn goals pause (and strict ones start over), as with any
+// other app in front: the background watches this connection.
+try {
+  chrome.runtime.connect({ name: "popup" });
+} catch {
+  /* extension reloading */
+}
+/** Earn goals still counting today, with their clocks (paused while the popup is open). */
+function PopupEarn({ state }: { state: AppState }) {
+  const now = Date.now();
+  const goals = (state.earnGoals ?? []).filter((g) => g.enabled && earnRemaining(state, g, now) > 0);
+  return goals.length ? <PopupEarnGoals state={state} goals={goals} /> : null;
+}
+function PopupEarnGoals({ state, goals }: { state: AppState; goals: NonNullable<AppState["earnGoals"]> }) {
+  const live = useEarnLive();
+  return (
+    <section className="popup-earn" aria-label="Earn goals">
+      {goals.map((g) => (
+        <div key={g.id} className="popup-earn-goal">
+          <span className="popup-earn-label">{g.label}</span>
+          <EarnClock state={state} goal={g} live={live} pausedNote="Paused while ScreenFry is open" />
+        </div>
+      ))}
+    </section>
+  );
+}
 function Popup() {
   const [state, setState] = useState<AppState>(),
     [site, setSite] = useState<FeedSite>(launchSites[0].id),
@@ -221,6 +249,7 @@ function Popup() {
         <button onClick={() => void open("windows")}>Windows ↗</button>
         <button onClick={() => void open("earn")}>Earn ↗</button>
       </nav>
+      {state && <PopupEarn state={state} />}
       <SitePicker
         value={site}
         onChange={(next) => {

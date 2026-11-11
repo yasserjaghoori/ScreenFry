@@ -194,6 +194,13 @@ export const siteDefinitions: SiteDefinition[] = [
         ["#navigation-button-up", "#navigation-button-down", "ytd-shorts .navigation-container"],
         (url) => url.pathname.startsWith("/shorts/"),
       ),
+      // Just the Shorts entries in the menus, for people who keep Shorts but not the button.
+      shortsButton: element("Hide Shorts button", "Navigation", [
+        'ytd-guide-entry-renderer:has(a[href^="/shorts"])',
+        'ytd-guide-entry-renderer:has(a#endpoint[title="Shorts"])',
+        'ytd-mini-guide-entry-renderer[aria-label="Shorts"]',
+        'ytd-pivot-bar-item-renderer:has([title="Shorts"])',
+      ]),
       exploreButton: element("Hide Explore button", "Navigation", [
         'ytd-guide-entry-renderer:has(a[href="/feed/explore"])',
         'a[href="/feed/explore"]',

@@ -46,9 +46,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Bundle.main.object(forInfoDictionaryKey: "ScreenFryShowSafariDeveloperSetup") as? Bool ?? true
     }
     private let notice = NSTextField(wrappingLabelWithString: "")
-    private lazy var ejectButton = button("Eject Installer", #selector(ejectInstaller(_:)), primary: false)
+    private lazy var ejectButton: NSButton = {
+        let b = button("Eject Installer", #selector(ejectInstaller(_:)), primary: false)
+        // A rounded square, not a pill (Sam's request).
+        if #available(macOS 26.0, *) { b.borderShape = .roundedRectangle }
+        return b
+    }()
     private var installerVolume: URL?
     private var transferStatus: [SettingsBrowser: NSTextField] = [:]
+    /// This Mac's loadouts, sent to every browser.
+    private lazy var loadoutsPanel = AppLoadoutsPanel(browsers: transferBrowsers, window: window)
+    /// Safari's setup steps, folded away once ScreenFry is on in Safari.
+    private let safariSteps = NSStackView()
+    private lazy var safariStepsToggle: NSButton = {
+        let b = NSButton(title: "Show setup steps", target: self, action: #selector(toggleSafariSteps(_:)))
+        b.bezelStyle = .inline
+        b.isHidden = true
+        return b
+    }()
+    private var safariStepsShownByUser = false
     /// Chrome's setup steps, folded away once ScreenFry in Chrome has checked in.
     private let chromeSteps = NSStackView()
     private lazy var chromeStepsToggle: NSButton = {
@@ -228,20 +244,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notice.isHidden = true
         notice.preferredMaxLayoutWidth = 360
 
-        var safariRows: [NSView] = [
+        var safariStepRows: [NSView] = [
             stepRow(1, "Open Safari’s settings."),
             button("Open Safari Settings", #selector(openSafariSettings(_:)), primary: true),
         ]
         if Self.showsSafariDeveloperSetup {
-            safariRows.append(stepRow(2, "In Advanced, turn on “Show features for web developers”. Open the Developer tab, then turn on “Allow unsigned extensions”. Repeat after restarting Safari.", bold: "Show features for web developers"))
+            safariStepRows.append(stepRow(2, "In Advanced, turn on “Show features for web developers”. Open the Developer tab, then turn on “Allow unsigned extensions”. Repeat after restarting Safari.", bold: "Show features for web developers"))
         }
         let enableStep = Self.showsSafariDeveloperSetup ? 3 : 2
-        safariRows += [
+        safariStepRows += [
             stepRow(enableStep, "Go to Extensions and check the box beside ScreenFry."),
             stepRow(enableStep + 1, "When the website-access popup appears, check “Remember for other websites”, then press “Always Allow”.", bold: "Remember for other websites"),
             helperLabel("Already enabled? In Edit Websites, set Other Websites to Allow. Optional: turn on Allow in Private Browsing."),
         ]
-        safariRows += transferRows(.safari)
+        safariSteps.orientation = .vertical
+        safariSteps.alignment = .leading
+        safariSteps.spacing = 10
+        safariStepRows.forEach { safariSteps.addArrangedSubview($0) }
+        safariStepRows.forEach { row in
+            if row is NSStackView || row is NSTextField {
+                row.widthAnchor.constraint(equalTo: safariSteps.widthAnchor).isActive = true
+            }
+        }
+        let safariRows: [NSView] = [safariStepsToggle, safariSteps] + transferRows(.safari)
         let safari = card(title: "Safari", dot: safariDot, status: safariStatus, rows: safariRows, accessory: safariOpenButton)
 
         let chromeInstalled = chromeIsInstalled
@@ -284,7 +309,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         requestText.addAttributes([.underlineStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: NSColor.linkColor], range: (request.title as NSString).range(of: "Press here"))
         request.attributedTitle = requestText
         request.toolTip = "Open a browser request on GitHub (you review and submit it)."
-        let browsers = NSStackView(views: [safari, chrome, request])
+        let loadouts = card(
+            title: "Loadouts",
+            dot: NSView(),
+            status: NSTextField(labelWithString: "For every browser"),
+            rows: loadoutsPanel.makeRows(button: { self.button($0, $1, primary: $2) }, helper: { self.helperLabel($0) }))
+        let browsers = NSStackView(views: [safari, chrome, loadouts, request])
         browsers.orientation = .vertical
         browsers.alignment = .leading
         browsers.spacing = 14
@@ -294,6 +324,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         browsers.layer?.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.08).cgColor
         safari.widthAnchor.constraint(equalTo: browsers.widthAnchor, constant: -28).isActive = true
         chrome.widthAnchor.constraint(equalTo: safari.widthAnchor).isActive = true
+        loadouts.widthAnchor.constraint(equalTo: safari.widthAnchor).isActive = true
 
         ejectButton.isHidden = true
         let noticeRow = NSStackView(views: [notice, ejectButton])
@@ -533,6 +564,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.safariOpenButton.isHidden = state?.isEnabled != true
+                // Once ScreenFry is on, its setup steps fold away behind "Show setup steps".
+                let on = state?.isEnabled == true
+                self.safariSteps.isHidden = on && !self.safariStepsShownByUser
+                self.safariStepsToggle.isHidden = !on
+                self.safariStepsToggle.title = self.safariSteps.isHidden ? "Show setup steps" : "Hide setup steps"
                 if let state {
                     self.safariStatus.stringValue = state.isEnabled
                         ? "On in Safari"
@@ -552,6 +588,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openSettingsButton(tag: Int) -> NSButton {
         let b = button("Open ScreenFry Settings", #selector(openScreenFrySettings(_:)), primary: true)
         b.controlSize = .regular
+        // A pill, not a square (Sam's request).
+        if #available(macOS 26.0, *) { b.borderShape = .capsule }
         b.tag = tag
         b.isHidden = true
         b.toolTip = "Opens ScreenFry’s settings page in this browser."
@@ -597,6 +635,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AboutWindow.show(on: window, version: version, ember: Self.ember)
     }
 
+    @objc private func toggleSafariSteps(_ sender: Any?) {
+        safariStepsShownByUser = safariSteps.isHidden
+        safariSteps.isHidden.toggle()
+        safariStepsToggle.title = safariSteps.isHidden ? "Show setup steps" : "Hide setup steps"
+    }
+
     @objc private func toggleChromeSteps(_ sender: Any?) {
         chromeStepsShownByUser = chromeSteps.isHidden
         refreshState()
@@ -635,6 +679,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshTransferStatus() {
+        loadoutsPanel.refresh()
         let relative = RelativeDateTimeFormatter()
         relative.unitsStyle = .full
         func ago(_ date: Date) -> String {
@@ -674,7 +719,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let names = connected.map(\.name).joined(separator: " and ")
         let confirm = NSAlert()
         confirm.messageText = "Reset ScreenFry in \(names)?"
-        var detail = "Every website setting, window, limit, feed switch, goal and loadout, all usage and any settings password are erased, as if ScreenFry were just installed. This can’t be undone. Copy a share code first if you want to keep a setup."
+        var detail = "Every website setting, window, limit, feed switch, goal and loadout (in the browsers and on this Mac), all usage and any settings password are erased, as if ScreenFry were just installed. This can’t be undone. Copy a share code first if you want to keep a setup."
         if !protected.isEmpty {
             detail += "\n\n\(protected.map(\.name).joined(separator: " and ")) has a settings password, so it won’t reset from here. Use Restore defaults in ScreenFry’s Settings there; it asks for the password."
         }
@@ -683,6 +728,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         confirm.addButton(withTitle: "Cancel")
         confirm.buttons[0].hasDestructiveAction = true
         guard confirm.runModal() == .alertFirstButtonReturn else { return }
+        // This Mac's own loadouts go too.
+        AppLoadouts.clear()
+        loadoutsPanel.refresh()
         var failures: [String] = []
         for browser in connected {
             do {

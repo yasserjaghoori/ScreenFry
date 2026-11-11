@@ -456,23 +456,31 @@ try {
     !(await urlOf(linkedShort.id)).includes("blocked.html") &&
       !(await blockedHere(linkedShort)),
   );
-  for (const [name, path] of [
-    ["the next Short", "/shorts/next"],
-    ["the creator's channel", "/@creator"],
-  ]) {
-    await evaluate(
+  const go = (path) =>
+    evaluate(
       linkedShort.session,
       `history.pushState({},'', '${path}');document.dispatchEvent(new Event('yt-navigate-finish'))`,
     );
-    await waitFor(() => blockedHere(linkedShort), `research mode: ${name}`);
-    check(`research mode blocks moving on to ${name}`, true);
-  }
-  await evaluate(
-    linkedShort.session,
-    `history.pushState({},'', '/shorts/linked');document.dispatchEvent(new Event('yt-navigate-finish'))`,
+  await go("/shorts/next");
+  await waitFor(() => blockedHere(linkedShort), "research mode: the next Short");
+  check(
+    "research mode stops the next Short and says it's going home",
+    true,
   );
+  await go("/shorts/linked");
   await waitFor(async () => !(await blockedHere(linkedShort)), "back to the linked Short");
   check("research mode lets you back to the linked Short", true);
+  await go("/@creator");
+  await waitFor(
+    async () => (await urlOf(linkedShort.id)) === "https://youtube.com/",
+    "research mode: home after the creator's page",
+    8000,
+  );
+  await sleep(700);
+  check(
+    "research mode moves on to the website's home page, which opens normally",
+    !(await blockedHere(linkedShort)),
+  );
   await cdp("Target.closeTarget", { targetId: linkedShort.id });
   feeds.sites.youtube.shortsFromLinks = false;
   await send({ type: "SET_FEEDS", feedSettings: feeds });

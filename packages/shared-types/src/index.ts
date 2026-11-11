@@ -76,6 +76,11 @@ export interface EarnGoal {
    * versions.
    */
   fryMinutesSchedule?: number[];
+  /**
+   * Strict mode: only unbroken time counts. Leaving the goal website (another tab or app,
+   * going idle, opening ScreenFry) resets the time toward the next completion.
+   */
+  strict?: boolean;
 }
 /** One loadout: the same website settings a share code holds. */
 export interface LoadoutSettings {

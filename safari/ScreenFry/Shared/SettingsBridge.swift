@@ -6,6 +6,10 @@ import Foundation
 /// is on (`check-in.json`), never its settings or usage. Requests chosen in the app wait in
 /// files until the next check-in:
 ///   - `pending-reset.json`   → the extension restores its defaults, answers in `reset-result.json`
+///   - `pending-setup.json`  → a loadout from the app's own loadouts, as a share code: the
+///     extension applies it as its live setup (or, with a password on, asks for it there),
+///     and answers in `setup-result.json`. Each check-in also carries the browser's current
+///     setup as a share code (`setupCode`), so the app can save it as one of its loadouts.
 ///   - `pending-erase.json` → Erase Everything: the extension wipes its storage (Safari keeps an
 ///     extension's storage after the app is deleted) and Chrome's also removes itself;
 ///     `erase-sent.json` records that the request was handed over.
@@ -18,6 +22,8 @@ struct SettingsBridge {
     static let retiredNames = ["settings.json", "pending-import.json", "import-result.json"]
     static let resetName = "pending-reset.json"
     static let resetResultName = "reset-result.json"
+    static let setupName = "pending-setup.json"
+    static let setupResultName = "setup-result.json"
     static let eraseName = "pending-erase.json"
     static let eraseSentName = "erase-sent.json"
 
@@ -25,6 +31,8 @@ struct SettingsBridge {
     var checkInURL: URL { directory.appendingPathComponent(Self.checkInName) }
     var resetURL: URL { directory.appendingPathComponent(Self.resetName) }
     var resetResultURL: URL { directory.appendingPathComponent(Self.resetResultName) }
+    var setupURL: URL { directory.appendingPathComponent(Self.setupName) }
+    var setupResultURL: URL { directory.appendingPathComponent(Self.setupResultName) }
     var eraseURL: URL { directory.appendingPathComponent(Self.eraseName) }
     var eraseSentURL: URL { directory.appendingPathComponent(Self.eraseSentName) }
 
@@ -52,6 +60,8 @@ struct SettingsBridge {
             "passwordProtected": message["passwordProtected"] as? Bool ?? false,
             // Lets the app open ScreenFry's own pages in that browser.
             "extensionId": message["extensionId"] as? String ?? "",
+            // The browser's live setup as a share code (no usage, history or password).
+            "setupCode": message["setupCode"] as? String ?? "",
         ], to: checkInURL)
         for name in Self.retiredNames {
             try? fm.removeItem(at: directory.appendingPathComponent(name))
@@ -64,6 +74,14 @@ struct SettingsBridge {
                 try? fm.removeItem(at: resetURL)
             }
         }
+        if let outcome = message["setupResult"] as? [String: Any], let id = outcome["id"] as? String {
+            var record = outcome
+            record["at"] = now
+            Self.write(record, to: setupResultURL)
+            if Self.read(setupURL)?["id"] as? String == id {
+                try? fm.removeItem(at: setupURL)
+            }
+        }
         var reply: [String: Any] = ["ok": true]
         if fm.fileExists(atPath: eraseURL.path) {
             reply["erase"] = true
@@ -72,6 +90,8 @@ struct SettingsBridge {
             try? fm.removeItem(at: eraseURL)
         } else if let reset = Self.read(resetURL), reset["id"] is String {
             reply["reset"] = reset
+        } else if let setup = Self.read(setupURL), setup["id"] is String, setup["code"] is String {
+            reply["setup"] = setup
         }
         return reply
     }
