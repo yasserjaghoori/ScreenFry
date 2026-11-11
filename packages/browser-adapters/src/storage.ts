@@ -3,6 +3,17 @@ import type { StateStore } from "@core/store";
 import type { AppState } from "@shared/index";
 import { detectBrowser } from "./platform";
 
+/**
+ * A setup sent from the Mac app's loadouts, waiting for this browser's settings password:
+ * the dashboard offers it until it's applied or dismissed.
+ */
+export const APP_SETUP_KEY = "screenfry.appSetup";
+export interface AppSetupOffer {
+  id: string;
+  code: string;
+  name: string;
+  at: number;
+}
 export const STATE_KEY = "screenfryState";
 
 let updateQueue: Promise<unknown> = Promise.resolve();

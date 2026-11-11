@@ -37,7 +37,7 @@ const DAMAGED = "This share code is incomplete or damaged. Ask for it again.";
  *   (flags: 1 blocked, 2 on-page timer, 4 switched off)
  * - w: windows: [label, mode 0 allow / 1 block / 2 Fry Time, day bits, start, end, websites,
  *   Fry minutes (number, per-website object or 0 for the whole window), 1 if switched off]
- * - e: earn goals: [label, minutes, goal website, websites, 1 if switched off else 0, and
+ * - e: earn goals: [label, minutes, goal website, websites, flags (1 switched off, 2 strict), and
  *   for a Fry Time reward: times a day (0 = no limit), Fry minutes (number, per website, or a
  *   list for the 1st, 2nd… time)]
  * - f: feed blockers that are on, by site id: "home shorts"
@@ -110,13 +110,14 @@ function pack(settings: Shareable): Payload {
       packSites(g.goalDomains),
       packSites(g.lockedDomains),
     ];
+    const flags = ((g.enabled ? 0 : 1) | (g.strict ? 2 : 0)) as 0 | 1;
     if (g.reward === "fry")
       entry.push(
-        g.enabled ? 0 : 1,
+        flags,
         g.repeats ?? 1,
         g.fryMinutesSchedule ?? g.fryMinutes ?? 0,
       );
-    else if (!g.enabled) entry.push(1);
+    else if (flags) entry.push(flags);
     (p.e ??= []).push(entry);
   }
   for (const [site, elements] of Object.entries(settings.feedSettings.sites)) {
@@ -175,7 +176,8 @@ function unpack(p: Payload): SettingsExport {
       minutes,
       goalDomains: unpackSites(goal),
       lockedDomains: unpackSites(locked),
-      enabled: off !== 1,
+      enabled: ((off ?? 0) & 1) === 0,
+      ...(((off ?? 0) & 2) === 2 ? { strict: true } : {}),
     };
     if (repeats !== undefined) {
       g.reward = "fry";

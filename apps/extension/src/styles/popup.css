@@ -192,3 +192,20 @@
 .popup .shorts-choice .segmented button span {
   font-size: 10.5px;
 }
+.popup-earn {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--paper);
+}
+.popup-earn-goal {
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.popup-earn-label {
+  font-weight: 600;
+}

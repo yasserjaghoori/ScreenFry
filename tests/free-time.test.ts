@@ -31,6 +31,7 @@ function feedBlocked(windows: AccessWindow[] = [evening()]): AppState {
   const s = stateWith([rule({ dailyAllowance: undefined })], { windows });
   s.feedSettings.sites.youtube.home = true;
   s.feedSettings.sites.youtube.shorts = true;
+  s.feedSettings.sites.x.forYou = true;
   return s;
 }
 /** Sessions are credited at most 90 seconds at a time, so step through longer spans. */
@@ -73,6 +74,24 @@ describe("Fry Time for each website", () => {
     expect(saved.ok && saved.data.windows[0].freeMinutes).toBeUndefined();
     expect((await actions.saveWindow(ctx, { ...custom, freeMinutesBySite: { youtube: 0 } })).ok).toBe(false);
     expect(migrateState(JSON.parse(JSON.stringify(await store.get()))).windows[0].freeMinutesBySite).toEqual({ youtube: 10, x: 2 });
+  });
+});
+
+describe("when Fry Time does nothing", () => {
+  it("doesn't run, or use minutes, on a website with no filters on", () => {
+    const s = feedBlocked();
+    s.feedSettings.sites.youtube.home = false;
+    s.feedSettings.sites.youtube.shorts = false;
+    expect(activeFreeTime(s, home, during)).toBeUndefined();
+    use(s, home, during, during + 3 * MIN);
+    expect(s.usage[localDateKey(new Date(during))]?.millisecondsByWindow ?? {}).toEqual({});
+  });
+  it("doesn't run on a blocked website: a block outranks a filter", () => {
+    const s = feedBlocked();
+    s.rules[0].blocked = true;
+    expect(activeFreeTime(s, home, during)).toBeUndefined();
+    expect(evaluatePolicy(s, home, during)).toMatchObject({ status: "blocked" });
+    expect(evaluatePolicy(s, home, during).freeTime).toBeUndefined();
   });
 });
 

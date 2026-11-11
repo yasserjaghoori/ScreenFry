@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as actions from "@core/actions";
 import { MemoryStateStore } from "@core/store";
-import { creditSessions, creditUsage, nextTrackingBoundary } from "@core/tracking";
+import { creditSessions, creditUsage, nextTrackingBoundary, resetBrokenStrictGoals } from "@core/tracking";
 import { evaluatePolicy } from "@policy/index";
 import { migrateState } from "@core/defaults";
 import { blockedCopy } from "../apps/extension/src/ui/blocked-copy";
@@ -158,8 +158,9 @@ describe("earning Fry Time", () => {
     expect(s.usage[Object.keys(s.usage)[0]].millisecondsByGoal?.duo).toBe(40 * MIN);
   });
   it("shares one pool across its websites and adds each payout to what's left", () => {
-    const s = feedsHidden({ repeats: 0, fryMinutes: 5 });
-    const NEWS = "https://news.example.org/";
+    const s = feedsHidden({ repeats: 0, fryMinutes: 5, lockedDomains: ["youtube.com", "youtu.be", "youtube-nocookie.com", "x.com", "twitter.com"] });
+    s.feedSettings.sites.x.forYou = true;
+    const NEWS = "https://x.com/home";
     spend(s, DUO, NOW, NOW + 20 * MIN); // 5 minutes earned
     spend(s, YT, NOW + 20 * MIN, NOW + 22 * MIN); // 2 on YouTube
     expect(evaluatePolicy(s, NEWS, NOW + 22 * MIN).freeTime?.remainingMilliseconds).toBe(3 * MIN);
@@ -179,6 +180,32 @@ describe("earning Fry Time", () => {
     // …twenty minutes in front and in use earn it.
     for (let t = NOW + 20 * MIN; t < NOW + 40 * MIN; t += MIN) session(t, true);
     expect(evaluatePolicy(s, YT, NOW + 40 * MIN).freeTime?.remainingMilliseconds).toBe(5 * MIN);
+  });
+  it("in strict mode, leaving the goal website starts the time toward it over", () => {
+    const s = feedsHidden({ repeats: 0, fryMinutes: 5, strict: true });
+    spend(s, DUO, NOW, NOW + 25 * MIN); // one completion and 5 minutes toward the next
+    resetBrokenStrictGoals(s, [DUO], NOW + 25 * MIN); // still on it: kept
+    expect(s.usage[Object.keys(s.usage)[0]].millisecondsByGoal?.duo).toBe(25 * MIN);
+    resetBrokenStrictGoals(s, [YT], NOW + 25 * MIN); // clicked off: back to the last completion
+    expect(s.usage[Object.keys(s.usage)[0]].millisecondsByGoal?.duo).toBe(20 * MIN);
+    expect(evaluatePolicy(s, YT, NOW + 25 * MIN).freeTime?.remainingMilliseconds).toBe(5 * MIN);
+    // Without strict mode, nothing resets.
+    const relaxed = feedsHidden({ repeats: 0, fryMinutes: 5 });
+    spend(relaxed, DUO, NOW, NOW + 25 * MIN);
+    expect(resetBrokenStrictGoals(relaxed, [], NOW + 25 * MIN)).toEqual([]);
+  });
+  it("keeps strict mode through saving and share codes; no limit can't vary each time", async () => {
+    const store = new MemoryStateStore();
+    const ctx = { store, now: () => NOW };
+    const saved = await actions.saveEarnGoal(ctx, fryGoal({ strict: true, repeats: 0, fryMinutesSchedule: [1, 5] }));
+    const g = saved.ok ? saved.data.earnGoals![0] : undefined;
+    expect(g).toMatchObject({ strict: true, repeats: 0, fryMinutes: 10 });
+    expect(g?.fryMinutesSchedule).toBeUndefined();
+    const { encodeShareCode, decodeShareCode } = await import("@core/share");
+    const back = (await decodeShareCode(await encodeShareCode({ ...(await store.get()), earnGoals: [g!] }))) as {
+      earnGoals: EarnGoal[];
+    };
+    expect(back.earnGoals[0]).toMatchObject({ strict: true, enabled: true });
   });
   it("turns old per-website minutes into one shared amount (the smallest)", () => {
     const old = withGoal({ reward: "fry", repeats: 1, ...({ fryMinutesBySite: { youtube: 3, "news.example.org": 7 } } as object) });

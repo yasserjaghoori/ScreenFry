@@ -21,6 +21,7 @@ import {
 } from "@policy/index";
 import { LOADOUT_COUNT, type AppState, type EarnGoal } from "@shared/index";
 import { Switch } from "../ui/SiteControls";
+import { EarnClock, useEarnLive } from "../ui/EarnClock";
 import { confirmLoosen } from "../ui/ConfirmLoosen";
 import { confirmDialog } from "../ui/ConfirmDialog";
 import { passwordGate } from "../ui/PasswordPrompt";
@@ -102,6 +103,7 @@ function EarnTime({
 }) {
   const goals = state.earnGoals ?? [];
   const [editing, setEditing] = useState<EarnGoal>();
+  const live = useEarnLive();
   const [goalSite, setGoalSite] = useState("");
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
@@ -137,6 +139,7 @@ function EarnTime({
   function loosens(before: EarnGoal | undefined, after: EarnGoal): boolean {
     if (!before?.enabled) return false;
     if (!after.enabled || after.minutes < before.minutes) return true;
+    if (before.strict && !after.strict) return true; // turning strict mode off
     const kept = expandDomainAliases(after.lockedDomains.map(normalizeDomain));
     if (!isFryGoal(before))
       return isFryGoal(after) || before.lockedDomains.some((d) => !kept.includes(d));
@@ -222,7 +225,6 @@ function EarnTime({
           const left = earnRemaining(state, goal, now);
           const fry = isFryGoal(goal);
           const completions = earnCompletions(state, goal, now);
-          const earned = goal.minutes - Math.ceil(left / 60_000);
           const locked = websiteNames(goal.lockedDomains);
           const done = left === 0;
           // One pool shared by all the goal's websites.
@@ -273,22 +275,13 @@ function EarnTime({
               </div>
               {goal.enabled && (
                 <>
-                  <span
-                    className="meter large"
-                    role="progressbar"
-                    aria-label={`${goal.label} progress today`}
-                    aria-valuemin={0}
-                    aria-valuemax={goal.minutes}
-                    aria-valuenow={earned}
-                  >
-                    <span style={{ width: `${(earned / goal.minutes) * 100}%` }} />
-                  </span>
+                  <EarnClock state={state} goal={goal} live={live} pausedNote="Paused: it counts while the goal website is in front" />
                   <p className="muted small earn-progress">
                     {fry
-                      ? `${completions === 0 ? "Not earned yet today" : `Earned ${completions}× today`}${fryLeft > 0 ? ` · ${Math.ceil(fryLeft / 60_000)} min of Fry Time left` : ""}${done ? " · that’s all for today" : ` · ${Math.ceil(left / 60_000)} min to the next`}`
+                      ? `${completions === 0 ? "Not earned yet today" : `Earned ${completions}× today`}${fryLeft > 0 ? ` · ${Math.ceil(fryLeft / 60_000)} min of Fry Time left` : ""}${done ? " · that’s all for today" : ""}`
                       : done
                         ? `Goal met. ${listNames(locked)} ${locked.length === 1 ? "is" : "are"} open until midnight.`
-                        : `${earned} of ${goal.minutes} min today · ${Math.ceil(left / 60_000)} min to go`}
+                        : "Locked until the goal is met"}
                   </p>
                 </>
               )}
@@ -422,7 +415,7 @@ function EarnTime({
                             repeats,
                             // Once a day leaves nothing to vary; otherwise one amount per time.
                             fryMinutesSchedule:
-                              !schedule || repeats === 1
+                              !schedule || repeats === 1 || repeats === 0
                                 ? undefined
                                 : Array.from(
                                     { length: scheduleLength(repeats) },
@@ -443,7 +436,8 @@ function EarnTime({
                       {(
                         [
                           ["same", "Same every time", "e.g. 5 min each time"],
-                          ...(editing.repeats === 1
+                          // Different each time needs a last time, so not with no limit.
+                          ...(editing.repeats === 1 || editing.repeats === 0
                             ? []
                             : ([["schedule", "Different each time", "e.g. 1, then 5, then 10 min"]] as const)),
                         ] as const
@@ -528,6 +522,20 @@ function EarnTime({
                   </div>
                 )}
               </fieldset>
+              <div className="control-row noted earn-strict">
+                <span>
+                  Strict mode
+                  <small className="control-row-note">
+                    Only unbroken time counts. Leaving the goal website (another tab or app,
+                    going idle, or opening ScreenFry) starts the time toward the goal over.
+                  </small>
+                </span>
+                <Switch
+                  label="Strict mode"
+                  checked={editing.strict === true}
+                  onChange={() => setEditing({ ...editing, strict: !editing.strict })}
+                />
+              </div>
               <fieldset className="group">
                 <legend>{isFryGoal(editing) ? "Websites that earn Fry Time" : "Until then, block"}</legend>
                 <div className="whitelist">

@@ -14,6 +14,9 @@ import { hostMatchesDomain } from "@core/domains";
 import { createBlockedScreen } from "./blocked-screen";
 import { createBatchedTask } from "@browser/scheduling";
 import {
+  earnGoalUsed,
+  earnGoalsFor,
+  earnRemaining,
   effectiveFeedSettings,
   evaluatePolicy,
   matchingRules,
@@ -245,13 +248,17 @@ function evaluate() {
     applyCss(
       "body{visibility:hidden!important}video,audio{display:none!important}",
     );
-    blockedScreen.show(
-      short
-        ? { ...decision, status: "blocked", reasons: ["short-form"] }
-        : decision,
-      label,
-      single ? linked?.url : undefined,
-    );
+    if (single && !short && decision.status !== "blocked" && linked)
+      // Research mode: past the linked video, start over at the website's home page.
+      blockedScreen.redirect(linked.url, `${location.origin}/`, siteFor(location.hostname)?.name ?? location.hostname);
+    else
+      blockedScreen.show(
+        short
+          ? { ...decision, status: "blocked", reasons: ["short-form"] }
+          : decision,
+        label,
+        single ? linked?.url : undefined,
+      );
     overlay.update({ status: "allowed", reasons: [] });
     reportMedia();
     return;
@@ -264,6 +271,7 @@ function evaluate() {
   reportMedia();
   if (isTop) {
     overlay.update(decision);
+    overlay.earning();
     if (freeTimeLabel && !decision.freeTime)
       overlay.toast(
         decision.freeTimeOff?.state === "used-up"
@@ -283,20 +291,48 @@ const queueMediaCheck = createBatchedTask(() => {
   reportMedia();
 }, 250);
 const overlay = (() => {
-  let host: HTMLElement | undefined, pill: HTMLElement, toast: HTMLElement;
+  let host: HTMLElement | undefined, pill: HTMLElement, toast: HTMLElement, earn: HTMLElement;
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
   function ensure() {
     if (!document.body) return;
     if (!host) {
       host = document.createElement("screenfry-overlay");
       const root = host.attachShadow({ mode: "closed" });
-      root.innerHTML = `<style>:host{all:initial}.wrap{position:fixed;right:18px;bottom:18px;z-index:2147483647;display:grid;gap:8px;justify-items:end;font:500 13px/1.3 system-ui}.chip{display:none;padding:10px 14px;border-radius:99px;background:#263a32;color:white;box-shadow:0 5px 20px #0003;font-variant-numeric:tabular-nums}.show{display:block}</style><div class="wrap"><div class="chip toast"></div><div class="chip pill"></div></div>`;
+      root.innerHTML = `<style>:host{all:initial}.wrap{position:fixed;right:18px;bottom:18px;z-index:2147483647;display:grid;gap:8px;justify-items:end;font:500 13px/1.3 system-ui}.chip{display:none;padding:10px 14px;border-radius:99px;background:#263a32;color:white;box-shadow:0 5px 20px #0003;font-variant-numeric:tabular-nums}.earn{background:#f4621f}.show{display:block}</style><div class="wrap"><div class="chip toast"></div><div class="chip earn"></div><div class="chip pill"></div></div>`;
       pill = root.querySelector(".pill")!;
       toast = root.querySelector(".toast")!;
+      earn = root.querySelector(".earn")!;
     }
     if (!host.isConnected) document.documentElement.append(host);
   }
   return {
+    /**
+     * On an earn goal's website: the time toward it, counting up by the second while this
+     * tab is in front (the background saves it about once a minute and when you leave).
+     */
+    earning() {
+      const goals = state ? earnGoalsFor(state, location.href) : [];
+      const now = Date.now();
+      const goal = goals.find((g) => earnRemaining(state!, g, now) > 0);
+      if (!goal) {
+        earn?.classList.remove("show");
+        return;
+      }
+      ensure();
+      if (!earn) return;
+      const inUse = document.visibilityState === "visible" && document.hasFocus();
+      const elapsed =
+        inUse && state?.usageAsOf ? Math.max(0, Math.min(90_000, now - state.usageAsOf)) : 0;
+      const step = goal.minutes * 60_000;
+      const toward = Math.min(step, (earnGoalUsed(state!, goal, now) % step) + elapsed);
+      const clock = (ms: number) => {
+        const sec = Math.floor(ms / 1000);
+        return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+      };
+      const text = `${inUse ? "Earning" : "Paused"} · ${goal.label} · ${clock(toward)} of ${clock(step)}${goal.strict ? " · strict" : ""}`;
+      if (earn.textContent !== text) earn.textContent = text;
+      earn.classList.add("show");
+    },
     update(decision: PolicyDecision) {
       // Free time with a budget always shows its countdown; daily limits only when asked.
       const free = decision.freeTime?.remainingMilliseconds;
@@ -340,7 +376,7 @@ const overlay = (() => {
     },
   };
 })();
-/** True when ScreenFry has anything to do on this page: a launch site, or a rule/window domain. */
+/** True when ScreenFry has anything to do on this page: a launch site, a rule/window domain or an earn goal website. */
 function relevantHost(s: AppState | undefined): boolean {
   const host = location.hostname;
   if (siteFor(host)) return true;
@@ -349,7 +385,9 @@ function relevantHost(s: AppState | undefined): boolean {
     domains.some((d) => hostMatchesDomain(host, d));
   return (
     s.rules.some((r) => r.enabled && covers(r.domains)) ||
-    s.windows.some((w) => w.enabled && covers(w.domains))
+    s.windows.some((w) => w.enabled && covers(w.domains)) ||
+    // Earn goal websites show their live timer.
+    (s.earnGoals ?? []).some((g) => g.enabled && covers(g.goalDomains))
   );
 }
 /**
@@ -516,6 +554,7 @@ if (isTop)
         void load().then((applied) => respond({ applied, url: location.href }));
         return true;
       }
+      if (message?.type === "SCREENFRY_TOAST") overlay.toast(message.text);
       if (message?.type === "SCREENFRY_WARNING")
         overlay.toast(
           `${message.minutesRemaining} minute${message.minutesRemaining === 1 ? "" : "s"} left on ${message.label} today`,

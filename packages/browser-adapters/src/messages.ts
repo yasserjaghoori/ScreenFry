@@ -1,6 +1,8 @@
 import type { AccessWindow, EarnGoal, FeedSettings, WebsiteRule } from "@shared/index";
 export type Request = (
   | { type: "GET_STATE" }
+  /** Earn goals counting right now: goal id → when their unsaved time started. */
+  | { type: "EARN_LIVE" }
   | { type: "GET_POLICY"; url: string }
   | { type: "MEDIA_STATE"; playing: boolean }
   | { type: "SHOW_BLOCKED_PAGE"; label: string }
@@ -62,6 +64,7 @@ export async function send<T>(request: Request): Promise<Response<T>> {
 }
 export type TabMessage =
   | { type: "SCREENFRY_APPLY_SETTINGS" }
+  | { type: "SCREENFRY_TOAST"; text: string }
   | {
       type: "SCREENFRY_WARNING";
       label: string;

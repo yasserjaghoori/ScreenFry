@@ -12,7 +12,13 @@ import { createRoot } from "react-dom/client";
  * The "nope!"/"boing!" bubble and the line explaining what happened stay up afterwards, so
  * it's always clear what to do next.
  */
+/**
+ * Once someone has said yes to loosening a setting, they aren't asked again until they close
+ * this ScreenFry page (the popup, or the settings tab): one "are you sure" per sitting.
+ */
+let confirmedThisSession = false;
 export function confirmLoosen(question: string, detail?: string): Promise<boolean> {
+  if (confirmedThisSession) return Promise.resolve(true);
   return new Promise((resolve) => {
     const host = document.createElement("div");
     document.body.append(host);
@@ -22,6 +28,7 @@ export function confirmLoosen(question: string, detail?: string): Promise<boolea
       root.unmount();
       host.remove();
       previous?.focus?.();
+      if (yes) confirmedThisSession = true;
       resolve(yes);
     };
     root.render(<LoosenDialog question={question} detail={detail} onDone={done} />);

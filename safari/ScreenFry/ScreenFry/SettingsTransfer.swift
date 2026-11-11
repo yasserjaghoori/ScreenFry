@@ -59,6 +59,34 @@ enum SettingsTransfer {
         return (result["ok"] as? Bool ?? false, result["error"] as? String, at)
     }
 
+    /// The browser's live setup as a share code, from its last check-in.
+    static func setupCode(_ browser: SettingsBrowser) -> String? {
+        let code = SettingsBridge.read(browser.bridge.checkInURL)?["setupCode"] as? String
+        return code?.isEmpty == false ? code : nil
+    }
+
+    /// Sends a loadout to the browser's copy of ScreenFry, applied at its next check-in.
+    static func queueSetup(_ browser: SettingsBrowser, code: String, name: String) throws {
+        let bridge = browser.bridge
+        try FileManager.default.createDirectory(at: bridge.directory, withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: bridge.setupResultURL)
+        let request: [String: Any] = [
+            "id": UUID().uuidString, "code": code, "name": name,
+            "requestedAt": ISO8601DateFormatter().string(from: Date()),
+        ]
+        guard SettingsBridge.write(request, to: bridge.setupURL) else { throw CocoaError(.fileWriteUnknown) }
+    }
+
+    static func pendingSetup(_ browser: SettingsBrowser) -> String? {
+        SettingsBridge.read(browser.bridge.setupURL)?["name"] as? String
+    }
+
+    static func lastSetupResult(_ browser: SettingsBrowser) -> (ok: Bool, waiting: Bool, error: String?, at: Date?)? {
+        guard let result = SettingsBridge.read(browser.bridge.setupResultURL) else { return nil }
+        let at = (result["at"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
+        return (result["ok"] as? Bool ?? false, result["waiting"] as? Bool ?? false, result["error"] as? String, at)
+    }
+
     /// Asks the browser's copy of ScreenFry to erase everything it keeps (and, in Chrome, to
     /// remove itself) at its next check-in.
     static func requestErase(_ browser: SettingsBrowser) {

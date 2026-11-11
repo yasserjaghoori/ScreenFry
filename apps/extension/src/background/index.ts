@@ -6,6 +6,7 @@ import {
   creditSessions,
   nextTrackingBoundary,
   pickTrackedTabs,
+  resetBrokenStrictGoals,
   type IdleState,
   type TrackingSession,
 } from "@core/tracking";
@@ -20,7 +21,7 @@ import {
   queryPrivateAccess,
   sessionArea,
 } from "@browser/platform";
-import { chromeStateStore } from "@browser/storage";
+import { APP_SETUP_KEY, chromeStateStore } from "@browser/storage";
 import { activeShortForm, siteDefinitions } from "@feeds/index";
 import {
   extensionPageUrl,
@@ -29,9 +30,13 @@ import {
   networkBlockAction,
   networkResourceTypes,
 } from "@browser/urls";
+import { encodeShareCode, websiteNames } from "@core/share";
 import {
+  earnCompletions,
   earnGoalsFor,
   effectiveFeedSettings,
+  fryEarnedMinutes,
+  isFryGoal,
   evaluatePolicy,
   freeWindowsFor,
   matchingRules,
@@ -270,8 +275,9 @@ async function findTrackableTabs(state: AppState) {
     idle,
   ).map((t) => ({
     ...t,
-    // In front and in use: what earn goals count.
-    activeUse: t.active && t.windowId === focusedWindow && idle === "active",
+    // In front and in use: what earn goals count. ScreenFry's own popup being open counts as
+    // using another app.
+    activeUse: t.active && t.windowId === focusedWindow && idle === "active" && openPopups === 0,
   }));
 }
 const sameTabs = (
@@ -298,10 +304,31 @@ async function checkpointTracking(force: boolean) {
       label: string;
       minutesRemaining: number;
     }[] = [];
+    let earned: string[] = [];
     await chromeStateStore.update((state) => {
       const before = JSON.stringify(state.usage);
+      const doneBefore = new Map(
+        (state.earnGoals ?? []).map((g) => [g.id, earnCompletions(state, g, now)]),
+      );
       const r = creditSessions(state, sessions, now);
       warnings = r.warnings;
+      // Strict goals: leaving the goal website resets the time toward the next completion.
+      resetBrokenStrictGoals(
+        r.state,
+        tabs.filter((t) => t.activeUse).map((t) => t.url ?? ""),
+        now,
+      );
+      earned = (r.state.earnGoals ?? []).flatMap((g) => {
+        const done = earnCompletions(r.state, g, now);
+        const was = doneBefore.get(g.id) ?? 0;
+        if (!g.enabled || done <= was) return [];
+        const names = websiteNames(g.lockedDomains).join(", ");
+        return [
+          isFryGoal(g)
+            ? `You earned ${fryEarnedMinutes(g, done) - fryEarnedMinutes(g, was)} min of Fry Time on ${names}.`
+            : `Goal met: ${names} ${g.lockedDomains.length > 1 && names.includes(",") ? "are" : "is"} unlocked for today.`,
+        ];
+      });
       // Time on untracked websites credits nothing; leaving usageAsOf alone then lets the
       // store skip the write instead of broadcasting a change to every open tab.
       // A newly tracked rule site also needs a fresh start for its on-page timer.
@@ -312,6 +339,16 @@ async function checkpointTracking(force: boolean) {
         r.state.usageAsOf = now;
       return r.state;
     });
+    // Tell whoever just earned it, on the page they're using.
+    for (const text of earned)
+      for (const id of new Set([...sessions.map((s) => s.tabId), ...tabs.map((t) => t.id!)]))
+        try {
+          await withTimeout(
+            chrome.tabs.sendMessage(id, { type: "SCREENFRY_TOAST", text } satisfies TabMessage),
+          );
+        } catch {
+          /* no content script */
+        }
     for (const warning of warnings) {
       const ids = new Set(sessions.map((s) => s.tabId));
       for (const id of ids)
@@ -493,6 +530,15 @@ async function handle(
   switch (request.type) {
     case "GET_STATE":
       return { ok: true, data: await chromeStateStore.get() };
+    case "EARN_LIVE": {
+      // Goal websites in active use since the last save: their clocks can tick live.
+      const state = await chromeStateStore.get();
+      const live: Record<string, number> = {};
+      for (const s of await loadSessions())
+        if (s.active !== false)
+          for (const g of earnGoalsFor(state, s.url)) live[g.id] = Math.min(live[g.id] ?? s.startedAt, s.startedAt);
+      return { ok: true, data: live };
+    }
     case "GET_POLICY":
       return {
         ok: true,
@@ -675,6 +721,17 @@ chrome.runtime.onMessage.addListener((request: Request, sender, respond) => {
 chrome.tabs.onActivated.addListener(() => {
   void reevaluate();
 });
+/** ScreenFry popups open now: while one is, earn goals pause (and strict ones reset). */
+let openPopups = 0;
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "popup") return;
+  openPopups++;
+  void reevaluate();
+  port.onDisconnect.addListener(() => {
+    openPopups = Math.max(0, openPopups - 1);
+    void reevaluate();
+  });
+});
 /** The Mac app's "Open ScreenFry Settings": swap its placeholder tab for the dashboard. */
 async function openFromApp(id: number, tab: chrome.tabs.Tab, page: string) {
   const url = extensionPageUrl("dashboard.html", {}, page);
@@ -800,11 +857,14 @@ interface AppReply {
    * extension. `uninstall` is the older, Chrome-only form of the same request.
    */
   erase?: boolean;
+  /** A loadout sent from the Mac app's own loadouts: apply it as this browser's setup. */
+  setup?: { id?: unknown; code?: unknown; name?: unknown };
   uninstall?: boolean;
 }
-type Outcome = { id: string; ok: boolean; error?: string };
+type Outcome = { id: string; ok: boolean; error?: string; waiting?: boolean };
+
 /** Extra keys kept beside the state; Restore defaults removes them too. */
-const EXTRA_KEYS = ["safariSiteAccessNoticeDismissed"];
+const EXTRA_KEYS = ["safariSiteAccessNoticeDismissed", APP_SETUP_KEY];
 async function resetEverything(
   auth: actions.ActionContext,
 ): Promise<actions.ActionResult<AppState>> {
@@ -829,9 +889,11 @@ function syncWithApp(): Promise<void> {
   return appSync;
 }
 async function sendToApp(
-  outcome: { resetResult?: Outcome } = {},
+  outcome: { resetResult?: Outcome; setupResult?: Outcome } = {},
 ): Promise<AppReply | undefined> {
   const state = await chromeStateStore.get();
+  // The live setup as a share code, so the app can keep it as one of its loadouts.
+  const setupCode = await encodeShareCode(actions.currentLoadout(state, Date.now())).catch(() => "");
   return (await withTimeout(
     chrome.runtime.sendNativeMessage(APP_HOST, {
       type: "screenfry-sync",
@@ -839,6 +901,7 @@ async function sendToApp(
       version: chrome.runtime.getManifest().version,
       extensionId: chrome.runtime.id,
       passwordProtected: Boolean(state.settingsPassword),
+      setupCode,
       ...outcome,
     }),
     5000,
@@ -865,6 +928,31 @@ async function exchangeWithApp() {
       // Chrome can also remove the extension itself; Safari drops it with the app.
       if (browser === "chrome")
         await chrome.management.uninstallSelf().catch(() => undefined);
+      return;
+    }
+    const setup = reply?.setup;
+    if (setup && typeof setup.id === "string" && typeof setup.code === "string") {
+      const name = typeof setup.name === "string" ? setup.name : "a loadout";
+      const state = await chromeStateStore.get();
+      const r = await actions.setLoadoutFromCode(ctx, state.activeLoadout ?? 0, setup.code);
+      if (r.ok) {
+        await settingsChanged();
+        await chrome.storage.local.remove(APP_SETUP_KEY).catch(() => undefined);
+        await sendToApp({ setupResult: { id: setup.id, ok: true } });
+      } else if (state.settingsPassword) {
+        // The app can't give the password; ScreenFry here asks for it.
+        await chrome.storage.local.set({
+          [APP_SETUP_KEY]: { id: setup.id, code: setup.code, name, at: Date.now() },
+        });
+        await sendToApp({
+          setupResult: {
+            id: setup.id,
+            ok: false,
+            waiting: true,
+            error: passwordMessage("Open ScreenFry there to apply it with the password."),
+          },
+        });
+      } else await sendToApp({ setupResult: { id: setup.id, ok: false, error: r.error } });
       return;
     }
     const reset = reply?.reset;

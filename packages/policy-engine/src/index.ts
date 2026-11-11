@@ -128,6 +128,8 @@ export const earnGoalsFor = (state: AppState, url: string) =>
 const goalUsed = (state: AppState, goal: EarnGoal, now: number) =>
   state.usage[localDateKey(new Date(now))]?.millisecondsByGoal?.[goal.id] ?? 0;
 export const isFryGoal = (goal: EarnGoal) => goal.reward === "fry";
+/** Goal time counted today, in milliseconds. */
+export const earnGoalUsed = goalUsed;
 /** Times a Fry Time goal can pay out today (Infinity for no limit). */
 const goalCap = (goal: EarnGoal) =>
   isFryGoal(goal) && goal.repeats === 0 ? Infinity : isFryGoal(goal) ? Math.max(1, goal.repeats ?? 1) : 1;
@@ -198,6 +200,23 @@ export function activeEarnedFry(state: AppState, url: string, now: number) {
   }
   return best;
 }
+/** A website Fry Time can do something on: it has a filter on, and nothing blocks it. */
+export function fryTimeHasEffect(state: AppState, url: string, now: number): boolean {
+  let host = "";
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return false;
+  }
+  const site = siteFor(host);
+  if (!site || !Object.values(state.feedSettings.sites[site.site] ?? {}).some(Boolean)) return false;
+  const blocked =
+    matchingRules(state, url).some((r) => evaluateRule(state, r, now).status === "blocked") ||
+    outsideWindow(state, url, now) ||
+    insideBlockWindow(state, url, now) ||
+    earnGoalsLocking(state, url, now).length > 0;
+  return !blocked;
+}
 export const freeWindowsFor = (state: AppState, url: string) =>
   runningWindows(state.windows).filter(
     (w) => w.mode === "free" && urlMatchesDomains(url, w.domains),
@@ -252,6 +271,10 @@ export function activeFreeTime(
   url: string,
   now: number,
 ): PolicyDecision["freeTime"] {
+  // Fry Time only lifts filters: with none on this website it has nothing to do, and a block
+  // (the site switched off, its limit, a window, an earn lock) outranks it. Either way it
+  // isn't running and none of its minutes are used.
+  if (!fryTimeHasEffect(state, url, now)) return undefined;
   let best: PolicyDecision["freeTime"];
   for (const w of freeWindowsFor(state, url)) {
     if (!isScheduleActive(w, new Date(now))) continue;
