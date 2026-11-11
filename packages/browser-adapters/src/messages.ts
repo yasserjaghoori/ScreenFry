@@ -1,6 +1,8 @@
 import type { AccessWindow, EarnGoal, FeedSettings, WebsiteRule } from "@shared/index";
 export type Request = (
   | { type: "GET_STATE" }
+  /** The version the running background was built as (0.7.7 on). */
+  | { type: "GET_BUILD" }
   /** Earn goals counting right now: goal id → when their unsaved time started. */
   | { type: "EARN_LIVE" }
   | { type: "GET_POLICY"; url: string }

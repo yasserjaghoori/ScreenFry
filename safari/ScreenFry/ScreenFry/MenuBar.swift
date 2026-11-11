@@ -55,9 +55,13 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         self.onToggleAutoUpdate = onToggleAutoUpdate
         self.onToggleLogin = onToggleLogin
         super.init()
-        let image = NSImage(systemSymbolName: "flame.fill", accessibilityDescription: "ScreenFry")
-        image?.isTemplate = true
+        // The app's own logo, at menu bar size.
+        let logo = Bundle.main.url(forResource: "BrandIcon", withExtension: "png").flatMap(NSImage.init(contentsOf:))
+            ?? NSApp.applicationIconImage
+        let image = logo?.copy() as? NSImage
+        image?.size = NSSize(width: 18, height: 18)
         item.button?.image = image
+        item.button?.imageScaling = .scaleProportionallyDown
         item.button?.toolTip = "ScreenFry"
         let menu = NSMenu()
         menu.delegate = self

@@ -9,6 +9,7 @@ import type { AppState, FeedSite } from "@shared/index";
 import { Icon } from "../ui/Icon";
 import { SiteControls } from "../ui/SiteControls";
 import { AppSetupOffer } from "../ui/AppSetupOffer";
+import { healStaleBackground } from "../ui/healBackground";
 import { SettingsGate } from "../ui/SettingsGate";
 import { siteStatus } from "../ui/siteStatus";
 import { FryTimeBar, fryTimeSummary } from "../ui/FryTime";
@@ -276,4 +277,6 @@ function Dashboard() {
     </div>
   );
 }
+// An older background still running after an update? Reload ScreenFry and come back here.
+void healStaleBackground(location.href);
 createRoot(document.getElementById("root")!).render(<Dashboard />);
