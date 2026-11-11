@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { send } from "@browser/messages";
+import { siteDefinitions } from "@feeds/index";
 import "../styles/global.css";
+
+const names = siteDefinitions.map((s) => s.name);
+const siteNames = `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 import "../styles/focus.css";
 function Onboarding() {
   const [error, setError] = useState(""),
@@ -23,8 +27,7 @@ function Onboarding() {
           <div className="choice">
             <strong>Your websites, your way</strong>
             <span className="muted">
-              Hide feeds and buttons on YouTube, Instagram, X, Reddit and
-              Substack.
+              Hide feeds and buttons on {siteNames}.
             </span>
           </div>
           <div className="choice">
@@ -62,12 +65,8 @@ function Onboarding() {
           disabled={busy}
           onClick={async () => {
             setBusy(true);
-            const r = await send({ type: "COMPLETE_ONBOARDING" });
-            if (!r.ok) {
-              setError(r.error);
-              setBusy(false);
-              return;
-            }
+            // Marking the welcome page as seen never blocks getting to the settings.
+            await send({ type: "COMPLETE_ONBOARDING" });
             location.replace(chrome.runtime.getURL("dashboard.html"));
           }}
         >

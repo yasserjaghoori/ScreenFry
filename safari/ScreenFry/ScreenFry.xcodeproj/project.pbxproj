@@ -21,12 +21,14 @@
 		52BF8BD282EE58DEA6604CC8 /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 4560C22C5C494F3794B2222A /* blocked.html */; };
 		5C021D84B4277C1736B2C841 /* SettingsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B569E73536E468E42DCD24 /* SettingsBridge.swift */; };
 		6B98191F35B7C6F95CCCAA01 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DFC9DF5528FD9C921B13900 /* AppDelegate.swift */; };
+		78E3CE4F459261646100CDFA /* MenuBarIcon@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B1A46B430766DBFBEE79CC34 /* MenuBarIcon@2x.png */; };
 		83C821571D01DDD1A3C86AAC /* onboarding.html in Resources */ = {isa = PBXBuildFile; fileRef = 6A872869A26315B6CA5A3829 /* onboarding.html */; };
 		8A11629CC6373EA687D70AF4 /* dashboard.html in Resources */ = {isa = PBXBuildFile; fileRef = 634461876F5BA4A4523DEAF4 /* dashboard.html */; };
 		981EEC9E6E12116B3B660379 /* AboutWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D121F86DED7ECFCE62F12399 /* AboutWindow.swift */; };
 		A1F212153BD6405065CD1419 /* THIRD_PARTY_NOTICES.txt in Resources */ = {isa = PBXBuildFile; fileRef = A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */; };
 		A68510093D81B64776D1E8A9 /* BrandIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = C926A87187A450660B765193 /* BrandIcon.png */; };
 		A923C6E3D8BDB5A060477D85 /* ChromeDeveloperModeOn.png in Resources */ = {isa = PBXBuildFile; fileRef = FA3593CF3775B93D03D09489 /* ChromeDeveloperModeOn.png */; };
+		BE7258AFAC618C8D1461C89A /* MenuBarIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = E82FD0E480FC6AC785318621 /* MenuBarIcon.png */; };
 		C8202B37D9A752224882ECE6 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 6D8C84935FDC19DEE7CB7022 /* icons */; };
 		CA6072E504801357FBF0A27A /* AppLoadouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5CAD16438D5FE4A5CCB3DA /* AppLoadouts.swift */; };
 		CFBD9EBF436945B78D4F1E0E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 31F6C3047F6D176D12CEFD03 /* Sparkle */; };
@@ -80,11 +82,13 @@
 		7BBAB925D3D0E711CCD25DB6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		933EF357D5DC2A800F3FCF4D /* ChromeExtension */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ChromeExtension; path = ScreenFry/ChromeExtension; sourceTree = SOURCE_ROOT; };
 		A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES.txt; sourceTree = "<group>"; };
+		B1A46B430766DBFBEE79CC34 /* MenuBarIcon@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "MenuBarIcon@2x.png"; sourceTree = "<group>"; };
 		C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeInstaller.swift; sourceTree = "<group>"; };
 		C926A87187A450660B765193 /* BrandIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = BrandIcon.png; sourceTree = "<group>"; };
 		CE2515CAFCFFC020BD630A93 /* build.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = build.json; sourceTree = "<group>"; };
 		D121F86DED7ECFCE62F12399 /* AboutWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindow.swift; sourceTree = "<group>"; };
 		E7B569E73536E468E42DCD24 /* SettingsBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBridge.swift; sourceTree = "<group>"; };
+		E82FD0E480FC6AC785318621 /* MenuBarIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = MenuBarIcon.png; sourceTree = "<group>"; };
 		EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "ScreenFry Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA3593CF3775B93D03D09489 /* ChromeDeveloperModeOn.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ChromeDeveloperModeOn.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -145,6 +149,8 @@
 				480527D94926FC7DE12C154E /* DragTile.swift */,
 				7822C9B140D38DF445003C12 /* Info.plist */,
 				164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */,
+				E82FD0E480FC6AC785318621 /* MenuBarIcon.png */,
+				B1A46B430766DBFBEE79CC34 /* MenuBarIcon@2x.png */,
 				3DB051891D91607283BE453E /* SettingsTransfer.swift */,
 				C04C43DB19F97C5AE665D076 /* SetupImages */,
 			);
@@ -270,6 +276,8 @@
 				1CCE537722AC0441C2F401CF /* ChromeDeveloperModeOff.png in Resources */,
 				A923C6E3D8BDB5A060477D85 /* ChromeDeveloperModeOn.png in Resources */,
 				0CADFFC55AFA64CB5D4A44AE /* ChromeExtension in Resources */,
+				BE7258AFAC618C8D1461C89A /* MenuBarIcon.png in Resources */,
+				78E3CE4F459261646100CDFA /* MenuBarIcon@2x.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

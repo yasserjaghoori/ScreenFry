@@ -16,6 +16,11 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Menu bar icon, update notices and the welcome page — November 11, 2026
+
+- Menu bar: ScreenFry's logo as a black silhouette (template image from `assets/menubar/menubar-icon.svg`, so macOS colors it like other menu bar icons), a greyed-out "ScreenFry v…" line at the top of its menu, and, once Sparkle finds a newer version, an orange icon with "Update to ScreenFry …". Scheduled checks only pop Sparkle's window when ScreenFry is in front (gentle reminders). The icon rendered as expected at preview size; the menu bar itself wasn't captured.
+- The welcome page reappeared after Chrome reloaded ScreenFry (reported as an install) and its button failed silently behind the settings password. It now opens only for someone who hasn't set ScreenFry up, marking it seen needs no password, and the button always opens settings. It lists every supported website.
+
 ## Chrome check-in helper crash — November 11, 2026
 
 - After the 0.7.6 → 0.7.7 in-app update (which worked), opening Chrome showed a ScreenFry crash report: Chrome's ScreenFry reloaded onto its new background mid-check-in, Chrome closed the pipe, and the helper's reply write raised an Objective-C exception (`FileHandle.write`), which aborts. The helper now ignores SIGPIPE and uses the throwing read/write calls. Reproduced by running the helper with its reply pipe already closed and SIGPIPE ignored, as Chrome launches it (throwaway home folder): the 0.7.7 binary aborts (−6), the fixed one exits 0.
