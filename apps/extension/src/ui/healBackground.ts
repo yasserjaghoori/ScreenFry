@@ -17,9 +17,12 @@ export const REOPEN_KEY = "screenfry.reopenAfterReload";
 export async function healStaleBackground(reopen?: string): Promise<void> {
   if (!PAGE_VERSION || detectBrowser() !== "chrome") return;
   const r = await send<{ codeVersion?: string }>({ type: "GET_BUILD" }).catch(() => undefined);
-  // Backgrounds from before 0.7.7 don't know GET_BUILD; theirs are older by definition.
-  if (r?.ok && r.data.codeVersion === PAGE_VERSION) return;
-  if (r?.ok && !r.data.codeVersion) return; // a development build without a stamp
+  // Only a background that answers can be judged: an older version, or one from before 0.7.7
+  // that doesn't know GET_BUILD. No answer (still starting up) is never a reason to reload.
+  const stale = r?.ok
+    ? Boolean(r.data.codeVersion) && r.data.codeVersion !== PAGE_VERSION
+    : r?.error === "Unsupported request.";
+  if (!stale) return;
   const saved = await chrome.storage.local.get(LAST_KEY).catch(() => ({}) as Record<string, unknown>);
   const last = saved[LAST_KEY] as number | undefined;
   if (last && Date.now() - last < 10 * 60_000) return;
