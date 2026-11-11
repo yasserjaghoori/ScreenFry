@@ -540,12 +540,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             chromeStatus.stringValue = "Couldn’t prepare Chrome: \(error)"
             chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
         } else if let checkIn = chromeCheckIn {
-            // Proof from Chrome itself. An app update lands in Chrome on its own: the extension
-            // reloads when it sees the new build, so there's nothing to redo here.
+            // Proof from Chrome itself. An app update lands once Chrome runs: the extension
+            // reloads when it sees the new build (Chrome must be open for that).
             let current = checkIn.version.isEmpty || checkIn.version == version
+            if current && SettingsTransfer.runsStaleCode(.chrome) {
+                // Chrome kept an older copy of ScreenFry's background running after the update.
+                chromeStatus.stringValue = "Connected · reload ScreenFry in Chrome to finish updating"
+                chromeStatus.toolTip = "In Chrome, open the Extensions page and click the reload arrow on ScreenFry, or quit and reopen Chrome."
+                chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
+                return
+            }
+            chromeStatus.toolTip = nil
             chromeStatus.stringValue = current
                 ? "Connected · ScreenFry \(checkIn.version.isEmpty ? version : checkIn.version)"
-                : "Connected · updating to \(version) (within a minute)"
+                : "Connected · updating to \(version) (open Chrome to complete)"
             chromeDot.layer?.backgroundColor = (current ? NSColor.systemGreen : NSColor.systemOrange).cgColor
         } else if UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) {
             chromeStatus.stringValue = "Setup confirmed by you"

@@ -9,7 +9,7 @@ export const OPEN_SCREENFRY_ADDRESS = "https://open.screenfry.invalid/";
 export function openScreenFryPage(url: string | undefined): string | undefined {
   if (!url?.startsWith(OPEN_SCREENFRY_ADDRESS)) return;
   const page = url.slice(OPEN_SCREENFRY_ADDRESS.length).split(/[/?#]/)[0];
-  return ["websites", "windows", "earn", "experimental", "settings"].includes(page) ? page : "websites";
+  return ["websites", "windows", "earn", "share", "experimental", "settings"].includes(page) ? page : "websites";
 }
 
 /** Keep the packaged resource path separate from query and fragment components. */

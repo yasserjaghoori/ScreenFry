@@ -60,6 +60,9 @@ struct SettingsBridge {
             "passwordProtected": message["passwordProtected"] as? Bool ?? false,
             // Lets the app open ScreenFry's own pages in that browser.
             "extensionId": message["extensionId"] as? String ?? "",
+            // The version ScreenFry's running code was built as (0.7.6 on); missing means the
+            // browser still runs code from before 0.7.3 whatever its manifest says.
+            "codeVersion": message["codeVersion"] as? String ?? "",
             // The browser's live setup as a share code (no usage, history or password).
             "setupCode": message["setupCode"] as? String ?? "",
         ], to: checkInURL)

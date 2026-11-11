@@ -1,4 +1,7 @@
 import * as actions from "@core/actions";
+/** Set by Vite: the version this code was built as. */
+declare const __CODE_VERSION__: string;
+const CODE_VERSION = typeof __CODE_VERSION__ === "string" ? __CODE_VERSION__ : "";
 import { withTimeout } from "@browser/scheduling";
 import { siteFor } from "@feeds/index";
 import { parseWebUrl } from "@core/domains";
@@ -812,6 +815,7 @@ chrome.runtime.onStartup.addListener(() => {
  * reload, so each run records its own starting build. Store installs update themselves.
  */
 const BUILD_KEY = "screenfry.startedBuild";
+const STALE_RELOAD_KEY = "screenfry.staleReloadAt";
 async function reloadIfUpdatedOnDisk() {
   if (browser !== "chrome") return;
   try {
@@ -826,6 +830,18 @@ async function reloadIfUpdatedOnDisk() {
       .then((r) => r.json() as Promise<{ build?: string }>)
       .then((b) => b.build)
       .catch(() => undefined);
+    // Chrome can keep running an older service worker after the extension updates on disk:
+    // the manifest says the new version but this code is older. Reload, at most every ten
+    // minutes, until the code matches.
+    if (CODE_VERSION && CODE_VERSION !== chrome.runtime.getManifest().version) {
+      const last = (await chrome.storage.local.get(STALE_RELOAD_KEY))[STALE_RELOAD_KEY] as number | undefined;
+      if (!last || Date.now() - last > 10 * 60_000) {
+        await chrome.storage.local.set({ [STALE_RELOAD_KEY]: Date.now() });
+        console.info(`ScreenFry: code ${CODE_VERSION} is older than ${chrome.runtime.getManifest().version}; reloading`);
+        chrome.runtime.reload();
+        return;
+      }
+    }
     const started = (await chrome.storage.session.get(BUILD_KEY))[BUILD_KEY] as
       | string
       | undefined;
@@ -900,6 +916,7 @@ async function sendToApp(
       browser,
       version: chrome.runtime.getManifest().version,
       extensionId: chrome.runtime.id,
+      codeVersion: CODE_VERSION,
       passwordProtected: Boolean(state.settingsPassword),
       setupCode,
       ...outcome,

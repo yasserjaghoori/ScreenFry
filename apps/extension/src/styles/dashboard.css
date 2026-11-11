@@ -924,7 +924,7 @@
 .fry-minutes input { width: 64px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; text-align: right; }
 .fry-same { margin: 12px 0 6px; }
 
-/* Experimental page: Earn your website time and share codes. */
+/* Earn and Share pages: earn goals, loadouts and share codes. */
 .experimental-note {
   display: flex;
   align-items: center;

@@ -16,6 +16,12 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Share page, Save ScreenFry Setup and stale Chrome code — November 11, 2026
+
+- Sam's Chrome checked in as 0.7.5 but without the fields added in 0.7.3 (extension id, setup code), though the files on disk were current and the app's host records them (checked with a test check-in): Chrome kept running an older background after its updates, which also explains why Open ScreenFry Settings fixes never reached it. The background now carries the version it was built as and reloads itself (at most every ten minutes) when that's older than its manifest; the app shows "reload ScreenFry in Chrome to finish updating" when a browser runs older code. "Updating… (within a minute)" now says "(open Chrome to complete)".
+- Mac app loadouts hold each browser's setup; one Save ScreenFry Setup button saves them all. Share codes and loadouts moved from Experimental to a Share page under Earn.
+- `npm run check`: 167 unit tests; `npm run test:e2e`: 69 checks; the Mac app compiles.
+
 ## Installer layout — November 11, 2026
 
 - 0.7.4's installer shipped without its background and window layout: on GitHub's Mac, appdmg failed to detach its working image ("hdiutil detach failed") and `make-dmg` quietly fell back to a plain image. It now clears leftover ScreenFry volumes, tries appdmg three times, refuses the plain fallback on CI (local builds only), and checks the finished image has `.background`, `.DS_Store`, the app and the Applications shortcut. Built locally from the 0.7.4 app: the layout files are there.

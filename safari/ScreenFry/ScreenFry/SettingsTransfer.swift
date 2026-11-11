@@ -59,6 +59,16 @@ enum SettingsTransfer {
         return (result["ok"] as? Bool ?? false, result["error"] as? String, at)
     }
 
+    /// Whether the browser runs ScreenFry's code from before its current manifest: it checks in
+    /// with an older code version, or (code from before 0.7.3) without its extension id.
+    static func runsStaleCode(_ browser: SettingsBrowser) -> Bool {
+        guard let record = SettingsBridge.read(browser.bridge.checkInURL) else { return false }
+        let version = record["version"] as? String ?? ""
+        let code = record["codeVersion"] as? String ?? ""
+        if !code.isEmpty { return code != version }
+        return (record["extensionId"] as? String ?? "").isEmpty
+    }
+
     /// The browser's live setup as a share code, from its last check-in.
     static func setupCode(_ browser: SettingsBrowser) -> String? {
         let code = SettingsBridge.read(browser.bridge.checkInURL)?["setupCode"] as? String
