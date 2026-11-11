@@ -234,7 +234,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         about.toolTip = "About ScreenFry"
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let header = NSStackView(views: [logo, titles, spacer, about, updateButton])
+        // Updates: the check button, and whether Sparkle installs new versions on its own.
+        let updates = NSStackView(views: [updateButton, autoUpdateBox])
+        updates.orientation = .vertical
+        updates.alignment = .trailing
+        updates.spacing = 4
+        let header = NSStackView(views: [logo, titles, spacer, about, updates])
         header.orientation = .horizontal
         header.alignment = .centerY
         header.spacing = 14
@@ -665,6 +670,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let url = url.url { NSWorkspace.shared.open(url) }
     }
 
+    /// "Install updates automatically": Sparkle downloads new versions in the background and
+    /// installs them when ScreenFry quits (it still checks, and asks, when this is off).
+    private lazy var autoUpdateBox: NSButton = {
+        let b = NSButton(checkboxWithTitle: "Install updates automatically", target: self, action: #selector(toggleAutoUpdate(_:)))
+        b.font = .systemFont(ofSize: 11)
+        b.isHidden = !Self.updatesConfigured
+        #if canImport(Sparkle)
+        b.state = Self.updatesConfigured && updater.updater.automaticallyDownloadsUpdates ? .on : .off
+        #endif
+        b.toolTip = "ScreenFry checks for a new version every few hours. With this on, it downloads it and installs it the next time ScreenFry quits."
+        return b
+    }()
+    private var autoUpdateMenuItem: NSMenuItem?
+
+    @objc private func toggleAutoUpdate(_ sender: Any?) {
+        #if canImport(Sparkle)
+        guard Self.updatesConfigured else { return }
+        let on = !updater.updater.automaticallyDownloadsUpdates
+        updater.updater.automaticallyChecksForUpdates = true
+        updater.updater.automaticallyDownloadsUpdates = on
+        autoUpdateBox.state = on ? .on : .off
+        autoUpdateMenuItem?.state = on ? .on : .off
+        #endif
+    }
+
     @objc private func checkForUpdates(_ sender: Any?) {
         guard Self.updatesConfigured else {
             NSWorkspace.shared.open(URL(string: "https://github.com/yasserjaghoori/ScreenFry/releases")!)
@@ -1018,6 +1048,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let update = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates(_:)), keyEquivalent: "")
         update.target = self
         appMenu.addItem(update)
+        if Self.updatesConfigured {
+            let auto = NSMenuItem(title: "Install Updates Automatically", action: #selector(toggleAutoUpdate(_:)), keyEquivalent: "")
+            auto.target = self
+            #if canImport(Sparkle)
+            auto.state = updater.updater.automaticallyDownloadsUpdates ? .on : .off
+            #endif
+            appMenu.addItem(auto)
+            autoUpdateMenuItem = auto
+        }
         appMenu.addItem(.separator())
         let uninstallItem = NSMenuItem(title: "Uninstall ScreenFry…", action: #selector(uninstall(_:)), keyEquivalent: "")
         uninstallItem.target = self

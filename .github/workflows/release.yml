@@ -148,3 +148,11 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" "${FILES[@]}" \
             --target "${{ github.sha }}" --title "ScreenFry ${{ steps.version.outputs.version }}" \
             --notes "$NOTES" $PRE
+          # The app's update feed: a fixed "updates" release (GitHub's "latest" link skips
+          # pre-releases), refreshed with each signed release's appcast.xml.
+          if [ -f dist/updates/appcast.xml ]; then
+            gh release view updates >/dev/null 2>&1 || gh release create updates --prerelease \
+              --target "${{ github.sha }}" --title "ScreenFry update feed" \
+              --notes "ScreenFry's in-app updater reads appcast.xml here. Download ScreenFry from its versioned releases."
+            gh release upload updates dist/updates/appcast.xml --clobber
+          fi

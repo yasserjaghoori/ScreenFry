@@ -22,14 +22,16 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+	<key>SUAllowsAutomaticUpdates</key>
+	<true/>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://github.com/yasserjaghoori/ScreenFry/releases/latest/download/appcast.xml</string>
+	<string>https://github.com/yasserjaghoori/ScreenFry/releases/download/updates/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string></string>
+	<string>ocy3JWCzTMESE33TkpwLfHPGeGmqzyqr3dZUoFPMrEE=</string>
 	<key>SUScheduledCheckInterval</key>
-	<integer>86400</integer>
+	<integer>21600</integer>
 	<key>ScreenFryShowSafariDeveloperSetup</key>
 	<true/>
 </dict>
