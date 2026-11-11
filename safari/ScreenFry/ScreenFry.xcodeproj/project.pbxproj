@@ -31,6 +31,7 @@
 		CA6072E504801357FBF0A27A /* AppLoadouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5CAD16438D5FE4A5CCB3DA /* AppLoadouts.swift */; };
 		CFBD9EBF436945B78D4F1E0E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 31F6C3047F6D176D12CEFD03 /* Sparkle */; };
 		DB18C231DB46B75EBC4FFC7D /* SettingsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B569E73536E468E42DCD24 /* SettingsBridge.swift */; };
+		E1FD1405DF5194B9BB11C8B2 /* MenuBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */; };
 		EF8305E4F9966B5108923EE2 /* DragTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480527D94926FC7DE12C154E /* DragTile.swift */; };
 /* End PBXBuildFile section */
 
@@ -61,6 +62,7 @@
 /* Begin PBXFileReference section */
 		0DFC9DF5528FD9C921B13900 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		0E5CAD16438D5FE4A5CCB3DA /* AppLoadouts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLoadouts.swift; sourceTree = "<group>"; };
+		164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBar.swift; sourceTree = "<group>"; };
 		25E50A404B134A8532C38AE2 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = "ScreenFry Extension/Resources/assets"; sourceTree = SOURCE_ROOT; };
 		2BA4FA5D2529FD34165FFDD7 /* ChromeDeveloperModeOff.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ChromeDeveloperModeOff.png; sourceTree = "<group>"; };
 		35F2D751243FE4853323CEDF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -142,6 +144,7 @@
 				C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */,
 				480527D94926FC7DE12C154E /* DragTile.swift */,
 				7822C9B140D38DF445003C12 /* Info.plist */,
+				164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */,
 				3DB051891D91607283BE453E /* SettingsTransfer.swift */,
 				C04C43DB19F97C5AE665D076 /* SetupImages */,
 			);
@@ -307,6 +310,7 @@
 				CA6072E504801357FBF0A27A /* AppLoadouts.swift in Sources */,
 				4A8E9F697CA30E3002F3EB6B /* ChromeInstaller.swift in Sources */,
 				EF8305E4F9966B5108923EE2 /* DragTile.swift in Sources */,
+				E1FD1405DF5194B9BB11C8B2 /* MenuBar.swift in Sources */,
 				5C021D84B4277C1736B2C841 /* SettingsBridge.swift in Sources */,
 				1EF6E4D71ACC3CB9EE13D737 /* SettingsTransfer.swift in Sources */,
 			);

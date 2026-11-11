@@ -16,6 +16,10 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Menu bar and start at login — November 11, 2026
+
+- The Mac app keeps running in the menu bar when its window closes (no Dock icon until it's opened again) and starts at login (on by default the first time it runs from Applications), so update checks happen without opening it. The menu has Open ScreenFry, Check for Updates, Install Updates Automatically, Start at Login and Quit. Launched at login, it shows only the menu bar icon. Built and launched briefly with a throwaway home folder; the menu bar itself wasn't inspected.
+
 ## In-app updates switched on — November 11, 2026
 
 - Sparkle was built in but off: there was no signing key, and its feed pointed at `releases/latest`, which skips pre-releases. Made the EdDSA key (login Keychain, account `screenfry`; repository secret and variable), put the public key in the app, moved the feed to a fixed `updates` release, and added Install updates automatically (checkbox and menu). A signed test feed for the 0.7.5 installer was generated with the exported key the way the release workflow does it. The app builds with the feed, key and 6-hour interval in its Info.plist; a real update can only be tried from the first signed release to the one after.

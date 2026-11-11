@@ -16,6 +16,7 @@
 | **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
 | **Earn** | **Earn your website time** on its own page, beside Websites and Windows (see below). |
 | **Share** | **Loadouts** with share codes, on their own page under Earn (see below). |
+| **Mac app** | Lives in the menu bar and starts at login, so it can notify you of updates and install them (**Install updates automatically**). Closing its window keeps it in the menu bar. |
 | **Mac app loadouts** | Five loadouts kept on the Mac for every browser: **Save ScreenFry Setup** keeps every browser's current setup at once, **Use in All Browsers** gives each its own back, and codes can be pasted or copied (one browser code for all, or an `SFM1-` code with each browser's). A browser with a settings password asks for it there before using it. |
 | **Optional password** | Protect your settings from impulsive changes. It never grants extra time. The first time you change anything without one, ScreenFry explains it once and offers to set it up ("Not now" goes ahead with your change). |
 | **Start over** | **Restore defaults** at the bottom of Settings erases everything ScreenFry keeps in that browser, loadouts and password included (it asks for the password first). **Reset All Data…** in the Mac app does it for every browser that doesn't have a password on. |
