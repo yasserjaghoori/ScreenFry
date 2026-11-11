@@ -4,7 +4,7 @@
 // Dropping a newer ScreenFry onto Applications replaces the old one; bundle identifiers never
 // change, so Safari keeps the extension and its settings, and the app refreshes Chrome's copy.
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, cpSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync, cpSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -41,11 +41,38 @@ try {
       format: "UDZO",
     }),
   );
-  try {
-    execFileSync("npx", ["--yes", "appdmg@0.6.6", spec, out], { stdio: "inherit" });
-  } catch {
-    // Fallback: a plain image with the app and an Applications shortcut (no background).
-    console.warn("appdmg failed; building a plain disk image instead.");
+  // appdmg sometimes fails to detach its working image on GitHub's Macs ("hdiutil detach
+  // failed"), which once shipped a plain installer (0.7.4). Clear leftover ScreenFry volumes
+  // and try a few times; a release must never fall back to the plain image.
+  const detachStale = () => {
+    for (const volume of readdirSync("/Volumes").filter((v) => v.startsWith("ScreenFry"))) {
+      try {
+        execFileSync("hdiutil", ["detach", "-force", join("/Volumes", volume)], { stdio: "ignore" });
+      } catch {
+        /* not ours or already gone */
+      }
+    }
+  };
+  let laidOut = false;
+  for (let attempt = 1; attempt <= 3 && !laidOut; attempt++) {
+    detachStale();
+    rmSync(out, { force: true });
+    try {
+      execFileSync("npx", ["--yes", "appdmg@0.6.6", spec, out], { stdio: "inherit" });
+      laidOut = true;
+    } catch {
+      console.warn(`appdmg attempt ${attempt} failed.`);
+      execFileSync("sleep", ["5"]);
+    }
+  }
+  if (laidOut) verifyLayout(out);
+  else {
+    if (process.env.CI) {
+      console.error("appdmg failed three times; not shipping an installer without its window layout.");
+      process.exit(1);
+    }
+    // Local builds only: a plain image with the app and an Applications shortcut.
+    console.warn("appdmg failed; building a plain disk image instead (local builds only).");
     const staging = join(work, "staging");
     cpSync(app, join(staging, "ScreenFry.app"), { recursive: true, verbatimSymlinks: true });
     symlinkSync("/Applications", join(staging, "Applications"));
@@ -57,3 +84,21 @@ try {
   rmSync(work, { recursive: true, force: true });
 }
 console.log(`Built ${out}`);
+
+/** The installer must carry its background and window layout (Finder's .DS_Store). */
+function verifyLayout(dmg) {
+  const mount = mkdtempSync(join(tmpdir(), "screenfry-dmg-check-"));
+  execFileSync("hdiutil", ["attach", "-nobrowse", "-readonly", "-mountpoint", mount, dmg], { stdio: "ignore" });
+  try {
+    const missing = [".background", ".DS_Store", "ScreenFry.app", "Applications"].filter(
+      (name) => !existsSync(join(mount, name)),
+    );
+    if (missing.length) {
+      console.error(`The installer is missing ${missing.join(", ")}.`);
+      process.exit(1);
+    }
+  } finally {
+    execFileSync("hdiutil", ["detach", mount], { stdio: "ignore" });
+    rmSync(mount, { recursive: true, force: true });
+  }
+}

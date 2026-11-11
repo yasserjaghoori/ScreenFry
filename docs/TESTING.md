@@ -16,6 +16,10 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Installer layout — November 11, 2026
+
+- 0.7.4's installer shipped without its background and window layout: on GitHub's Mac, appdmg failed to detach its working image ("hdiutil detach failed") and `make-dmg` quietly fell back to a plain image. It now clears leftover ScreenFry volumes, tries appdmg three times, refuses the plain fallback on CI (local builds only), and checks the finished image has `.background`, `.DS_Store`, the app and the Applications shortcut. Built locally from the 0.7.4 app: the layout files are there.
+
 ## Mac app loadouts, strict earning, live clocks and research redirect — November 10, 2026
 
 - Mac app: five loadouts for every browser (saved from a browser's check-in, pasted, copied, sent with Use in All Browsers through `pending-setup.json`/`setup-result.json`; a password-protected browser offers it in its dashboard instead). Safari's setup steps fold away once it's on; Eject Installer is a rounded square and Open ScreenFry Settings a pill (macOS 26+). The app compiles; the new card wasn't seen running (the installed app shares its bundle id).
