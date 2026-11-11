@@ -112,12 +112,16 @@ enum ChromeNativeHost {
     }
 
     static func run() {
+        // Chrome can close the pipe at any moment (for instance when ScreenFry reloads during
+        // a check-in). Writing to a closed pipe must end this helper quietly: no SIGPIPE, and
+        // the throwing FileHandle calls, since the older ones raise an exception that crashes
+        // the process and shows a crash report.
+        signal(SIGPIPE, SIG_IGN)
         let input = FileHandle.standardInput
         func read(_ count: Int) -> Data? {
             var data = Data()
             while data.count < count {
-                let chunk = input.readData(ofLength: count - data.count)
-                if chunk.isEmpty { return nil }
+                guard let chunk = try? input.read(upToCount: count - data.count), !chunk.isEmpty else { return nil }
                 data.append(chunk)
             }
             return data
@@ -130,9 +134,9 @@ enum ChromeNativeHost {
         let reply = SettingsBrowser.chrome.bridge.handle(message)
         guard let out = try? JSONSerialization.data(withJSONObject: reply) else { return }
         var size = UInt32(out.count).littleEndian
-        let output = FileHandle.standardOutput
-        output.write(Data(bytes: &size, count: 4))
-        output.write(out)
+        var framed = Data(bytes: &size, count: 4)
+        framed.append(out)
+        try? FileHandle.standardOutput.write(contentsOf: framed)
     }
 
     /// Chrome's native messaging manifest for the current user.

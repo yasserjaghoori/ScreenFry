@@ -16,6 +16,10 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Chrome check-in helper crash — November 11, 2026
+
+- After the 0.7.6 → 0.7.7 in-app update (which worked), opening Chrome showed a ScreenFry crash report: Chrome's ScreenFry reloaded onto its new background mid-check-in, Chrome closed the pipe, and the helper's reply write raised an Objective-C exception (`FileHandle.write`), which aborts. The helper now ignores SIGPIPE and uses the throwing read/write calls. Reproduced by running the helper with its reply pipe already closed and SIGPIPE ignored, as Chrome launches it (throwaway home folder): the 0.7.7 binary aborts (−6), the fixed one exits 0.
+
 ## Chrome kept an old background — November 11, 2026
 
 - Sam's Chrome showed 0.7.6 but ran a background from before 0.7.3 until ScreenFry was reloaded by hand. Chrome re-reads an unpacked extension's manifest when it starts but kept the background it had registered, and the old update check compared only version numbers on disk (equal by then), so it never reloaded. 0.7.6's background compares the version it was built as with its manifest and reloads; now ScreenFry's popup and settings pages (always loaded fresh) also ask the background its version (GET_BUILD) and reload ScreenFry when it's older, reopening the settings page afterwards. Throwaway Chrome and Chrome for Testing both drop an extension entirely on reload (unlike a normally installed unpacked extension), so the reload itself couldn't be replayed; Sam's manual reload confirmed the diagnosis (check-ins then carried the code version, extension id and setup).
