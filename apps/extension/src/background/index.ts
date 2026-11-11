@@ -800,7 +800,9 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await ensureAlarms();
-  if (reason === "install")
+  // Chrome can report reloading ScreenFry (to finish an update) as an install, so only
+  // someone who hasn't set it up yet gets the welcome page.
+  if (reason === "install" && !(await chromeStateStore.get()).onboardingComplete)
     await chrome.tabs.create({ url: chrome.runtime.getURL("onboarding.html") });
   await refreshProtection();
   await reevaluate();

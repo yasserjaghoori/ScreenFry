@@ -41,6 +41,14 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
     private let autoUpdateState: () -> Bool?
     private var autoUpdate: NSMenuItem!
     private var login: NSMenuItem!
+    private var updateItem: NSMenuItem!
+    /// ScreenFry's logo as a silhouette, colored by macOS like the other menu bar icons.
+    private let icon: NSImage? = {
+        let image = NSImage(named: "MenuBarIcon")
+        image?.isTemplate = true
+        image?.size = NSSize(width: 18, height: 18)
+        return image
+    }()
 
     init(
         onOpen: @escaping () -> Void,
@@ -55,17 +63,22 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         self.onToggleAutoUpdate = onToggleAutoUpdate
         self.onToggleLogin = onToggleLogin
         super.init()
-        // The app's own logo, at menu bar size.
-        let logo = Bundle.main.url(forResource: "BrandIcon", withExtension: "png").flatMap(NSImage.init(contentsOf:))
-            ?? NSApp.applicationIconImage
-        let image = logo?.copy() as? NSImage
-        image?.size = NSSize(width: 18, height: 18)
-        item.button?.image = image
+        item.button?.image = icon
         item.button?.imageScaling = .scaleProportionallyDown
         item.button?.toolTip = "ScreenFry"
         let menu = NSMenu()
         menu.delegate = self
         menu.autoenablesItems = false
+        // The version, greyed out, at the very top.
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        let versionItem = NSMenuItem(title: "ScreenFry v\(version)", action: nil, keyEquivalent: "")
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
+        // Shown once Sparkle has found a newer version.
+        updateItem = entry("Update ScreenFry…", #selector(check))
+        updateItem.isHidden = true
+        menu.addItem(updateItem)
+        menu.addItem(.separator())
         menu.addItem(entry("Open ScreenFry", #selector(open)))
         menu.addItem(.separator())
         menu.addItem(entry("Check for Updates…", #selector(check)))
@@ -90,6 +103,27 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         autoUpdate.isHidden = auto == nil
         autoUpdate.state = auto == true ? .on : .off
         login.state = LoginItem.isEnabled ? .on : .off
+    }
+
+    /// A newer version is ready (or none is): the icon turns ScreenFry orange and the menu
+    /// offers the update.
+    func showUpdate(_ version: String?) {
+        updateItem.isHidden = version == nil
+        updateItem.title = version.map { "Update to ScreenFry \($0)…" } ?? "Update ScreenFry…"
+        item.button?.image = version == nil ? icon : Self.tinted(icon, NSColor(srgbRed: 0.957, green: 0.384, blue: 0.122, alpha: 1))
+        item.button?.toolTip = version.map { "ScreenFry \($0) is ready to install" } ?? "ScreenFry"
+    }
+
+    private static func tinted(_ image: NSImage?, _ color: NSColor) -> NSImage? {
+        guard let image else { return nil }
+        let copy = NSImage(size: image.size, flipped: false) { rect in
+            image.draw(in: rect)
+            color.set()
+            rect.fill(using: .sourceAtop)
+            return true
+        }
+        copy.isTemplate = false
+        return copy
     }
 
     /// Uninstalling removes the icon before the app goes.

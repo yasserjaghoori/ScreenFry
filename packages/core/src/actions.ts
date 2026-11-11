@@ -370,8 +370,11 @@ export const setPreferences = (
         ? input.warningsEnabled
         : s.warningsEnabled,
   }));
-export const completeOnboarding = (ctx: ActionContext) =>
-  protectedUpdate(ctx, (s) => ({ ...s, onboardingComplete: true }));
+/** Marks the welcome page as seen. Not a settings change, so it never needs the password. */
+export const completeOnboarding = async (ctx: ActionContext): Promise<ActionResult<AppState>> => ({
+  ok: true,
+  data: await ctx.store.update((s) => ({ ...s, onboardingComplete: true })),
+});
 /** Remembers that the first-change password prompt was shown, so it appears only once. */
 export const markPasswordPromptSeen = (ctx: ActionContext) =>
   protectedUpdate(ctx, (s) => ({ ...s, passwordPromptSeen: true }));

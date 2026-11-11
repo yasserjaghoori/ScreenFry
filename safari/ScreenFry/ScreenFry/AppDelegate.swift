@@ -82,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// In-app updates from GitHub Releases. They stay off until a signing key is configured
     /// (SUPublicEDKey), so an unconfigured build can never install an unverified download.
     private lazy var updater = SPUStandardUpdaterController(
-        startingUpdater: Self.updatesConfigured, updaterDelegate: nil, userDriverDelegate: nil)
+        startingUpdater: Self.updatesConfigured, updaterDelegate: self, userDriverDelegate: self)
     #endif
     private static var updatesConfigured: Bool {
         let key = Bundle.main.infoDictionary?["SUPublicEDKey"] as? String ?? ""
@@ -1146,3 +1146,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 private final class FlippedSetupView: NSView {
     override var isFlipped: Bool { true }
 }
+
+#if canImport(Sparkle)
+/// Update notices: when Sparkle finds a newer version, the menu bar icon turns orange and its
+/// menu offers the update. A check you start yourself still shows Sparkle's window; a
+/// scheduled one only does when ScreenFry is in front ("gentle reminders"), since ScreenFry
+/// mostly lives in the menu bar.
+extension AppDelegate: SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
+    func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        DispatchQueue.main.async { self.menuBar?.showUpdate(item.displayVersionString) }
+    }
+
+    func updaterDidNotFindUpdate(_ updater: SPUUpdater) {
+        DispatchQueue.main.async { self.menuBar?.showUpdate(nil) }
+    }
+
+    var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    func standardUserDriverShouldHandleShowingScheduledUpdate(
+        _ update: SUAppcastItem, andInImmediateFocus immediateFocus: Bool
+    ) -> Bool {
+        immediateFocus
+    }
+}
+#endif
