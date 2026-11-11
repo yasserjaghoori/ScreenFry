@@ -16,6 +16,10 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Chrome kept an old background — November 11, 2026
+
+- Sam's Chrome showed 0.7.6 but ran a background from before 0.7.3 until ScreenFry was reloaded by hand. Chrome re-reads an unpacked extension's manifest when it starts but kept the background it had registered, and the old update check compared only version numbers on disk (equal by then), so it never reloaded. 0.7.6's background compares the version it was built as with its manifest and reloads; now ScreenFry's popup and settings pages (always loaded fresh) also ask the background its version (GET_BUILD) and reload ScreenFry when it's older, reopening the settings page afterwards. Throwaway Chrome and Chrome for Testing both drop an extension entirely on reload (unlike a normally installed unpacked extension), so the reload itself couldn't be replayed; Sam's manual reload confirmed the diagnosis (check-ins then carried the code version, extension id and setup).
+
 ## Mac app fixes — November 11, 2026
 
 - Save ScreenFry Setup and Paste a Code did nothing: the Loadouts card's buttons were made with the window's button helper, which aims every action at the app delegate. They now target the card. The paste dialog's fields were laid out with constraints inside an alert (text ran over them) and it pre-filled whatever was on the clipboard; it now uses fixed frames and only offers the clipboard when it holds a code. Checked by driving a copy of the build under a separate bundle id (throwaway home, no Safari extension): Save filled loadout 1 and the paste dialog laid out correctly; typing into it was blocked by secure input, so the paste save itself wasn't run.

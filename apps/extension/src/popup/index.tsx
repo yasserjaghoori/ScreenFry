@@ -11,6 +11,7 @@ import type { AppState, FeedSite } from "@shared/index";
 import { EarnClock, useEarnLive } from "../ui/EarnClock";
 import { earnRemaining } from "@policy/index";
 import { SiteControls } from "../ui/SiteControls";
+import { healStaleBackground } from "../ui/healBackground";
 import { SettingsGate } from "../ui/SettingsGate";
 import { SitePicker } from "../ui/SitePicker";
 import { siteStatus } from "../ui/siteStatus";
@@ -294,4 +295,7 @@ function Popup() {
     </main>
   );
 }
+// An older background still running after an update? Reload ScreenFry (this popup closes;
+// the next one opens on the fresh background).
+void healStaleBackground();
 createRoot(document.getElementById("root")!).render(<Popup />);

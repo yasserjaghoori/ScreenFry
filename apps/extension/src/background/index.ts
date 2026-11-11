@@ -25,6 +25,7 @@ import {
   sessionArea,
 } from "@browser/platform";
 import { APP_SETUP_KEY, chromeStateStore } from "@browser/storage";
+import { REOPEN_KEY } from "../ui/healBackground";
 import { activeShortForm, siteDefinitions } from "@feeds/index";
 import {
   extensionPageUrl,
@@ -533,6 +534,8 @@ async function handle(
   switch (request.type) {
     case "GET_STATE":
       return { ok: true, data: await chromeStateStore.get() };
+    case "GET_BUILD":
+      return { ok: true, data: { codeVersion: CODE_VERSION, manifestVersion: chrome.runtime.getManifest().version } };
     case "EARN_LIVE": {
       // Goal websites in active use since the last save: their clocks can tick live.
       const state = await chromeStateStore.get();
@@ -816,6 +819,19 @@ chrome.runtime.onStartup.addListener(() => {
  */
 const BUILD_KEY = "screenfry.startedBuild";
 const STALE_RELOAD_KEY = "screenfry.staleReloadAt";
+/** A page that reloaded ScreenFry to get a fresh background, opened again once it's up. */
+async function reopenAfterReload() {
+  try {
+    const saved = await chrome.storage.local.get(REOPEN_KEY);
+    const url = saved[REOPEN_KEY];
+    if (typeof url !== "string" || !url.startsWith(chrome.runtime.getURL(""))) return;
+    await chrome.storage.local.remove(REOPEN_KEY);
+    await chrome.tabs.create({ url });
+  } catch {
+    /* nothing to reopen */
+  }
+}
+void reopenAfterReload();
 async function reloadIfUpdatedOnDisk() {
   if (browser !== "chrome") return;
   try {
