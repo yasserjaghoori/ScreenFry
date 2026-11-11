@@ -302,12 +302,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         about.toolTip = "About ScreenFry"
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        // Updates: the check button, and whether Sparkle installs new versions on its own.
-        let updates = NSStackView(views: [updateButton, autoUpdateBox, loginBox])
-        updates.orientation = .vertical
-        updates.alignment = .trailing
-        updates.spacing = 4
-        let header = NSStackView(views: [logo, titles, spacer, about, updates])
+        let header = NSStackView(views: [logo, titles, spacer, about])
         header.orientation = .horizontal
         header.alignment = .centerY
         header.spacing = 14
@@ -409,8 +404,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let resetAll = NSButton(title: "Reset All Data…", target: self, action: #selector(resetAllData(_:)))
         resetAll.bezelStyle = .inline
         resetAll.toolTip = "Restore ScreenFry’s defaults in every browser: settings, loadouts, usage and settings passwords."
-        let footer = NSStackView(views: [uninstallButton, resetAll])
+        // Bottom right: updates, and whether ScreenFry installs them and starts at login.
+        let options = NSStackView(views: [autoUpdateBox, loginBox])
+        options.orientation = .vertical
+        options.alignment = .leading
+        options.spacing = 2
+        let footerSpacer = NSView()
+        footerSpacer.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+        let footer = NSStackView(views: [uninstallButton, resetAll, footerSpacer, options, updateButton])
         footer.orientation = .horizontal
+        footer.distribution = .fill
+        footer.alignment = .centerY
         footer.spacing = 10
         let stack = NSStackView(views: [header, noticeRow, browsers, footer])
         stack.orientation = .vertical
@@ -438,6 +442,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             stack.trailingAnchor.constraint(equalTo: document.trailingAnchor, constant: -24),
             stack.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -24),
             header.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            footer.widthAnchor.constraint(equalTo: stack.widthAnchor),
             browsers.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
         let availableHeight = (NSScreen.main?.visibleFrame.height ?? 900) - 60
@@ -618,14 +623,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Proof from Chrome itself. An app update lands once Chrome runs: the extension
             // reloads when it sees the new build (Chrome must be open for that).
             let current = checkIn.version.isEmpty || checkIn.version == version
-            if current && SettingsTransfer.runsStaleCode(.chrome) {
-                // Chrome kept an older copy of ScreenFry's background running after the update.
-                chromeStatus.stringValue = "Connected · reload ScreenFry in Chrome to finish updating"
-                chromeStatus.toolTip = "In Chrome, open the Extensions page and click the reload arrow on ScreenFry, or quit and reopen Chrome."
-                chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
-                return
-            }
-            chromeStatus.toolTip = nil
             chromeStatus.stringValue = current
                 ? "Connected · ScreenFry \(checkIn.version.isEmpty ? version : checkIn.version)"
                 : "Connected · updating to \(version) (open Chrome to complete)"

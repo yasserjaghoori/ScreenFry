@@ -102,7 +102,13 @@ final class AppLoadoutsPanel: NSObject {
         super.init()
     }
 
-    func makeRows(button: (String, Selector, Bool) -> NSButton, helper: (String) -> NSTextField) -> [NSView] {
+    func makeRows(button make: (String, Selector, Bool) -> NSButton, helper: (String) -> NSTextField) -> [NSView] {
+        // The window's button style, but the actions live here, not on the app delegate.
+        func button(_ title: String, _ action: Selector, _ primary: Bool) -> NSButton {
+            let b = make(title, action, primary)
+            b.target = self
+            return b
+        }
         picker.segmentCount = AppLoadouts.count
         for i in 0..<AppLoadouts.count { picker.setLabel("\(i + 1)", forSegment: i) }
         picker.trackingMode = .selectOne
@@ -166,6 +172,11 @@ final class AppLoadoutsPanel: NSObject {
                         : "\(browser.name) couldn’t use it: \(r.error ?? "unknown error").")
             }
         }
+        // A browser that checks in without its setup can't be saved; usually it still runs an
+        // older copy of ScreenFry until it's reloaded.
+        for browser in browsers where SettingsTransfer.checkIn(browser) != nil && SettingsTransfer.setupCode(browser) == nil {
+            lines.append("\(browser.name) hasn’t sent its setup yet. If this stays, reload ScreenFry on \(browser.name)’s Extensions page, or quit and reopen \(browser.name).")
+        }
         status.stringValue = lines.joined(separator: "\n")
         status.isHidden = lines.isEmpty
     }
@@ -194,17 +205,21 @@ final class AppLoadoutsPanel: NSObject {
         let alert = NSAlert()
         alert.messageText = "Paste a share code into loadout \(selected + 1)"
         alert.informativeText = "A browser’s share code (SF2-…) is used for every browser; a code copied here (SFM1-…) keeps each browser’s own. Give it a name you’ll recognize."
-        let name = NSTextField(string: AppLoadouts.all()[selected]?.name ?? "")
+        // Plain frames: an alert's accessory view doesn't size itself from constraints.
+        let fields = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 58))
+        let name = NSTextField(frame: NSRect(x: 0, y: 32, width: 320, height: 24))
+        name.stringValue = AppLoadouts.all()[selected]?.name ?? ""
         name.placeholderString = "Name, like Exam week"
-        let code = NSTextField(string: NSPasteboard.general.string(forType: .string) ?? "")
-        code.placeholderString = "SF2-…"
-        let fields = NSStackView(views: [name, code])
-        fields.orientation = .vertical
-        fields.spacing = 8
-        fields.frame = NSRect(x: 0, y: 0, width: 320, height: 56)
-        name.widthAnchor.constraint(equalToConstant: 320).isActive = true
-        code.widthAnchor.constraint(equalToConstant: 320).isActive = true
+        let code = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        // Only offer the clipboard when it holds a code.
+        let clipboard = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        code.stringValue = AppLoadouts.codes(from: clipboard) == nil ? "" : clipboard
+        code.placeholderString = "Share code: SF2-… or SFM1-…"
+        code.lineBreakMode = .byTruncatingTail
+        fields.addSubview(name)
+        fields.addSubview(code)
         alert.accessoryView = fields
+        alert.window.initialFirstResponder = code.stringValue.isEmpty ? code : name
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
