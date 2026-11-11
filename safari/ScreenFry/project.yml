@@ -39,12 +39,14 @@ targets:
         # Shows Safari's "Allow unsigned extensions" steps. The release workflow turns it off
         # for Developer ID builds, which Safari lists without developer settings.
         ScreenFryShowSafariDeveloperSetup: true
-        # Sparkle: checks this feed daily and offers updates. SUPublicEDKey stays empty
-        # (updates off) until a release signing key is generated; see docs/DISTRIBUTION.md.
-        SUFeedURL: https://github.com/yasserjaghoori/ScreenFry/releases/latest/download/appcast.xml
-        SUPublicEDKey: ""
+        # Sparkle: checks this feed every six hours and offers updates, which it only installs
+        # when signed with the private key matching SUPublicEDKey (see docs/DISTRIBUTION.md).
+        # The feed lives on the fixed "updates" release, because "latest" skips pre-releases.
+        SUFeedURL: https://github.com/yasserjaghoori/ScreenFry/releases/download/updates/appcast.xml
+        SUPublicEDKey: "ocy3JWCzTMESE33TkpwLfHPGeGmqzyqr3dZUoFPMrEE="
         SUEnableAutomaticChecks: true
-        SUScheduledCheckInterval: 86400
+        SUAllowsAutomaticUpdates: true
+        SUScheduledCheckInterval: 21600
     # The app is not sandboxed: it writes the Chrome folder where Chrome can read it and lets
     # Sparkle replace the app. The Safari extension inside it stays sandboxed.
     entitlements:

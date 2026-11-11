@@ -15,7 +15,7 @@ import { FryTimeBar, fryTimeSummary } from "../ui/FryTime";
 import { Windows } from "./Windows";
 import { Settings } from "./Settings";
 import { About } from "./About";
-import { Earn, Experimental } from "./Experimental";
+import { Earn, Share } from "./EarnShare";
 import { setPasswordSetupHandler } from "../ui/PasswordPrompt";
 import "../styles/global.css";
 import "../styles/dashboard.css";
@@ -23,7 +23,7 @@ const pages = [
   { id: "websites", label: "Websites", icon: "feeds" },
   { id: "windows", label: "Windows", icon: "schedules" },
   { id: "earn", label: "Earn", icon: "earn" },
-  { id: "experimental", label: "Experimental", icon: "lab" },
+  { id: "share", label: "Share", icon: "share" },
   { id: "settings", label: "Settings", icon: "settings" },
   { id: "about", label: "About", icon: "settings" },
 ] as const;
@@ -170,8 +170,8 @@ function Dashboard() {
                     ? "What ScreenFry does in this browser."
                     : page === "earn"
                       ? "Spend time on something good for you first, and earn your websites back."
-                    : page === "experimental"
-                      ? "New ideas to try: loadouts and share codes."
+                    : page === "share"
+                      ? "Keep up to five setups and share them as codes."
                     : "Make ScreenFry work for you."}
             </p>
           </div>
@@ -261,9 +261,7 @@ function Dashboard() {
           )}
           {page === "about" && <About />}
           {page === "earn" && <Earn state={state} onState={setState} onNotice={setNotice} />}
-          {page === "experimental" && (
-            <Experimental state={state} onState={setState} onNotice={setNotice} />
-          )}
+          {page === "share" && <Share state={state} onState={setState} onNotice={setNotice} />}
           {page === "settings" && (
             <Settings
               state={state}

@@ -16,6 +16,20 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Menu bar and start at login — November 11, 2026
+
+- The Mac app keeps running in the menu bar when its window closes (no Dock icon until it's opened again) and starts at login (on by default the first time it runs from Applications), so update checks happen without opening it. The menu has Open ScreenFry, Check for Updates, Install Updates Automatically, Start at Login and Quit. Launched at login, it shows only the menu bar icon. Built and launched briefly with a throwaway home folder; the menu bar itself wasn't inspected.
+
+## In-app updates switched on — November 11, 2026
+
+- Sparkle was built in but off: there was no signing key, and its feed pointed at `releases/latest`, which skips pre-releases. Made the EdDSA key (login Keychain, account `screenfry`; repository secret and variable), put the public key in the app, moved the feed to a fixed `updates` release, and added Install updates automatically (checkbox and menu). A signed test feed for the 0.7.5 installer was generated with the exported key the way the release workflow does it. The app builds with the feed, key and 6-hour interval in its Info.plist; a real update can only be tried from the first signed release to the one after.
+
+## Share page, Save ScreenFry Setup and stale Chrome code — November 11, 2026
+
+- Sam's Chrome checked in as 0.7.5 but without the fields added in 0.7.3 (extension id, setup code), though the files on disk were current and the app's host records them (checked with a test check-in): Chrome kept running an older background after its updates, which also explains why Open ScreenFry Settings fixes never reached it. The background now carries the version it was built as and reloads itself (at most every ten minutes) when that's older than its manifest; the app shows "reload ScreenFry in Chrome to finish updating" when a browser runs older code. "Updating… (within a minute)" now says "(open Chrome to complete)".
+- Mac app loadouts hold each browser's setup; one Save ScreenFry Setup button saves them all. Share codes and loadouts moved from Experimental to a Share page under Earn.
+- `npm run check`: 167 unit tests; `npm run test:e2e`: 69 checks; the Mac app compiles.
+
 ## Installer layout — November 11, 2026
 
 - 0.7.4's installer shipped without its background and window layout: on GitHub's Mac, appdmg failed to detach its working image ("hdiutil detach failed") and `make-dmg` quietly fell back to a plain image. It now clears leftover ScreenFry volumes, tries appdmg three times, refuses the plain fallback on CI (local builds only), and checks the finished image has `.background`, `.DS_Store`, the app and the Applications shortcut. Built locally from the 0.7.4 app: the layout files are there.

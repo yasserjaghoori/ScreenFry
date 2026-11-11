@@ -46,10 +46,10 @@ export function Earn({
 }
 
 /**
- * Experimental features: loadouts and share codes. They change settings only through
- * background messages (core actions and the optional password).
+ * The Share page: loadouts and share codes. They change settings only through background
+ * messages (core actions and the optional password).
  */
-export function Experimental({
+export function Share({
   state,
   onState,
   onNotice,
@@ -59,11 +59,7 @@ export function Experimental({
   onNotice: (n: Notice) => void;
 }) {
   return (
-    <div className="settings-content experimental">
-      <p className="experimental-note">
-        <span className="pill experimental-pill">Experimental</span> Early features to try.
-        They work, but how they look and behave may still change.
-      </p>
+    <div className="settings-content">
       <ShareSettings state={state} onState={onState} onNotice={onNotice} />
     </div>
   );

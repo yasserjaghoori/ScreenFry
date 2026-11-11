@@ -50,15 +50,14 @@ The app also warns if another copy of ScreenFry is installed. Two copies registe
 
 To build a disk image locally on a Mac: `npm run build:safari`, `xcodegen generate --spec safari/ScreenFry/project.yml`, build the **ScreenFry** scheme in Release, then `npm run dmg -- <path to ScreenFry.app>`.
 
-## Turning on in-app updates (one time)
+## In-app updates (on since 0.7.6)
 
-Sparkle only installs updates signed with your private key; the app is built with the matching public key. Until then, **Check for Updates…** opens the GitHub Releases page for manual downloads. Once the key is configured it uses Sparkle instead.
+Sparkle only installs updates signed with ScreenFry's private EdDSA key; the app carries the matching public key (`SUPublicEDKey` in `safari/ScreenFry/project.yml`). The key was made on November 11, 2026 with Sparkle's `generate_keys --account screenfry`: the private key is in Sam's login Keychain (account `screenfry`) and in the repository **secret** `SPARKLE_PRIVATE_KEY`; the public key is also the repository **variable** `SPARKLE_PUBLIC_KEY`. Never commit the private key.
 
-1. On a Mac, after one Xcode build, run Sparkle's `generate_keys` from `dist/safari/SourcePackages/artifacts/sparkle/Sparkle/bin/`. It stores the private key in your login Keychain and prints the public key.
-2. Export the private key: `generate_keys -x sparkle-private-key.txt`. Add its contents as the repository **secret** `SPARKLE_PRIVATE_KEY`, then delete the file. Never commit it.
-3. Add the printed public key as the repository **variable** `SPARKLE_PUBLIC_KEY`.
-
-Releases built after that include the key and a signed feed. Users on an earlier build with no key need one manual download to get onto the updating build.
+- **The feed** is `appcast.xml` on a fixed release tagged `updates`, refreshed by every signed release (GitHub's `releases/latest` link skips pre-releases, so it can't be used while releases are pre-releases).
+- **The app** lives in the menu bar (closing its window keeps it running there, without a Dock icon) and starts at login, so it checks every six hours, and from **Check for Updates…**, and offers the new version. **Start at login** is on the first time it runs from Applications and can be turned off in the window or the menu bar menu; Uninstall removes it. **Install updates automatically** (under the button, and in the ScreenFry menu) downloads it in the background and installs it when ScreenFry quits.
+- **Users on 0.7.5 or earlier** have no key, so they need one manual download to reach an updating build.
+- To replace the key: run `generate_keys --account screenfry` (and `-x file` to export), update both repository entries and `SUPublicEDKey`, and ship one release manually, since older builds only trust the old key.
 
 ## Later: Apple Developer ID (removes the test-build steps)
 

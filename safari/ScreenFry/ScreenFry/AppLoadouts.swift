@@ -1,26 +1,52 @@
 import AppKit
 
-/// The app's own loadouts: five setups kept on this Mac, each a ScreenFry share code
-/// (websites, limits, windows, earn goals and feed controls; never usage or passwords).
-/// A loadout can be saved from a browser's current setup (each browser sends it when it
-/// checks in), pasted from a friend's code, copied, and sent to every connected browser.
+/// The app's own loadouts: five setups kept on this Mac. A loadout holds each browser's setup
+/// as a ScreenFry share code (websites, limits, windows, earn goals and feed controls; never
+/// usage or passwords), saved together with Save ScreenFry Setup from what each browser
+/// sends when it checks in, or one pasted code used for every browser. "Use in All
+/// Browsers" gives each browser its own setup.
 enum AppLoadouts {
     static let count = 5
     private static let key = "appLoadouts"
 
+    /// Key for a code used by every browser (a pasted single code).
+    static let everyBrowser = "*"
+
     struct Loadout {
         var name: String
-        var code: String
+        /// Browser (its raw value, e.g. "safari") or `everyBrowser` → share code.
+        var codes: [String: String]
         var savedAt: Date
+
+        /// The code a browser gets: its own, else the one for every browser.
+        func code(for browser: SettingsBrowser) -> String? {
+            codes[browser.rawValue] ?? codes[AppLoadouts.everyBrowser]
+        }
+
+        /// One line to copy: the single code when every browser has the same setup, else a
+        /// ScreenFry Mac code ("SFM1-") holding each browser's.
+        var shareText: String {
+            let distinct = Set(codes.values)
+            if distinct.count == 1, let only = distinct.first { return only }
+            let data = (try? JSONSerialization.data(withJSONObject: codes, options: [.sortedKeys])) ?? Data()
+            return "SFM1-" + data.base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "")
+        }
     }
 
     static func all() -> [Loadout?] {
         let saved = UserDefaults.standard.array(forKey: key) as? [[String: Any]] ?? []
         return (0..<count).map { i in
-            guard i < saved.count, let code = saved[i]["code"] as? String, !code.isEmpty else { return nil }
+            guard i < saved.count else { return nil }
+            var codes = saved[i]["codes"] as? [String: String] ?? [:]
+            // 0.7.4 kept one code per loadout.
+            if let code = saved[i]["code"] as? String, !code.isEmpty { codes[everyBrowser] = code }
+            guard !codes.isEmpty else { return nil }
             return Loadout(
                 name: saved[i]["name"] as? String ?? "Loadout \(i + 1)",
-                code: code,
+                codes: codes,
                 savedAt: saved[i]["savedAt"] as? Date ?? Date())
         }
     }
@@ -31,7 +57,7 @@ enum AppLoadouts {
         UserDefaults.standard.set(
             list.map { l -> [String: Any] in
                 guard let l else { return [:] }
-                return ["name": l.name, "code": l.code, "savedAt": l.savedAt]
+                return ["name": l.name, "codes": l.codes, "savedAt": l.savedAt]
             },
             forKey: key)
     }
@@ -39,9 +65,20 @@ enum AppLoadouts {
     /// Reset All Data empties every loadout.
     static func clear() { UserDefaults.standard.removeObject(forKey: key) }
 
-    /// Share codes start with "SF2-" (or the older "SCREENFRY-1-"); the browsers check the rest.
-    static func looksLikeCode(_ text: String) -> Bool {
-        text.hasPrefix("SF2-") || text.hasPrefix("SCREENFRY-1-")
+    /// A pasted code as codes by browser: a browser share code ("SF2-", or the older
+    /// "SCREENFRY-1-") is for every browser; a Mac code ("SFM1-") has one per browser. The
+    /// browsers check the codes themselves.
+    static func codes(from text: String) -> [String: String]? {
+        if text.hasPrefix("SF2-") || text.hasPrefix("SCREENFRY-1-") { return [everyBrowser: text] }
+        guard text.hasPrefix("SFM1-") else { return nil }
+        var b64 = String(text.dropFirst(5)).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while b64.count % 4 != 0 { b64 += "=" }
+        guard let data = Data(base64Encoded: b64),
+              let codes = (try? JSONSerialization.jsonObject(with: data)) as? [String: String],
+              !codes.isEmpty,
+              codes.values.allSatisfy({ $0.hasPrefix("SF2-") || $0.hasPrefix("SCREENFRY-1-") })
+        else { return nil }
+        return codes
     }
 }
 
@@ -53,7 +90,7 @@ final class AppLoadoutsPanel: NSObject {
     private let title = NSTextField(labelWithString: "")
     private let detail = NSTextField(wrappingLabelWithString: "")
     private let status = NSTextField(wrappingLabelWithString: "")
-    private var saveButtons: [SettingsBrowser: NSButton] = [:]
+    private var saveButton: NSButton!
     private var copyButton: NSButton!
     private var sendButton: NSButton!
     private var emptyButton: NSButton!
@@ -78,24 +115,18 @@ final class AppLoadoutsPanel: NSObject {
         status.font = .systemFont(ofSize: 11)
         status.textColor = .secondaryLabelColor
 
-        let saves = browsers.map { browser -> NSButton in
-            let b = button("Save \(browser.name)’s Setup", #selector(saveFromBrowser(_:)), false)
-            b.tag = browsers.firstIndex(of: browser)!
-            b.toolTip = "Keep \(browser.name)’s current setup in this loadout."
-            saveButtons[browser] = b
-            return b
-        }
+        saveButton = button("Save ScreenFry Setup", #selector(saveSetup(_:)), false)
         let paste = button("Paste a Code…", #selector(paste(_:)), false)
         copyButton = button("Copy Code", #selector(copy(_:)), false)
         emptyButton = button("Empty", #selector(empty(_:)), false)
         sendButton = button("Use in All Browsers", #selector(send(_:)), true)
-        let row1 = NSStackView(views: saves + [paste])
+        let row1 = NSStackView(views: [saveButton, paste])
         row1.spacing = 8
         let row2 = NSStackView(views: [sendButton, copyButton, emptyButton])
         row2.spacing = 8
         refresh()
         return [
-            helper("Keep up to five setups on this Mac and send one to every browser at once. A loadout is a share code: websites, limits, windows, earn goals and feed controls, never usage or passwords."),
+            helper("Keep up to five setups on this Mac. Save ScreenFry Setup keeps every browser’s current setup at once, and Use in All Browsers gives each browser its own back. A setup holds websites, limits, windows, earn goals and feed controls, never usage or passwords."),
             picker, title, detail, row1, row2, status,
         ]
     }
@@ -107,13 +138,19 @@ final class AppLoadoutsPanel: NSObject {
         }
         title.stringValue = loadout.map { "Loadout \(selected + 1): \($0.name)" } ?? "Loadout \(selected + 1) is empty"
         let date = DateFormatter.localizedString(from: loadout?.savedAt ?? Date(), dateStyle: .medium, timeStyle: .short)
+        let holds = loadout.map { l in
+            l.codes[AppLoadouts.everyBrowser] != nil
+                ? "One setup for every browser."
+                : "Setups for " + browsers.filter { l.codes[$0.rawValue] != nil }.map(\.name).joined(separator: " and ") + "."
+        } ?? ""
         detail.stringValue = loadout == nil
-            ? "Save a browser’s setup here, or paste a share code."
-            : "Saved \(date). \(loadout!.code.count) characters as a share code."
-        for (browser, b) in saveButtons {
-            b.isEnabled = SettingsTransfer.setupCode(browser) != nil
-            if !b.isEnabled { b.toolTip = "ScreenFry in \(browser.name) hasn’t checked in with its setup yet." }
-        }
+            ? "Save ScreenFry’s setup here, or paste a share code."
+            : "Saved \(date). \(holds)"
+        let ready = browsers.filter { SettingsTransfer.setupCode($0) != nil }
+        saveButton.isEnabled = !ready.isEmpty
+        saveButton.toolTip = ready.isEmpty
+            ? "No browser has sent its setup yet. Open a browser with ScreenFry on and wait a minute."
+            : "Keep the current setup of " + ready.map(\.name).joined(separator: " and ") + " in this loadout."
         copyButton.isEnabled = loadout != nil
         sendButton.isEnabled = loadout != nil && browsers.contains { SettingsTransfer.checkIn($0) != nil }
         emptyButton.isEnabled = loadout != nil
@@ -138,18 +175,25 @@ final class AppLoadoutsPanel: NSObject {
         refresh()
     }
 
-    @objc private func saveFromBrowser(_ sender: NSButton) {
-        let browser = browsers[sender.tag]
-        guard let code = SettingsTransfer.setupCode(browser) else { return }
-        if AppLoadouts.all()[selected] != nil, !confirm("Replace loadout \(selected + 1)?", "It will hold \(browser.name)’s current setup instead.") { return }
-        AppLoadouts.set(selected, .init(name: "\(browser.name)’s setup", code: code, savedAt: Date()))
+    /// Saves every browser's current setup (what each sent at its last check-in) together.
+    @objc private func saveSetup(_ sender: Any?) {
+        var codes: [String: String] = [:]
+        for browser in browsers { if let code = SettingsTransfer.setupCode(browser) { codes[browser.rawValue] = code } }
+        guard !codes.isEmpty else { return }
+        let names = browsers.filter { codes[$0.rawValue] != nil }.map(\.name).joined(separator: " and ")
+        let missing = browsers.filter { codes[$0.rawValue] == nil }.map(\.name)
+        var text = "It will hold the current setup of \(names)."
+        if !missing.isEmpty { text += " \(missing.joined(separator: " and ")) hasn’t sent its setup yet, so it isn’t included." }
+        if AppLoadouts.all()[selected] != nil, !confirm("Replace loadout \(selected + 1)?", text) { return }
+        let date = DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .none)
+        AppLoadouts.set(selected, .init(name: "ScreenFry setup, \(date)", codes: codes, savedAt: Date()))
         refresh()
     }
 
     @objc private func paste(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Paste a share code into loadout \(selected + 1)"
-        alert.informativeText = "Codes start with SF2-. Give it a name you’ll recognize."
+        alert.informativeText = "A browser’s share code (SF2-…) is used for every browser; a code copied here (SFM1-…) keeps each browser’s own. Give it a name you’ll recognize."
         let name = NSTextField(string: AppLoadouts.all()[selected]?.name ?? "")
         name.placeholderString = "Name, like Exam week"
         let code = NSTextField(string: NSPasteboard.general.string(forType: .string) ?? "")
@@ -165,18 +209,18 @@ final class AppLoadoutsPanel: NSObject {
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let text = code.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard AppLoadouts.looksLikeCode(text) else {
-            return inform("That isn’t a ScreenFry share code", "Copy the whole code, starting with SF2-, and try again.")
+        guard let codes = AppLoadouts.codes(from: text) else {
+            return inform("That isn’t a ScreenFry share code", "Copy the whole code, starting with SF2- or SFM1-, and try again.")
         }
         let title = name.stringValue.trimmingCharacters(in: .whitespaces)
-        AppLoadouts.set(selected, .init(name: title.isEmpty ? "Loadout \(selected + 1)" : String(title.prefix(40)), code: text, savedAt: Date()))
+        AppLoadouts.set(selected, .init(name: title.isEmpty ? "Loadout \(selected + 1)" : String(title.prefix(40)), codes: codes, savedAt: Date()))
         refresh()
     }
 
     @objc private func copy(_ sender: Any?) {
         guard let loadout = AppLoadouts.all()[selected] else { return }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(loadout.code, forType: .string)
+        NSPasteboard.general.setString(loadout.shareText, forType: .string)
         status.isHidden = false
         status.stringValue = "Copied “\(loadout.name)”’s share code."
     }
@@ -196,10 +240,14 @@ final class AppLoadoutsPanel: NSObject {
             "Each browser’s websites, limits, windows, earn goals and feed controls are replaced with this loadout the next time ScreenFry there checks in, within about a minute. Today’s usage and settings passwords stay. A browser with a password asks for it there first."
         ) else { return }
         var failed: [String] = []
+        var skipped: [String] = []
         for browser in connected {
-            do { try SettingsTransfer.queueSetup(browser, code: loadout.code, name: loadout.name) } catch { failed.append(browser.name) }
+            // Each browser gets its own saved setup (or the one for every browser).
+            guard let code = loadout.code(for: browser) else { skipped.append(browser.name); continue }
+            do { try SettingsTransfer.queueSetup(browser, code: code, name: loadout.name) } catch { failed.append(browser.name) }
         }
         if !failed.isEmpty { inform("Couldn’t send it", "ScreenFry couldn’t write the request for \(failed.joined(separator: " and ")).") }
+        if !skipped.isEmpty { inform("Not sent to \(skipped.joined(separator: " and "))", "This loadout has no setup saved for \(skipped.joined(separator: " and ")). Save ScreenFry Setup again once it has checked in.") }
         refresh()
     }
 

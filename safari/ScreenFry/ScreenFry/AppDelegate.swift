@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import SafariServices
 import UniformTypeIdentifiers
 #if canImport(Sparkle)
@@ -88,7 +89,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return !key.isEmpty
     }
 
+    /// Started by logging in: stay in the menu bar without opening the window.
+    private var launchedAtLogin = false
+    private var menuBar: MenuBarItem?
+
     func applicationWillFinishLaunching(_ notification: Notification) {
+        launchedAtLogin = LoginItem.launchedAtLogin()
         // Set the Dock icon from a bundled image as well as the asset catalog, so a stale
         // LaunchServices icon cache can never leave the Dock showing the generic placeholder.
         if let url = Bundle.main.url(forResource: "BrandIcon", withExtension: "png"),
@@ -104,6 +110,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = updater
         #endif
         buildWindow()
+        // The menu bar icon keeps ScreenFry running (and checking for updates) after its
+        // window closes; it starts at login unless that's turned off.
+        menuBar = MenuBarItem(
+            onOpen: { [weak self] in self?.showMainWindow() },
+            onCheckForUpdates: { [weak self] in self?.checkForUpdates(nil) },
+            autoUpdateState: { [weak self] in self?.autoUpdateOn },
+            onToggleAutoUpdate: { [weak self] in self?.toggleAutoUpdate(nil) },
+            onToggleLogin: { [weak self] in self?.toggleLogin(nil) })
+        LoginItem.turnOnByDefaultOnce()
+        loginBox.state = LoginItem.isEnabled ? .on : .off
+        if launchedAtLogin { NSApp.setActivationPolicy(.accessory) }
         installChromeExtension()
         warnAboutOtherCopies()
         refreshState()
@@ -115,7 +132,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) { refreshState() }
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    /// Closing the window keeps ScreenFry in the menu bar (and out of the Dock).
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    /// Opening ScreenFry again (Finder, Spotlight, the Dock) shows its window.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showMainWindow()
+        return true
+    }
+
+    private func showMainWindow() {
+        guard let window else { return }
+        NSApp.setActivationPolicy(.regular)
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        refreshState()
+    }
+
+    /// "Start at login", in the window and the menu bar menu.
+    private lazy var loginBox: NSButton = {
+        let b = NSButton(checkboxWithTitle: "Start at login", target: self, action: #selector(toggleLogin(_:)))
+        b.font = .systemFont(ofSize: 11)
+        b.toolTip = "Start ScreenFry in the menu bar when you log in, so it can check for updates."
+        return b
+    }()
+
+    @objc private func toggleLogin(_ sender: Any?) {
+        let on = !LoginItem.isEnabled
+        do {
+            try LoginItem.set(on)
+        } catch {
+            if on, SMAppService.mainApp.status == .requiresApproval {
+                SMAppService.openSystemSettingsLoginItems()
+            } else {
+                showAlert("Couldn’t change Start at Login", error.localizedDescription)
+            }
+        }
+        loginBox.state = LoginItem.isEnabled ? .on : .off
+    }
+
+    private var autoUpdateOn: Bool? {
+        #if canImport(Sparkle)
+        return Self.updatesConfigured ? updater.updater.automaticallyDownloadsUpdates : nil
+        #else
+        return nil
+        #endif
+    }
 
     // MARK: Install checks
 
@@ -202,6 +264,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         window.title = "ScreenFry"
+        // Closed windows are kept, so the menu bar icon can show this one again.
+        window.isReleasedWhenClosed = false
+        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
+            // Only the menu bar icon is left: no Dock icon until the window opens again.
+            NSApp.setActivationPolicy(.accessory)
+        }
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
@@ -234,7 +302,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         about.toolTip = "About ScreenFry"
         let spacer = NSView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let header = NSStackView(views: [logo, titles, spacer, about, updateButton])
+        // Updates: the check button, and whether Sparkle installs new versions on its own.
+        let updates = NSStackView(views: [updateButton, autoUpdateBox, loginBox])
+        updates.orientation = .vertical
+        updates.alignment = .trailing
+        updates.spacing = 4
+        let header = NSStackView(views: [logo, titles, spacer, about, updates])
         header.orientation = .horizontal
         header.alignment = .centerY
         header.spacing = 14
@@ -370,6 +443,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let availableHeight = (NSScreen.main?.visibleFrame.height ?? 900) - 60
         window.setContentSize(NSSize(width: 660, height: min(900, availableHeight)))
         window.center()
+        // Started at login: only the menu bar icon, no window.
+        guard !launchedAtLogin else { return }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -540,12 +615,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             chromeStatus.stringValue = "Couldn’t prepare Chrome: \(error)"
             chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
         } else if let checkIn = chromeCheckIn {
-            // Proof from Chrome itself. An app update lands in Chrome on its own: the extension
-            // reloads when it sees the new build, so there's nothing to redo here.
+            // Proof from Chrome itself. An app update lands once Chrome runs: the extension
+            // reloads when it sees the new build (Chrome must be open for that).
             let current = checkIn.version.isEmpty || checkIn.version == version
+            if current && SettingsTransfer.runsStaleCode(.chrome) {
+                // Chrome kept an older copy of ScreenFry's background running after the update.
+                chromeStatus.stringValue = "Connected · reload ScreenFry in Chrome to finish updating"
+                chromeStatus.toolTip = "In Chrome, open the Extensions page and click the reload arrow on ScreenFry, or quit and reopen Chrome."
+                chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
+                return
+            }
+            chromeStatus.toolTip = nil
             chromeStatus.stringValue = current
                 ? "Connected · ScreenFry \(checkIn.version.isEmpty ? version : checkIn.version)"
-                : "Connected · updating to \(version) (within a minute)"
+                : "Connected · updating to \(version) (open Chrome to complete)"
             chromeDot.layer?.backgroundColor = (current ? NSColor.systemGreen : NSColor.systemOrange).cgColor
         } else if UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) {
             chromeStatus.stringValue = "Setup confirmed by you"
@@ -655,6 +738,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var url = URLComponents(string: "https://github.com/yasserjaghoori/ScreenFry/issues/new")!
         url.queryItems = [URLQueryItem(name: "title", value: "Browser request: "), URLQueryItem(name: "body", value: "Which browser would you like ScreenFry to support?\n\nBrowser:\nOperating system:\n")]
         if let url = url.url { NSWorkspace.shared.open(url) }
+    }
+
+    /// "Install updates automatically": Sparkle downloads new versions in the background and
+    /// installs them when ScreenFry quits (it still checks, and asks, when this is off).
+    private lazy var autoUpdateBox: NSButton = {
+        let b = NSButton(checkboxWithTitle: "Install updates automatically", target: self, action: #selector(toggleAutoUpdate(_:)))
+        b.font = .systemFont(ofSize: 11)
+        b.isHidden = !Self.updatesConfigured
+        #if canImport(Sparkle)
+        b.state = Self.updatesConfigured && updater.updater.automaticallyDownloadsUpdates ? .on : .off
+        #endif
+        b.toolTip = "ScreenFry checks for a new version every few hours. With this on, it downloads it and installs it the next time ScreenFry quits."
+        return b
+    }()
+    private var autoUpdateMenuItem: NSMenuItem?
+
+    @objc private func toggleAutoUpdate(_ sender: Any?) {
+        #if canImport(Sparkle)
+        guard Self.updatesConfigured else { return }
+        let on = !updater.updater.automaticallyDownloadsUpdates
+        updater.updater.automaticallyChecksForUpdates = true
+        updater.updater.automaticallyDownloadsUpdates = on
+        autoUpdateBox.state = on ? .on : .off
+        autoUpdateMenuItem?.state = on ? .on : .off
+        #endif
     }
 
     @objc private func checkForUpdates(_ sender: Any?) {
@@ -926,6 +1034,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func performUninstall(erase: Bool, erased: Set<SettingsBrowser>) {
+        // No more starting at login or menu bar icon once it's gone.
+        try? LoginItem.set(false)
+        menuBar?.remove()
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
         let id = Bundle.main.bundleIdentifier ?? "com.screenfry.ScreenFry"
@@ -1010,6 +1121,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let update = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates(_:)), keyEquivalent: "")
         update.target = self
         appMenu.addItem(update)
+        if Self.updatesConfigured {
+            let auto = NSMenuItem(title: "Install Updates Automatically", action: #selector(toggleAutoUpdate(_:)), keyEquivalent: "")
+            auto.target = self
+            #if canImport(Sparkle)
+            auto.state = updater.updater.automaticallyDownloadsUpdates ? .on : .off
+            #endif
+            appMenu.addItem(auto)
+            autoUpdateMenuItem = auto
+        }
         appMenu.addItem(.separator())
         let uninstallItem = NSMenuItem(title: "Uninstall ScreenFry…", action: #selector(uninstall(_:)), keyEquivalent: "")
         uninstallItem.target = self
