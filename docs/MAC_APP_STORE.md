@@ -32,9 +32,21 @@ No network entitlement: the app opens web pages through the browser and fetches 
 - The `ScreenFry App Store` scheme builds, signed (Apple Development, team 9Y9WU7573A) and unsigned; `scripts/verify-safari.mjs` checks it (no Sparkle, no folder, no feed, sandboxed, same App Group in app and extension).
 - Run as Chrome's native messaging host, the sandboxed binary answers a check-in.
 - Run as the app (a copy with its Safari extension removed, so it couldn't disturb the installed ScreenFry), it stays up in the sandbox and writes Chrome's manifest into the real `~/Library` through the exception.
-- `npm run appstore` archives it. Exporting needs Xcode signed in to the team (it creates the "Mac Installer Distribution" certificate and the App Store profiles).
+- `npm run appstore` archives and exports it, signed for the App Store ("3rd Party Mac Developer Installer: Bhron, LLC"; Xcode created that certificate and the "Mac Team Store Provisioning Profile" once signed in).
+- The app exists in App Store Connect (**ScreenFry**, macOS, Apple ID `6834149513`, SKU `screenfry-mac`), and build 1.0.0 (45) was uploaded with `xcodebuild -exportArchive` (destination upload) on November 12, 2026. Its App Information (subtitle, Productivity / Utilities) and version page (description, promotional text, keywords, URLs, copyright, review notes, version 1.0.0) are filled in from store/mac-app-store.md.
 
-Not yet: the Safari extension and app meeting in the App Group on a real install, a TestFlight build, App Review.
+Not yet: the Safari extension and app meeting in the App Group on a real install (TestFlight), App Review.
+
+### Still to do in App Store Connect (Sam)
+
+App Store Connect's pages mostly load in Claude's built-in browser at a desktop width (open the version page from inside the app, not by its address); the Business page doesn't, and it can't attach files.
+
+- **Business:** accept the updated Paid Applications Schedule (Account Holder), which App Store Connect asks for before submitting new apps.
+- **Screenshots:** drag the five 1280×800 images from `dist/store` (`npm run store:images`) onto the version's Mac screenshots; ideally add one of the Mac app's window.
+- **Declarations** (yours to make): App Privacy → Data Not Collected; Age Rating questionnaire (none apply → 4+); Content Rights (ScreenFry changes how third-party websites display in your own browser but contains or shows none of their content itself).
+- **App Review contact:** name, phone and email.
+- **Pricing and Availability:** Free, all regions.
+- **TestFlight:** once the build finishes processing, install it with the TestFlight app on a Mac. It replaces the download's ScreenFry (same bundle ID); its Safari extension then uses the App Group bridge, so check the Safari card shows connected, Chrome check-ins, and Use in All Browsers. Reinstall the download afterwards.
 
 ## Releasing
 

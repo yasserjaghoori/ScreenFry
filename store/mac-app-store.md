@@ -1,6 +1,6 @@
 # Mac App Store listing (draft)
 
-Fill these into [App Store Connect](https://appstoreconnect.apple.com) → Apps → ScreenFry (macOS). Upload builds with `npm run appstore -- upload` (docs/MAC_APP_STORE.md).
+Fill these into [App Store Connect](https://appstoreconnect.apple.com/apps/6834149513/distribution/info) → Apps → ScreenFry (macOS, Apple ID `6834149513`; created November 12, 2026, with the App Information and version page filled in from this file). Upload builds with `npm run appstore -- upload` (docs/MAC_APP_STORE.md, which lists what's still to do).
 
 ## New app
 
