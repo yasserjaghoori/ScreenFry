@@ -96,8 +96,27 @@ enum SettingsTransfer {
         SettingsBridge.write(["requestedAt": ISO8601DateFormatter().string(from: Date())], to: bridge.eraseURL)
     }
 
-    static func eraseSent(_ browser: SettingsBrowser) -> Bool {
-        FileManager.default.fileExists(atPath: browser.bridge.eraseSentURL.path)
+    /// How recently a copy must have checked in for Erase Everything to wait for it. Copies
+    /// check in about once a minute while the browser runs.
+    static let activeCopyWindow: TimeInterval = 10 * 60
+
+    /// Whether every copy of ScreenFry in the browser has been handed the erase request: each
+    /// copy that checked in within `activeCopyWindow` before the request, or since. Chrome can
+    /// run two (the unpacked one and the Web Store one), sharing this bridge.
+    static func eraseSent(_ browser: SettingsBrowser) -> Bool { eraseSent(in: browser.bridge) }
+
+    static func eraseSent(in bridge: SettingsBridge) -> Bool {
+        guard let sent = SettingsBridge.read(bridge.eraseSentURL) else { return false }
+        let sentTo = Set(sent["extensionIds"] as? [String] ?? [])
+        let requested = (SettingsBridge.read(bridge.eraseURL)?["requestedAt"] as? String)
+            .flatMap { ISO8601DateFormatter().date(from: $0) } ?? Date()
+        let copies = SettingsBridge.read(bridge.copiesURL) as? [String: String] ?? [:]
+        let active = copies.compactMap { id, at -> String? in
+            guard let date = ISO8601DateFormatter().date(from: at),
+                  date > requested.addingTimeInterval(-activeCopyWindow) else { return nil }
+            return id
+        }
+        return Set(active).isSubset(of: sentTo)
     }
 }
 
