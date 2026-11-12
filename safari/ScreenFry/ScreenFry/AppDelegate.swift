@@ -2,7 +2,7 @@ import AppKit
 import ServiceManagement
 import SafariServices
 import UniformTypeIdentifiers
-#if canImport(Sparkle)
+#if canImport(Sparkle) && !APPSTORE
 import Sparkle
 #endif
 
@@ -87,7 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var extensionIdentifier: String { (Bundle.main.bundleIdentifier ?? "com.screenfry.ScreenFry") + ".Extension" }
     private var version: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
 
-    #if canImport(Sparkle)
+    #if canImport(Sparkle) && !APPSTORE
     /// In-app updates from GitHub Releases. They stay off until a signing key is configured
     /// (SUPublicEDKey), so an unconfigured build can never install an unverified download.
     private lazy var updater = SPUStandardUpdaterController(
@@ -127,7 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
         if runningFromDiskImage() { return }
-        #if canImport(Sparkle)
+        #if canImport(Sparkle) && !APPSTORE
         _ = updater
         #endif
         buildWindow()
@@ -140,7 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onToggleAutoUpdate: { [weak self] in self?.toggleAutoUpdate(nil) },
             onToggleLogin: { [weak self] in self?.toggleLogin(nil) })
         LoginItem.turnOnByDefaultOnce()
-        #if canImport(Sparkle)
+        #if canImport(Sparkle) && !APPSTORE
         if Self.updatesConfigured {
             // Just updated (in the background or from Sparkle's window): look again straight
             // away, so a version released since the one downloaded follows now, not an hour later.
@@ -209,7 +209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private var autoUpdateOn: Bool? {
-        #if canImport(Sparkle)
+        #if canImport(Sparkle) && !APPSTORE
         return Self.updatesConfigured ? updater.updater.automaticallyDownloadsUpdates : nil
         #else
         return nil
@@ -337,6 +337,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         titles.spacing = 2
         let updateButton = NSButton(title: "Check for Updates…", target: self, action: #selector(checkForUpdates(_:)))
         updateButton.bezelStyle = .rounded
+        // The App Store updates its copy itself.
+        updateButton.isHidden = Flavor.current == .appStore
         if !Self.updatesConfigured {
             updateButton.toolTip = "Open ScreenFry releases to check for a newer download."
         }
@@ -390,7 +392,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.refreshState()
             }
             chromeConfirmation.state = UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) ? .on : .off
-            let steps: [NSView] = Flavor.current == .official ? webStoreSteps() : [
+            let steps: [NSView] = Flavor.current.usesChromeWebStore ? webStoreSteps() : [
                 stepRow(1, "Open the Extensions page.", action: button("Open Chrome Extensions", #selector(openChromeExtensions(_:)), primary: true)),
                 stepRow(2, "Turn on Developer mode (top-right switch on that page).", bold: "top-right switch"),
                 developerModeScreenshots(),
@@ -703,7 +705,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if chromeDropAccepted {
             chromeStatus.stringValue = "Folder dropped — confirm below"
             chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
-        } else if Flavor.current == .official {
+        } else if Flavor.current.usesChromeWebStore {
             chromeStatus.stringValue = "Ready to add from the Chrome Web Store"
             chromeDot.layer?.backgroundColor = Self.ember.cgColor
         } else if ChromeInstaller.installedVersion != nil {
@@ -890,7 +892,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let b = NSButton(checkboxWithTitle: "Install updates automatically", target: self, action: #selector(toggleAutoUpdate(_:)))
         b.font = .systemFont(ofSize: 11)
         b.isHidden = !Self.updatesConfigured
-        #if canImport(Sparkle)
+        #if canImport(Sparkle) && !APPSTORE
         b.state = Self.updatesConfigured && updater.updater.automaticallyDownloadsUpdates ? .on : .off
         #endif
         b.toolTip = "ScreenFry checks for a new version every hour. With this on, it installs new versions in the background, waiting while this window is open."
@@ -899,7 +901,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var autoUpdateMenuItem: NSMenuItem?
 
     @objc private func toggleAutoUpdate(_ sender: Any?) {
-        #if canImport(Sparkle)
+        #if canImport(Sparkle) && !APPSTORE
         guard Self.updatesConfigured else { return }
         let on = !updater.updater.automaticallyDownloadsUpdates
         updater.updater.automaticallyChecksForUpdates = true
@@ -914,7 +916,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSWorkspace.shared.open(URL(string: "https://github.com/yasserjaghoori/ScreenFry/releases")!)
             return
         }
-        #if canImport(Sparkle)
+        #if canImport(Sparkle) && !APPSTORE
         // An update already downloaded in the background: install it now (Sparkle won't start
         // another check while it waits). ScreenFry reopens on the new version.
         if pendingInstall != nil {
@@ -1201,8 +1203,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
         let id = Bundle.main.bundleIdentifier ?? "com.screenfry.ScreenFry"
-        // Unregister the Safari extension first so Safari drops it right away.
-        if let appex = Bundle.main.builtInPlugInsURL?.appendingPathComponent("ScreenFry Extension.appex") {
+        // Unregister the Safari extension first so Safari drops it right away (the sandboxed
+        // Mac App Store copy can't run pluginkit; deleting the app does it there).
+        if Flavor.current != .appStore, let appex = Bundle.main.builtInPlugInsURL?.appendingPathComponent("ScreenFry Extension.appex") {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/usr/bin/pluginkit")
             task.arguments = ["-r", appex.path]
@@ -1247,7 +1250,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let container = home.appendingPathComponent("Library/Containers/\(extensionIdentifier)")
         let containerLeft = erase && fm.fileExists(atPath: container.path)
         if containerLeft { NSWorkspace.shared.activateFileViewerSelecting([container]) }
-        NSWorkspace.shared.recycle([Bundle.main.bundleURL]) { _, error in
+        // The sandboxed Mac App Store copy can't move itself; it asks to be dragged to the Trash.
+        let trash: (@escaping ([URL: URL], Error?) -> Void) -> Void = Flavor.current == .appStore
+            ? { done in done([:], CocoaError(.fileWriteNoPermission)) }
+            : { done in NSWorkspace.shared.recycle([Bundle.main.bundleURL], completionHandler: done) }
+        trash { _, error in
             DispatchQueue.main.async {
                 let done = NSAlert()
                 let finder = containerLeft
@@ -1281,11 +1288,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(aboutItem)
         let update = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates(_:)), keyEquivalent: "")
         update.target = self
-        appMenu.addItem(update)
+        if Flavor.current != .appStore { appMenu.addItem(update) }
         if Self.updatesConfigured {
             let auto = NSMenuItem(title: "Install Updates Automatically", action: #selector(toggleAutoUpdate(_:)), keyEquivalent: "")
             auto.target = self
-            #if canImport(Sparkle)
+            #if canImport(Sparkle) && !APPSTORE
             auto.state = updater.updater.automaticallyDownloadsUpdates ? .on : .off
             #endif
             appMenu.addItem(auto)
@@ -1296,7 +1303,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             title: Flavor.current == .official ? "Switch to Developer Extensions…" : "Switch to Official Extensions…",
             action: #selector(switchFlavor(_:)), keyEquivalent: "")
         switchItem.target = self
-        appMenu.addItem(switchItem)
+        // The two downloads switch between each other; the Mac App Store copy stays itself.
+        if Flavor.current != .appStore { appMenu.addItem(switchItem) }
         let uninstallItem = NSMenuItem(title: "Uninstall ScreenFry…", action: #selector(uninstall(_:)), keyEquivalent: "")
         uninstallItem.target = self
         appMenu.addItem(uninstallItem)
@@ -1334,7 +1342,7 @@ extension AppDelegate {
     /// The window closed: look for an update now, since background checks wait while it's
     /// open (see `updater(_:mayPerform:)`). With automatic installs on, it installs right away.
     func checkSkippedUpdates() {
-        #if canImport(Sparkle)
+        #if canImport(Sparkle) && !APPSTORE
         guard Self.updatesConfigured, updater.updater.automaticallyDownloadsUpdates,
               updater.updater.canCheckForUpdates else { return }
         updater.updater.checkForUpdatesInBackground()
@@ -1342,7 +1350,7 @@ extension AppDelegate {
     }
 }
 
-#if canImport(Sparkle)
+#if canImport(Sparkle) && !APPSTORE
 /// Update notices: when Sparkle finds a newer version, the menu bar icon turns orange and its
 /// menu offers the update. A check you start yourself still shows Sparkle's window; a
 /// scheduled one only does when ScreenFry is in front ("gentle reminders"), since ScreenFry

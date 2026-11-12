@@ -23,7 +23,10 @@ Decide: keep `<all_urls>` (windows and goals accept any website you type) or mov
 
 Nothing is needed for an "official" Safari extension: since the Developer ID signed, notarized releases, Safari lists ScreenFry without any developer setting.
 
-- [ ] Optional later: the **Mac App Store** (App Store review, sandboxed app, no Sparkle in that build, App Store handles updates). Worth it mainly for discoverability, and as the start of an iOS/iPadOS Safari version. Keep it a separate build configuration, not a replacement for the direct download.
+- [x] The **Mac App Store** edition (Sam: ship it together with the Chrome Web Store extension and the two-choice installer): the `ScreenFry App Store` target, sandboxed, no Sparkle, Chrome from the Web Store, the Safari bridge in an App Group. [docs/MAC_APP_STORE.md](MAC_APP_STORE.md) has how it differs and how it was tested; [store/mac-app-store.md](../store/mac-app-store.md) has the listing. `npm run appstore` builds it.
+- [x] Xcode signed in again; `npm run appstore` exports a signed build.
+- [x] The app is in App Store Connect (Apple ID `6834149513`) with its listing text filled in, and build 1.0.0 (45) is uploaded.
+- [ ] Sam: accept the Paid Applications Schedule, add screenshots, the privacy/age/content-rights declarations, the review contact and pricing (docs/MAC_APP_STORE.md lists them); try the build in TestFlight (the App Group bridge with Safari, Chrome check-ins); then submit with the release.
 
 ## 3. Installer with two choices
 

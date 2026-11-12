@@ -9,6 +9,8 @@ const app = resolve(
 );
 const extension = join(app, "Contents/PlugIns/ScreenFry Extension.appex");
 const resources = join(extension, "Contents/Resources");
+const plist2 = (xml) =>
+  JSON.parse(execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", "-"], { input: xml, encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }));
 const plist = (path) =>
   JSON.parse(
     execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", path], {
@@ -28,17 +30,42 @@ if (
   )["com.apple.security.app-sandbox"] !== true
 )
   errors.push("the Safari extension lost its sandbox entitlement");
+const appInfo = plist(join(app, "Contents/Info.plist"));
+// The Mac App Store edition (docs/MAC_APP_STORE.md): sandboxed, updated by the App Store, and
+// Chrome's ScreenFry comes from the Chrome Web Store, so no Sparkle and no unpacked folder.
+const appStore = appInfo.ScreenFryChannel === "appstore";
 const chromeDir = join(app, "Contents/Resources/ChromeExtension");
-if (!existsSync(join(chromeDir, "manifest.json")))
+if (appStore) {
+  if (existsSync(chromeDir)) errors.push("the Mac App Store app must not carry the unpacked Chrome extension");
+  if (existsSync(join(app, "Contents/Frameworks/Sparkle.framework")))
+    errors.push("the Mac App Store app must not embed Sparkle");
+  if (appInfo.SUFeedURL) errors.push("the Mac App Store app must not have an update feed");
+  const signed = (path) => {
+    try {
+      const xml = execFileSync("/usr/bin/codesign", ["-d", "--entitlements", "-", "--xml", path], { stdio: ["ignore", "pipe", "ignore"] });
+      return xml.length ? plist2(xml) : null;
+    } catch {
+      return null; // unsigned (CI's compile check)
+    }
+  };
+  for (const [path, name] of [[app, "app"], [extension, "Safari extension"]]) {
+    const entitlements = signed(path);
+    if (!entitlements) continue;
+    if (entitlements["com.apple.security.app-sandbox"] !== true) errors.push(`the Mac App Store ${name} must be sandboxed`);
+    if (!entitlements["com.apple.security.application-groups"]?.includes(appInfo.ScreenFryAppGroup))
+      errors.push(`the Mac App Store ${name} must be in the App Group ${appInfo.ScreenFryAppGroup}`);
+  }
+  if (plist(join(extension, "Contents/Info.plist")).ScreenFryAppGroup !== appInfo.ScreenFryAppGroup)
+    errors.push("the Safari extension must name the same App Group as the app");
+} else if (!existsSync(join(chromeDir, "manifest.json")))
   errors.push("missing bundled Chrome extension");
 else {
   const chrome = JSON.parse(readFileSync(join(chromeDir, "manifest.json"), "utf8"));
   if (!chrome.background?.service_worker)
     errors.push("bundled Chrome extension must keep its service worker");
 }
-if (!existsSync(join(app, "Contents/Frameworks/Sparkle.framework")))
+if (!appStore && !existsSync(join(app, "Contents/Frameworks/Sparkle.framework")))
   errors.push("Sparkle updater framework is not embedded");
-const appInfo = plist(join(app, "Contents/Info.plist"));
 if (typeof appInfo.ScreenFryShowSafariDeveloperSetup !== "boolean")
   errors.push("Safari developer-setup switch is missing");
 for (const image of ["ChromeDeveloperModeOff.png", "ChromeDeveloperModeOn.png"]) {
@@ -47,11 +74,13 @@ for (const image of ["ChromeDeveloperModeOff.png", "ChromeDeveloperModeOn.png"])
 }
 // Each flavor (docs/DISTRIBUTION.md) updates from its own feed, so it never turns into the other.
 const feeds = { official: "appcast.xml", developer: "appcast-developer.xml" };
-if (!(appInfo.ScreenFryChannel in feeds))
+if (appStore) {
+  /* updated by the App Store, checked above */
+} else if (!(appInfo.ScreenFryChannel in feeds))
   errors.push(`unknown ScreenFryChannel ${appInfo.ScreenFryChannel}`);
 else if (!(appInfo.SUFeedURL ?? "").startsWith("https://github.com/") || !appInfo.SUFeedURL.endsWith(`/${feeds[appInfo.ScreenFryChannel]}`))
   errors.push(`update feed URL ${appInfo.SUFeedURL} doesn't match the ${appInfo.ScreenFryChannel} flavor`);
-const displayNames = { official: "ScreenFry", developer: "ScreenFry Developer" };
+const displayNames = { official: "ScreenFry", developer: "ScreenFry Developer", appstore: "ScreenFry" };
 if (appInfo.ScreenFryChannel in displayNames && appInfo.CFBundleDisplayName !== displayNames[appInfo.ScreenFryChannel])
   errors.push(`display name ${appInfo.CFBundleDisplayName} doesn't match the ${appInfo.ScreenFryChannel} flavor`);
 const info = plist(join(extension, "Contents/Info.plist"));
@@ -126,7 +155,7 @@ if (!errors.length) {
   if (
     manifest.version !== packageVersion ||
     info.CFBundleShortVersionString !== packageVersion ||
-    chromeVersion !== packageVersion
+    (!appStore && chromeVersion !== packageVersion)
   )
     errors.push("Safari version does not match the package");
   if (

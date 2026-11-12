@@ -16,7 +16,8 @@
     "icons": "node scripts/generate-icons.mjs",
     "dmg:local": "bash scripts/build-mac-local.sh",
     "package:chrome-store": "npm run build && node scripts/package-chrome-store.mjs",
-    "store:images": "npm run build && node scripts/store-images.mjs"
+    "store:images": "npm run build && node scripts/store-images.mjs",
+    "appstore": "bash scripts/appstore.sh"
   },
   "dependencies": {
     "react": "19.3.1",

@@ -12,34 +12,70 @@
 		06DB04DB45CEB954F5A67EA4 /* build.json in Resources */ = {isa = PBXBuildFile; fileRef = CE2515CAFCFFC020BD630A93 /* build.json */; };
 		08DE7B8A364B331969B20072 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 25E50A404B134A8532C38AE2 /* assets */; };
 		0CADFFC55AFA64CB5D4A44AE /* ChromeExtension in Resources */ = {isa = PBXBuildFile; fileRef = 933EF357D5DC2A800F3FCF4D /* ChromeExtension */; };
+		0DC5953CDB2E3244C671A50D /* ScreenFry App Store Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D423B6D2FD6BD7CD61EB543D /* ScreenFry App Store Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		0F2D75ECF5BE72873D7BC297 /* ChromeDeveloperModeOn.png in Resources */ = {isa = PBXBuildFile; fileRef = FA3593CF3775B93D03D09489 /* ChromeDeveloperModeOn.png */; };
 		1CCE537722AC0441C2F401CF /* ChromeDeveloperModeOff.png in Resources */ = {isa = PBXBuildFile; fileRef = 2BA4FA5D2529FD34165FFDD7 /* ChromeDeveloperModeOff.png */; };
 		1CDA9A502B6369A6C18A7A02 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7BBAB925D3D0E711CCD25DB6 /* Assets.xcassets */; };
 		1EF6E4D71ACC3CB9EE13D737 /* SettingsTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DB051891D91607283BE453E /* SettingsTransfer.swift */; };
+		21D1E43FF8B5CAF0C5FE141F /* build.json in Resources */ = {isa = PBXBuildFile; fileRef = CE2515CAFCFFC020BD630A93 /* build.json */; };
 		22924DC8EE89BD8FECD31CF2 /* ScreenFry Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2666E275013306972C43DB5B /* MenuBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */; };
 		2E4ABC2320A75A09C1B57FA2 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 6D34DFAD7E4751437B0FC818 /* manifest.json */; };
+		371271C8D46DBE8DEDB14518 /* AppLoadouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5CAD16438D5FE4A5CCB3DA /* AppLoadouts.swift */; };
+		41C308C923847000A38304A9 /* MenuBarIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = E82FD0E480FC6AC785318621 /* MenuBarIcon.png */; };
 		4A8E9F697CA30E3002F3EB6B /* ChromeInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */; };
 		52BF8BD282EE58DEA6604CC8 /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 4560C22C5C494F3794B2222A /* blocked.html */; };
+		52E44EBCFB32927021810E81 /* THIRD_PARTY_NOTICES.txt in Resources */ = {isa = PBXBuildFile; fileRef = A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */; };
+		56ED13A2F45F1D2D2104E64A /* MenuBarIcon@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B1A46B430766DBFBEE79CC34 /* MenuBarIcon@2x.png */; };
 		5C021D84B4277C1736B2C841 /* SettingsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B569E73536E468E42DCD24 /* SettingsBridge.swift */; };
+		67F5099FF5C7A6F8712C42B2 /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 4560C22C5C494F3794B2222A /* blocked.html */; };
+		6A02916F850DE73FB7B1A280 /* ChromeDeveloperModeOff.png in Resources */ = {isa = PBXBuildFile; fileRef = 2BA4FA5D2529FD34165FFDD7 /* ChromeDeveloperModeOff.png */; };
 		6B98191F35B7C6F95CCCAA01 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DFC9DF5528FD9C921B13900 /* AppDelegate.swift */; };
+		6BB4F392834B09FCCE6AF151 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AC7E39BFE2243710DEC67C73 /* PrivacyInfo.xcprivacy */; };
+		6EDFE1D9E6E62B53C57611D1 /* onboarding.html in Resources */ = {isa = PBXBuildFile; fileRef = 6A872869A26315B6CA5A3829 /* onboarding.html */; };
+		7056740A44D82D6DA0AC320F /* BrandIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = C926A87187A450660B765193 /* BrandIcon.png */; };
+		70B7219933CA0D5BC44CDD2F /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = 6B320C01D1AFCD23386C016F /* popup.html */; };
+		71987BA1DC007DF27C3DF232 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AC7E39BFE2243710DEC67C73 /* PrivacyInfo.xcprivacy */; };
 		78E3CE4F459261646100CDFA /* MenuBarIcon@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = B1A46B430766DBFBEE79CC34 /* MenuBarIcon@2x.png */; };
+		7BDC0A5347474A39D918BE34 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7BBAB925D3D0E711CCD25DB6 /* Assets.xcassets */; };
+		7F6E9D6086EB76183DCF9D45 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DFC9DF5528FD9C921B13900 /* AppDelegate.swift */; };
+		81D74B7163D8DC3D2A2AD9BB /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F7764F4144C5BF12FE8CC4D /* SafariWebExtensionHandler.swift */; };
 		83C821571D01DDD1A3C86AAC /* onboarding.html in Resources */ = {isa = PBXBuildFile; fileRef = 6A872869A26315B6CA5A3829 /* onboarding.html */; };
 		8A11629CC6373EA687D70AF4 /* dashboard.html in Resources */ = {isa = PBXBuildFile; fileRef = 634461876F5BA4A4523DEAF4 /* dashboard.html */; };
 		981EEC9E6E12116B3B660379 /* AboutWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D121F86DED7ECFCE62F12399 /* AboutWindow.swift */; };
 		A1F212153BD6405065CD1419 /* THIRD_PARTY_NOTICES.txt in Resources */ = {isa = PBXBuildFile; fileRef = A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */; };
+		A334692F131F770CA6C51CDE /* SettingsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B569E73536E468E42DCD24 /* SettingsBridge.swift */; };
 		A68510093D81B64776D1E8A9 /* BrandIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = C926A87187A450660B765193 /* BrandIcon.png */; };
 		A923C6E3D8BDB5A060477D85 /* ChromeDeveloperModeOn.png in Resources */ = {isa = PBXBuildFile; fileRef = FA3593CF3775B93D03D09489 /* ChromeDeveloperModeOn.png */; };
+		AA394327D162FCB37101F52D /* AboutWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D121F86DED7ECFCE62F12399 /* AboutWindow.swift */; };
+		B5633D12221009828A4356BA /* dashboard.html in Resources */ = {isa = PBXBuildFile; fileRef = 634461876F5BA4A4523DEAF4 /* dashboard.html */; };
+		B581BA67DF31E9CD82A9904E /* ChromeInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */; };
 		BE7258AFAC618C8D1461C89A /* MenuBarIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = E82FD0E480FC6AC785318621 /* MenuBarIcon.png */; };
+		C345264FC66FF92CCC0E6B1C /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 6D8C84935FDC19DEE7CB7022 /* icons */; };
+		C4885D42F9E76A87AB678B65 /* Flavor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B271CB28EB4B15C0C29BA8E /* Flavor.swift */; };
 		C8202B37D9A752224882ECE6 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 6D8C84935FDC19DEE7CB7022 /* icons */; };
 		CA6072E504801357FBF0A27A /* AppLoadouts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5CAD16438D5FE4A5CCB3DA /* AppLoadouts.swift */; };
 		CFBD9EBF436945B78D4F1E0E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 31F6C3047F6D176D12CEFD03 /* Sparkle */; };
 		DB18C231DB46B75EBC4FFC7D /* SettingsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B569E73536E468E42DCD24 /* SettingsBridge.swift */; };
+		DC0F44B6B1752E0E21F26D23 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 25E50A404B134A8532C38AE2 /* assets */; };
 		E1FD1405DF5194B9BB11C8B2 /* MenuBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */; };
 		E85C27294C218B613EE5E020 /* BrandIconDeveloper.png in Resources */ = {isa = PBXBuildFile; fileRef = 21E27ED258A2EA722579972A /* BrandIconDeveloper.png */; };
+		EDD96949C1DB338556F3F14C /* SettingsBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B569E73536E468E42DCD24 /* SettingsBridge.swift */; };
 		EF8305E4F9966B5108923EE2 /* DragTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480527D94926FC7DE12C154E /* DragTile.swift */; };
+		F11B72B81FD037B9D76CCDFF /* SettingsTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DB051891D91607283BE453E /* SettingsTransfer.swift */; };
 		FA318DB236CB81BB0AC50689 /* Flavor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B271CB28EB4B15C0C29BA8E /* Flavor.swift */; };
+		FB902C610F8FD8E8631607F2 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 6D34DFAD7E4751437B0FC818 /* manifest.json */; };
+		FD81B6E38ECC2F9B4EB6F88F /* DragTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480527D94926FC7DE12C154E /* DragTile.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		B2C432D2C1262D447BFE2E82 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3FF733F45E83ABD580298798 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C0E3DD208A570DCA20702D68;
+			remoteInfo = "ScreenFry App Store Extension";
+		};
 		FF2AACED1A7CA3DD79EED014 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 3FF733F45E83ABD580298798 /* Project object */;
@@ -61,6 +97,17 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8388596D6DAD020DEC7C001C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0DC5953CDB2E3244C671A50D /* ScreenFry App Store Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -75,6 +122,7 @@
 		3F7764F4144C5BF12FE8CC4D /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
 		402E7C1E81DFB3C5CA197A4E /* ScreenFry.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenFry.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4560C22C5C494F3794B2222A /* blocked.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = blocked.html; sourceTree = "<group>"; };
+		46CA2FEEF825F1055B9D258F /* ScreenFry App Store.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ScreenFry App Store.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		480527D94926FC7DE12C154E /* DragTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragTile.swift; sourceTree = "<group>"; };
 		634461876F5BA4A4523DEAF4 /* dashboard.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = dashboard.html; sourceTree = "<group>"; };
 		6A872869A26315B6CA5A3829 /* onboarding.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = onboarding.html; sourceTree = "<group>"; };
@@ -86,11 +134,14 @@
 		933EF357D5DC2A800F3FCF4D /* ChromeExtension */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ChromeExtension; path = ScreenFry/ChromeExtension; sourceTree = SOURCE_ROOT; };
 		9B271CB28EB4B15C0C29BA8E /* Flavor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Flavor.swift; sourceTree = "<group>"; };
 		A537E66C76A5CAD2E788D19A /* THIRD_PARTY_NOTICES.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = THIRD_PARTY_NOTICES.txt; sourceTree = "<group>"; };
+		AC7E39BFE2243710DEC67C73 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B1A46B430766DBFBEE79CC34 /* MenuBarIcon@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "MenuBarIcon@2x.png"; sourceTree = "<group>"; };
 		C27CC3BAA8FA174C2C526059 /* ChromeInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromeInstaller.swift; sourceTree = "<group>"; };
 		C926A87187A450660B765193 /* BrandIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = BrandIcon.png; sourceTree = "<group>"; };
+		CC60B9D6FD7FF99D1BCE9B0C /* Info AppStore.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Info AppStore.plist"; sourceTree = "<group>"; };
 		CE2515CAFCFFC020BD630A93 /* build.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = build.json; sourceTree = "<group>"; };
 		D121F86DED7ECFCE62F12399 /* AboutWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutWindow.swift; sourceTree = "<group>"; };
+		D423B6D2FD6BD7CD61EB543D /* ScreenFry App Store Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "ScreenFry App Store Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7B569E73536E468E42DCD24 /* SettingsBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBridge.swift; sourceTree = "<group>"; };
 		E82FD0E480FC6AC785318621 /* MenuBarIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = MenuBarIcon.png; sourceTree = "<group>"; };
 		EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "ScreenFry Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -120,6 +171,7 @@
 		2072657851172A73E9A1D365 /* ScreenFry Extension */ = {
 			isa = PBXGroup;
 			children = (
+				CC60B9D6FD7FF99D1BCE9B0C /* Info AppStore.plist */,
 				35F2D751243FE4853323CEDF /* Info.plist */,
 				3F7764F4144C5BF12FE8CC4D /* SafariWebExtensionHandler.swift */,
 			);
@@ -157,6 +209,7 @@
 				164B3CF9D4CBC8B5E50FB717 /* MenuBar.swift */,
 				E82FD0E480FC6AC785318621 /* MenuBarIcon.png */,
 				B1A46B430766DBFBEE79CC34 /* MenuBarIcon@2x.png */,
+				AC7E39BFE2243710DEC67C73 /* PrivacyInfo.xcprivacy */,
 				3DB051891D91607283BE453E /* SettingsTransfer.swift */,
 				C04C43DB19F97C5AE665D076 /* SetupImages */,
 			);
@@ -166,6 +219,8 @@
 		9B6BF7470BFA511E39E11550 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				D423B6D2FD6BD7CD61EB543D /* ScreenFry App Store Extension.appex */,
+				46CA2FEEF825F1055B9D258F /* ScreenFry App Store.app */,
 				EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */,
 				402E7C1E81DFB3C5CA197A4E /* ScreenFry.app */,
 			);
@@ -216,6 +271,44 @@
 			productReference = EB9791B687C4F84008BB0A78 /* ScreenFry Extension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		B3B3D6DB63FF681D295CCEBD /* ScreenFry App Store */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F5D5AD2447A9924509E098E4 /* Build configuration list for PBXNativeTarget "ScreenFry App Store" */;
+			buildPhases = (
+				FBC9169E056D538E11D7008A /* Sources */,
+				CCDA5DBD464880B656959064 /* Resources */,
+				8388596D6DAD020DEC7C001C /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				72B429F5C3E955455D4047D0 /* PBXTargetDependency */,
+			);
+			name = "ScreenFry App Store";
+			packageProductDependencies = (
+			);
+			productName = "ScreenFry App Store";
+			productReference = 46CA2FEEF825F1055B9D258F /* ScreenFry App Store.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C0E3DD208A570DCA20702D68 /* ScreenFry App Store Extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 21BBCA39BC7870641B2C4E93 /* Build configuration list for PBXNativeTarget "ScreenFry App Store Extension" */;
+			buildPhases = (
+				C8BDFA5F776065923D5669D7 /* Sources */,
+				BC2E03B312D4BCF86A2901C7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "ScreenFry App Store Extension";
+			packageProductDependencies = (
+			);
+			productName = "ScreenFry App Store Extension";
+			productReference = D423B6D2FD6BD7CD61EB543D /* ScreenFry App Store Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		FDB35ADC9E337A2FC9E96FD3 /* ScreenFry */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 409BF335203B9940AA0395EA /* Build configuration list for PBXNativeTarget "ScreenFry" */;
@@ -247,6 +340,14 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					B3B3D6DB63FF681D295CCEBD = {
+						DevelopmentTeam = 9Y9WU7573A;
+						ProvisioningStyle = Automatic;
+					};
+					C0E3DD208A570DCA20702D68 = {
+						DevelopmentTeam = 9Y9WU7573A;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = 5EF376FB7B9A91D6F419AC86 /* Build configuration list for PBXProject "ScreenFry" */;
@@ -268,11 +369,29 @@
 			targets = (
 				FDB35ADC9E337A2FC9E96FD3 /* ScreenFry */,
 				1E09D4D919DABA0C1BAE55DE /* ScreenFry Extension */,
+				B3B3D6DB63FF681D295CCEBD /* ScreenFry App Store */,
+				C0E3DD208A570DCA20702D68 /* ScreenFry App Store Extension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		BC2E03B312D4BCF86A2901C7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				52E44EBCFB32927021810E81 /* THIRD_PARTY_NOTICES.txt in Resources */,
+				DC0F44B6B1752E0E21F26D23 /* assets in Resources */,
+				67F5099FF5C7A6F8712C42B2 /* blocked.html in Resources */,
+				21D1E43FF8B5CAF0C5FE141F /* build.json in Resources */,
+				B5633D12221009828A4356BA /* dashboard.html in Resources */,
+				C345264FC66FF92CCC0E6B1C /* icons in Resources */,
+				FB902C610F8FD8E8631607F2 /* manifest.json in Resources */,
+				6EDFE1D9E6E62B53C57611D1 /* onboarding.html in Resources */,
+				70B7219933CA0D5BC44CDD2F /* popup.html in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C1E151AF63D5F31DDDCE58EA /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -285,6 +404,21 @@
 				0CADFFC55AFA64CB5D4A44AE /* ChromeExtension in Resources */,
 				BE7258AFAC618C8D1461C89A /* MenuBarIcon.png in Resources */,
 				78E3CE4F459261646100CDFA /* MenuBarIcon@2x.png in Resources */,
+				71987BA1DC007DF27C3DF232 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CCDA5DBD464880B656959064 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7BDC0A5347474A39D918BE34 /* Assets.xcassets in Resources */,
+				7056740A44D82D6DA0AC320F /* BrandIcon.png in Resources */,
+				6A02916F850DE73FB7B1A280 /* ChromeDeveloperModeOff.png in Resources */,
+				0F2D75ECF5BE72873D7BC297 /* ChromeDeveloperModeOn.png in Resources */,
+				41C308C923847000A38304A9 /* MenuBarIcon.png in Resources */,
+				56ED13A2F45F1D2D2104E64A /* MenuBarIcon@2x.png in Resources */,
+				6BB4F392834B09FCCE6AF151 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -316,6 +450,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C8BDFA5F776065923D5669D7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81D74B7163D8DC3D2A2AD9BB /* SafariWebExtensionHandler.swift in Sources */,
+				EDD96949C1DB338556F3F14C /* SettingsBridge.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F62E752604A8C1314498CFE1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -332,6 +475,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FBC9169E056D538E11D7008A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA394327D162FCB37101F52D /* AboutWindow.swift in Sources */,
+				7F6E9D6086EB76183DCF9D45 /* AppDelegate.swift in Sources */,
+				371271C8D46DBE8DEDB14518 /* AppLoadouts.swift in Sources */,
+				B581BA67DF31E9CD82A9904E /* ChromeInstaller.swift in Sources */,
+				FD81B6E38ECC2F9B4EB6F88F /* DragTile.swift in Sources */,
+				C4885D42F9E76A87AB678B65 /* Flavor.swift in Sources */,
+				2666E275013306972C43DB5B /* MenuBar.swift in Sources */,
+				A334692F131F770CA6C51CDE /* SettingsBridge.swift in Sources */,
+				F11B72B81FD037B9D76CCDFF /* SettingsTransfer.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -339,6 +498,11 @@
 			isa = PBXTargetDependency;
 			target = 1E09D4D919DABA0C1BAE55DE /* ScreenFry Extension */;
 			targetProxy = FF2AACED1A7CA3DD79EED014 /* PBXContainerItemProxy */;
+		};
+		72B429F5C3E955455D4047D0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C0E3DD208A570DCA20702D68 /* ScreenFry App Store Extension */;
+			targetProxy = B2C432D2C1262D447BFE2E82 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -388,6 +552,53 @@
 				SDKROOT = macosx;
 			};
 			name = Release;
+		};
+		3705BA650F588F39BCC4FDF5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "ScreenFry Extension/ScreenFry Extension AppStore.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 45;
+				DEVELOPMENT_TEAM = 9Y9WU7573A;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "ScreenFry Extension/Info AppStore.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry.Extension;
+				PRODUCT_MODULE_NAME = ScreenFry_Extension;
+				PRODUCT_NAME = "ScreenFry Extension";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		4B773FD0EDA62EDBF9E5D161 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "ScreenFry/ScreenFry AppStore.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 45;
+				DEVELOPMENT_TEAM = 9Y9WU7573A;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "ScreenFry/Info AppStore.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry;
+				PRODUCT_MODULE_NAME = ScreenFry;
+				PRODUCT_NAME = ScreenFry;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) APPSTORE";
+			};
+			name = Debug;
 		};
 		69C66B2EB7D2B10233F42003 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -452,6 +663,30 @@
 			};
 			name = Debug;
 		};
+		7E1E358FCAF31C751DA30C70 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "ScreenFry/ScreenFry AppStore.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 45;
+				DEVELOPMENT_TEAM = 9Y9WU7573A;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "ScreenFry/Info AppStore.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry;
+				PRODUCT_MODULE_NAME = ScreenFry;
+				PRODUCT_NAME = ScreenFry;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) APPSTORE";
+			};
+			name = Release;
+		};
 		9922278B64E226069809BC78 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -467,6 +702,29 @@
 				);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry.Extension;
+				PRODUCT_NAME = "ScreenFry Extension";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		C259D99E1642BE562F9ED27A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "ScreenFry Extension/ScreenFry Extension AppStore.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 45;
+				DEVELOPMENT_TEAM = 9Y9WU7573A;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "ScreenFry Extension/Info AppStore.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.screenfry.ScreenFry.Extension;
+				PRODUCT_MODULE_NAME = ScreenFry_Extension;
 				PRODUCT_NAME = "ScreenFry Extension";
 				SDKROOT = macosx;
 			};
@@ -551,6 +809,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		21BBCA39BC7870641B2C4E93 /* Build configuration list for PBXNativeTarget "ScreenFry App Store Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C259D99E1642BE562F9ED27A /* Debug */,
+				3705BA650F588F39BCC4FDF5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		409BF335203B9940AA0395EA /* Build configuration list for PBXNativeTarget "ScreenFry" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -574,6 +841,15 @@
 			buildConfigurations = (
 				69C66B2EB7D2B10233F42003 /* Debug */,
 				DB8B45FE60F93075A68E77AA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F5D5AD2447A9924509E098E4 /* Build configuration list for PBXNativeTarget "ScreenFry App Store" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4B773FD0EDA62EDBF9E5D161 /* Debug */,
+				7E1E358FCAF31C751DA30C70 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

@@ -14,9 +14,11 @@ enum SettingsBrowser: String, CaseIterable {
         case .chrome:
             return SettingsBridge.local("Chrome")
         case .safari:
+            // The Mac App Store app is sandboxed too: it meets the extension in their App Group.
+            if let shared = SettingsBridge.safari() { return shared }
             // The Safari extension is sandboxed, so its handler writes inside its container.
             let id = (Bundle.main.bundleIdentifier ?? "com.screenfry.ScreenFry") + ".Extension"
-            return SettingsBridge(directory: FileManager.default.homeDirectoryForCurrentUser
+            return SettingsBridge(directory: Home.real
                 .appendingPathComponent("Library/Containers/\(id)/Data/Library/Application Support/ScreenFry/Bridge/Safari", isDirectory: true))
         }
     }
@@ -158,9 +160,10 @@ enum ChromeNativeHost {
         try? FileHandle.standardOutput.write(contentsOf: framed)
     }
 
-    /// Chrome's native messaging manifest for the current user.
+    /// Chrome's native messaging manifest for the current user (outside the sandbox's
+    /// container: the Mac App Store app may write here, `ScreenFry AppStore.entitlements`).
     static var manifestURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
+        Home.real
             .appendingPathComponent("Library/Application Support/Google/Chrome/NativeMessagingHosts/\(name).json")
     }
 
@@ -180,7 +183,9 @@ enum ChromeNativeHost {
     /// The extensions allowed to talk to this app: the ScreenFry folder's unpacked copy and
     /// the Chrome Web Store copy (nothing else).
     static var allowedOrigins: [String] {
-        [unpackedExtensionID(path: ChromeInstaller.folder.path), storeExtensionID]
+        // The sandboxed Mac App Store copy has no unpacked folder (its path would point into
+        // the app's container), so only the Web Store copy can reach it.
+        (Flavor.current == .appStore ? [storeExtensionID] : [unpackedExtensionID(path: ChromeInstaller.folder.path), storeExtensionID])
             .map { "chrome-extension://\($0)/" }
     }
 

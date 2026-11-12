@@ -82,7 +82,8 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         menu.addItem(entry("Open ScreenFry", #selector(open)))
         menu.addItem(.separator())
-        menu.addItem(entry("Check for Updates…", #selector(check)))
+        // The Mac App Store copy is updated by the App Store.
+        if Flavor.current != .appStore { menu.addItem(entry("Check for Updates…", #selector(check))) }
         autoUpdate = entry("Install Updates Automatically", #selector(toggleAutoUpdate))
         menu.addItem(autoUpdate)
         login = entry("Start at Login", #selector(toggleLogin))

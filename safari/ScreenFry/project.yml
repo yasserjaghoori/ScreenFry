@@ -87,6 +87,7 @@ targets:
         excludes:
           - Resources
           - "*.entitlements"
+          - "Info AppStore.plist"
       - path: Shared
       # Safari reads manifest.json from the root of the appex Resources directory, so the
       # top-level files are added individually; assets/ and icons/ retain their folder paths.
@@ -123,5 +124,111 @@ targets:
         # Notarization requires the hardened runtime on every executable, the extension included.
         ENABLE_HARDENED_RUNTIME: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry.Extension
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "45"
+
+  # The Mac App Store edition (docs/MAC_APP_STORE.md): the official ScreenFry, sandboxed,
+  # without Sparkle (the App Store updates it) and without the unpacked Chrome folder (Chrome
+  # gets ScreenFry from the Chrome Web Store). Same bundle identifiers as the download, so
+  # macOS and Safari see one ScreenFry. Build it with scripts/appstore.sh.
+  ScreenFry App Store:
+    type: application
+    platform: macOS
+    sources:
+      - path: ScreenFry
+        excludes:
+          - "*.entitlements"
+          - "Info *.plist"
+          - Info.plist
+          - ChromeExtension
+          - "ChromeExtension/**"
+          - BrandIconDeveloper.png
+      - path: Shared
+    info:
+      path: ScreenFry/Info AppStore.plist
+      properties:
+        CFBundleDisplayName: ScreenFry
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.productivity
+        ScreenFryShowSafariDeveloperSetup: false
+        ScreenFryChannel: appstore
+        # Where the app and its sandboxed Safari extension meet (SettingsBridge.safari()).
+        ScreenFryAppGroup: 9Y9WU7573A.com.screenfry.ScreenFry
+        # Only hashing (CryptoKit SHA-256) and the extension's password check: exempt.
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: ScreenFry/ScreenFry AppStore.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups:
+          - 9Y9WU7573A.com.screenfry.ScreenFry
+        # Chrome finds the app's native messaging host (check-ins, loadouts, erase) only
+        # through a file in this folder of the user's Library (ChromeNativeHost.register).
+        com.apple.security.temporary-exception.files.home-relative-path.read-write:
+          - /Library/Application Support/Google/Chrome/NativeMessagingHosts/
+    settings:
+      base:
+        PRODUCT_NAME: ScreenFry
+        PRODUCT_MODULE_NAME: ScreenFry
+        PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry
+        DEVELOPMENT_TEAM: 9Y9WU7573A
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) APPSTORE
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "45"
+    dependencies:
+      - target: ScreenFry App Store Extension
+        embed: true
+  ScreenFry App Store Extension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: ScreenFry Extension
+        excludes:
+          - Resources
+          - "*.entitlements"
+          - Info.plist
+      - path: Shared
+      - path: ScreenFry Extension/Resources
+        type: group
+        buildPhase: resources
+        excludes:
+          - assets
+          - "assets/**"
+          - icons
+          - "icons/**"
+      - path: ScreenFry Extension/Resources/assets
+        type: folder
+        buildPhase: resources
+      - path: ScreenFry Extension/Resources/icons
+        type: folder
+        buildPhase: resources
+    info:
+      path: ScreenFry Extension/Info AppStore.plist
+      properties:
+        CFBundleDisplayName: ScreenFry Extension
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ScreenFryAppGroup: 9Y9WU7573A.com.screenfry.ScreenFry
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.Safari.web-extension
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).SafariWebExtensionHandler"
+    entitlements:
+      path: ScreenFry Extension/ScreenFry Extension AppStore.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups:
+          - 9Y9WU7573A.com.screenfry.ScreenFry
+    settings:
+      base:
+        PRODUCT_NAME: ScreenFry Extension
+        PRODUCT_MODULE_NAME: ScreenFry_Extension
+        PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry.Extension
+        DEVELOPMENT_TEAM: 9Y9WU7573A
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_HARDENED_RUNTIME: YES
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "45"

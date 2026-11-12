@@ -10,6 +10,7 @@ Add changes under "Unreleased"; a release turns that heading into its version
 - Two ScreenFrys in the download: **ScreenFry** adds Chrome's extension from the Chrome Web Store (one click, updated by Chrome, no Developer mode), and the greyed **ScreenFry Developer** keeps the Developer mode version. Safari is the same in both.
 - Using ScreenFry in Chrome's Developer mode? It keeps working and updating. The Chrome card explains moving to the Web Store version with your setup.
 - Erase Everything now erases both Chrome versions when both are installed.
+- ScreenFry is on the Mac App Store too, with the same Safari extension, Chrome from the Chrome Web Store, and updates through the App Store.
 
 ## 1.0.0
 

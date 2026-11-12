@@ -52,8 +52,14 @@ jobs:
         run: |
           scripts/build-flavor.sh official Debug CODE_SIGNING_ALLOWED=NO
           scripts/build-flavor.sh developer Debug CODE_SIGNING_ALLOWED=NO
+      - name: Compile the Mac App Store edition without signing
+        run: >-
+          xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj
+          -scheme "ScreenFry App Store" -configuration Debug -derivedDataPath dist/appstore
+          CODE_SIGNING_ALLOWED=NO build
       - name: Verify Safari package and generated entitlements
         run: |
+          node scripts/verify-safari.mjs dist/appstore/Build/Products/Debug/ScreenFry.app
           node scripts/verify-safari.mjs dist/safari/Build/Products/Debug/ScreenFry.app
           node scripts/verify-safari.mjs "dist/safari-developer/Build/Products/Debug/ScreenFry Developer.app"
 
