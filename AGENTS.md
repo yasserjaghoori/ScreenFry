@@ -2,7 +2,7 @@
 
 Read `docs/PROJECT_BRIEF.md`, `README.md`, and the relevant architecture/testing docs before changing behavior.
 
-**On `codex/next`** (unreleased features, user-requested): read `docs/NEXT.md` first. It's the plan for the Chrome Web Store extension, the installer's two choices (official vs. developer extensions), the setup library and search, and the Earn leaderboard. `main` is the released app; merge `origin/main` into this branch at the start of each session, ship finished pieces to `main` by pull request, and never run the Release workflow from here (it refuses). The community features may use the backend described in `docs/NEXT.md`, opt-in only; everything else below still applies.
+**On `dev/next`** (unreleased features, user-requested): read `docs/NEXT.md` first. It's the plan for the Chrome Web Store extension, the installer's two choices (official vs. developer extensions), the setup library and search, and the Earn leaderboard. `main` is the released app; merge `origin/main` into this branch at the start of each session, ship finished pieces to `main` by pull request, and never run the Release workflow from here (it refuses). The community features may use the backend described in `docs/NEXT.md`, opt-in only; everything else below still applies.
 
 - The one working copy on Sam's Mac is `~/ScreenFry` (repository: https://github.com/yasserjaghoori/ScreenFry). Work only there; don't create or use copies elsewhere, such as under `Documents/ChatGPT`.
 - This is Sam and Yasser's productivity project. Start with Chrome and Safari extensions; a native macOS companion and iOS app are later phases.
@@ -15,4 +15,4 @@ Read `docs/PROJECT_BRIEF.md`, `README.md`, and the relevant architecture/testing
 - Every release's changes go in `CHANGELOG.md` (short, plain words, under "Unreleased" until the release names it; user-requested): the Mac app's update window and the GitHub release show them.
 - Use Node from `.nvmrc` and `npm ci`. Run `npm run check` after code changes and `npm run test:e2e` for extension integration changes.
 - Builds share `dist/chrome`; do not run a build while the Chrome smoke test is using it. Run `npm run build:safari` before regenerating or building the Safari project.
-- Do not commit personal message exports, browsing data, passwords, signing identities, or generated build output. Work on a `codex/` branch and preserve collaborators' changes.
+- Do not commit personal message exports, browsing data, passwords, signing identities, or generated build output. Work on a branch named `dev/<what it does>` (for example `dev/fix-chrome-status` or `dev/release-1.0.1`; unreleased features live on `dev/next`) and preserve collaborators' changes.

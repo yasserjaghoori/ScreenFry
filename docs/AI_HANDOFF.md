@@ -30,7 +30,7 @@ Validation: Node 24.14.0, `npm ci`, **84 unit tests**, typecheck/verified build,
 
 ## Historical 0.4.2 state
 
-Claude pushed `877f8f7` (Shorts navigation and isolated-world lookup) and `2e78a48` (ScreenFry 0.4.0 ember redesign, Today summaries, popup site buttons and Mac Dock icon fallback). Those commits were fast-forwarded into local `codex/project-setup`.
+Claude pushed `877f8f7` (Shorts navigation and isolated-world lookup) and `2e78a48` (ScreenFry 0.4.0 ember redesign, Today summaries, popup site buttons and Mac Dock icon fallback). Those commits were fast-forwarded into the local working branch.
 
 Current source and installed Safari app: **0.4.2**, native build **11**. The persistent app is `/Users/samhangster/Applications/ScreenFry.app`; the older app was replaced with a backup. Chrome's management page confirmed **0.4.2 enabled** after Reload. Stable identifiers remain unchanged. Preserve the user's untracked duplicate Xcode projects.
 
@@ -83,9 +83,9 @@ Evidence (isolated headless Chrome, 1 YouTube fixture + 6 pages with 8 iframes e
 - **Safari popup:** it now draws immediately from `storage.local`, then refreshes from the background, at a fixed 380x580 size. Previously it waited for the background to wake, so the popover opened tiny and then jumped. When `<all_urls>` access isn't granted, it shows how to grant it. Safari otherwise shows its own permission prompt on every toolbar click, which matches the user's "permissions window" report. Not yet verified in live Safari.
 - **README** rewritten for readability, with accurate controls (taken from the registry), allow/block windows, and the Safari "Other Websites → Allow" step.
 
-## 0.4.10 Merge of Codex 0.4.8 popup startup with 0.4.9
+## 0.4.10 Merge of the 0.4.8 popup startup with 0.4.9
 
-Codex's 0.4.8 popup work, made on the user's Mac and never pushed, is merged here on top of 0.4.9. It adds an inline 380x580 shell in `popup.html` so Safari sizes the popover before scripts load. The popup no longer sends `GET_STATE` on open, and reads the active tab only when `<all_urls>` is granted. Its two e2e checks are adapted to the dropdown. Result: 89 unit tests and 46 integration checks pass. The user's Mac copy kept Codex's original changes in a git stash (see below).
+The 0.4.8 popup work, made on the user's Mac and never pushed, is merged here on top of 0.4.9. It adds an inline 380x580 shell in `popup.html` so Safari sizes the popover before scripts load. The popup no longer sends `GET_STATE` on open, and reads the active tab only when `<all_urls>` is granted. Its two e2e checks are adapted to the dropdown. Result: 89 unit tests and 46 integration checks pass. The user's Mac copy kept the original changes in a git stash (see below).
 
 ## 0.4.9 TikTok, popup dropdown, YouTube sidebar
 
@@ -125,7 +125,7 @@ Continue from these results rather than redesigning the product or reintroducing
 
 - Repository: https://github.com/yasserjaghoori/ScreenFry
 - Local checkout: `/Users/samhangster/Documents/ChatGPT/ScreenFry`
-- Working branch: `codex/project-setup`.
+- Working branch: `project-setup` (since merged into main).
 - Existing draft PR: https://github.com/yasserjaghoori/ScreenFry/pull/1
 - The last pre-restart pushed commit was `b98b99b7eb340b35d63f9e92e729e90d2f5bd9b1` (0.3.1, clock logos). The resumed 0.3.2 correction and handoff follow it on the same branch; inspect the branch tip for the latest commit.
 - Current source and installed Safari app: **0.3.2**. Use the PR branch rather than old `main`, whose README still describes the rejected commitment-based product.
@@ -319,7 +319,7 @@ Native Safari control was interrupted twice by simultaneous user input. The user
 5. Test normal public YouTube home, Notifications hiding, regular search/watch preservation and a direct Shorts route. Inspect destination metadata only if extension-page observation is denied. Investigate a reproducible blank tab rather than declaring it blocked successfully.
 6. Complete controlled acceptance for per-site allowance exhaustion, inactive versus playing background tabs, same-site deduplication, multiple/overnight windows, direct/notification/modal short-form routes and optional password. Use isolated fixtures where everyday settings cannot be operated; label the evidence accordingly. Do not change real settings without a permitted, authorized path.
 7. Check remaining launch-site selectors in both browsers, plus private mode and restart/sleep/midnight behavior. Document gaps instead of implying universal coverage.
-8. Update testing notes/README to the actual installed version and results; commit intended changes to `codex/project-setup`, push the existing PR and verify CI. Do not merge/publish as an unrequested extra step.
+8. Update testing notes/README to the actual installed version and results; commit intended changes to the working branch, push the existing PR and verify CI. Do not merge/publish as an unrequested extra step.
 
 Useful commands for subsequent development:
 
