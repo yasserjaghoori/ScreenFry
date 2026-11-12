@@ -7,6 +7,17 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## Unreleased
 
+## 1.0.0
+
+ScreenFry 1.0: less feed, more day, in Safari and Chrome.
+
+- Hide feeds, recommendations and buttons on YouTube, Instagram, X, Reddit, Substack, TikTok, Facebook, LinkedIn and Quora, while search, links and messages keep working.
+- Block Shorts and Reels, or let only the one you were sent play (research mode).
+- Daily limits, allow and block windows, and Fry Time windows that open feeds up for a while.
+- Earn your time on websites you want to use more, and share your setup with a code.
+- The Mac app sets up both browsers, keeps five loadouts for all of them, and updates itself.
+- A clearer README and privacy page.
+
 ## 0.8.2
 
 - Update and Check for Updates always respond now: they install an update that's already downloaded, or open the update window with what's new and a download bar.

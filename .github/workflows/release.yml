@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       prerelease:
-        description: Mark as a pre-release
+        description: Mark as a pre-release (1.0 and later are full releases)
         type: boolean
-        default: true
+        default: false
   push:
     tags: ["v*"]
 
