@@ -2,176 +2,147 @@
 
 <img src="apps/extension/public/icons/icon-128.png" width="96" height="96" alt="ScreenFry logo: a melting monitor with a clock face" />
 
-**Less feed. More day.** ScreenFry is a Chrome and Safari extension that strips the distracting parts out of social websites and limits how long you spend on them, without taking away the useful parts.
+**Less feed. More day.** ScreenFry strips the endless feeds, Shorts and recommendations out of social websites and limits how long you spend on them, while search, links, profiles and messages keep working. It runs in **Safari** and **Chrome** on your Mac, with a small menu bar app that sets both up and keeps them updated.
 
-> **Status:** development build, version 0.8.2. Releases are signed with a Developer ID (Bhron, LLC) and notarized by Apple. Chrome is covered by automated browser tests. The Mac app and Safari extension build and pass packaging checks, but live behavior on each website is still being verified. See [Testing](docs/TESTING.md).
+**[Download ScreenFry for Mac](https://github.com/yasserjaghoori/ScreenFry/releases/latest)** · macOS 13 or later · signed and notarized by Apple · [What's new](CHANGELOG.md)
+
+<img src="docs/images/websites.png" width="820" alt="ScreenFry's Websites page: YouTube's controls, with a daily limit, feed switches and the Shorts choice" />
 
 ## What it does
 
 | | |
 | --- | --- |
-| **Hide distractions** | Turn off feeds, recommendations, comments and navigation buttons, site by site. Search, direct links, profiles and messages keep working. |
-| **Block Shorts and Reels** | Blocks playback, not just the button: recognized direct links, notifications and in-page players are caught. TikTok has whole-site blocking and a linked-video-only option. |
-| **Daily limits** | Give each website its own daily allowance, or none. When it runs out, the whole site is blocked, including tabs already open. Resets at midnight. |
-| **Windows** | Schedule when websites are allowed, or when they're blocked (see below). |
-| **Earn** | **Earn your website time** on its own page, beside Websites and Windows (see below). |
-| **Share** | **Loadouts** with share codes, on their own page under Earn (see below). |
-| **Mac app** | Lives in the menu bar and starts at login, so it can notify you of updates and install them (**Install updates automatically**). Closing its window keeps it in the menu bar. |
-| **Mac app loadouts** | Five loadouts kept on the Mac for every browser: **Save ScreenFry Setup** keeps every browser's current setup at once, **Use in All Browsers** gives each its own back, and codes can be pasted or copied (one browser code for all, or an `SFM1-` code with each browser's). A browser with a settings password asks for it there before using it. |
-| **Optional password** | Protect your settings from impulsive changes. It never grants extra time. The first time you change anything without one, ScreenFry explains it once and offers to set it up ("Not now" goes ahead with your change). |
-| **Start over** | **Restore defaults** at the bottom of Settings erases everything ScreenFry keeps in that browser, loadouts and password included (it asks for the password first). **Reset All Data…** in the Mac app does it for every browser that doesn't have a password on. |
-| **Countdown** | Block screens show when the website is back and a live hours, minutes and seconds countdown. |
-| **Private** | Everything stays on your device. No account, server or analytics, and no record of the sites you visit. |
+| **Hide distractions** | Turn off feeds, recommendations, comments and navigation buttons, website by website. Search, direct links, profiles and messages keep working. |
+| **Block Shorts and Reels** | Blocks playback itself, not just the button: links, notifications and in-page players are caught too. Or use **research mode**: a Short opened from a link plays, and nothing after it. |
+| **Daily limits** | Give each website its own daily allowance. When it runs out, the whole website is blocked, including tabs already open, until midnight. |
+| **Windows** | Schedule when websites are allowed, when they're blocked, and when their feeds open up for a while (**Fry Time**). |
+| **Earn** | Earn your time: spend minutes on a website you want to use more (say, a language app) to unlock others or earn Fry Time. |
+| **Share** | Keep five setups as **loadouts**, and share one as a short code a friend can paste. |
+| **Optional password** | Protect your settings from impulsive changes. It never grants extra time. |
+| **Private** | Everything stays on your Mac. No account, server or analytics, and no record of the websites you visit. |
 
-### Supported websites
+Every control starts **off**: a fresh install changes nothing until you choose.
+
+## Supported websites
 
 | Website | Controls |
 | --- | --- |
-| **YouTube** | Home and subscriptions feeds · recommended videos beside the player, comments and end screens · **block Shorts entirely**, optionally with **research mode** (a Short opened from a link still plays, nothing past it) · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
-| **Instagram** | Home feed and Stories · Explore feed · **block Reels entirely**, optionally with research mode · Home, Search, Explore, Reels, Messages, Notifications and Create buttons · suggested accounts |
-| **X** | For You and Following feeds (separately) · Create Post box · trends and news, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback · **block the video feed entirely** (the full-screen viewer you can scroll through endlessly), optionally with research mode |
+| **YouTube** | Home and subscriptions feeds · recommended videos beside the player, comments and end screens · **Shorts** (allowed, from links only, or blocked) · Explore, Subscriptions and Notifications buttons · thumbnails and banner ads |
+| **Instagram** | Home feed and Stories · Explore feed · **Reels** · Home, Search, Explore, Reels, Messages, Notifications and Create buttons · suggested accounts |
+| **X** | For You and Following feeds (separately) · Create Post box · trends and news, Who to follow and Premium promotions · Home, Explore, Notifications, Messages and Grok buttons · video playback · **the video feed** (the full-screen viewer you can scroll through endlessly) |
 | **Reddit** | Home, Popular/All and subreddit feeds (separately) · recommended posts and Recent Posts · left sidebar, Chat, Notifications and Create Post buttons · comments and voting · video playback |
 | **Substack** | Home and Notes feeds · Home, Subscriptions, Explore, Activity and Chat buttons · video playback |
-| **TikTok** | For You, Following and Explore feeds · **research mode** (only the linked video: no scrolling on, no creator profiles) · comments · “You may like” recommendations and suggested accounts · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons |
-| **Facebook** | Home feed and Stories · sponsored and contacts sidebar · Video feed · **block Reels entirely**, optionally with research mode · Reels, Groups, Marketplace, Gaming and Notifications buttons. Messenger stays separate. |
+| **TikTok** | For You, Following and Explore feeds · **research mode** (only the linked video: no scrolling on, no creator profiles) · comments · “You may like” and suggested accounts · For You, Explore, Following, LIVE, Messages, Activity and Upload buttons |
+| **Facebook** | Home feed and Stories · sponsored and contacts sidebar · Video feed · **Reels** · Reels, Groups, Marketplace, Gaming and Notifications buttons. Messenger stays separate. |
 | **LinkedIn** | Home feed · LinkedIn News and Today’s puzzles · Notifications and Messaging buttons · video playback |
 | **Quora** | Home and Following feeds · related questions · ads and promoted answers · Spaces sidebar · Following, Answer, Spaces and Notifications buttons · video playback |
 
-**Shorts, Reels and video feeds** are one choice per website: **Allowed**, **From links only** (research mode: one opened from a link plays; going past it, to the next one, the creator's page or anywhere else on the site, shows a short "taking you home" screen and then opens the website's home page, and shelves and buttons stay hidden) or **Blocked** (none play, even from a link).
+**Shorts, Reels and video feeds** are one choice per website:
+- **Allowed**.
+- **From links only** (research mode): one opened from a link plays. Going past it, to the next one, the creator's page or anywhere else on the website, shows a short "taking you home" screen and opens the website's home page.
+- **Blocked**: none play, even from a link.
 
-Every control starts **off**: a fresh install changes nothing until you choose. More websites can be added with one entry each; see [Adding a website](docs/ADDING_A_SITE.md).
-
-The toolbar popup selects the current supported website and closes when that tab navigates or you switch tabs. Settings apply live where the content script responds; otherwise the active matching site refreshes once. Daily exhaustion shows an animated “Time is up!” screen (motion respects your system preference). Safari displays it in place without navigating to an extension URL. Timers reset at local midnight; other active blocks/windows still apply.
-
-TikTok's old “Block videos entirely” switch has been removed. An enabled old switch migrates to **Block TikTok** in Essentials, preserving your choice; turn it off there to allow TikTok. The linked-video option stops next-video scrolling on a direct video URL while keeping comments scrollable. Live TikTok markup still needs manual acceptance checks.
+Click ScreenFry in the toolbar to change the website you're on; changes apply right away. When a website's time is up, it shows a "Time is up!" screen with a live countdown to when it's back.
 
 ## How time is counted
 
-- A website's time counts while it's the **active tab** in the focused window, and while its **audio or video is playing** in the background, even muted.
+- A website's time counts while it's the **active tab** in the focused window, and while its **audio or video plays** in the background, even muted.
 - A background tab that isn't playing doesn't count.
 - Several tabs of the same website count once, not once each.
-- Chrome and Safari keep separate settings and separate time.
+- Time is only measured on websites you've set a rule for, and resets at midnight.
+- Safari and Chrome keep their own settings and their own time.
 
 ## Windows
 
-The **Windows** page has two kinds of schedule. Each has a name, days, a start and end time (overnight works), and a list of websites, chosen from the supported sites or typed in.
+The **Windows** page holds three kinds of schedule. Each has a name, days, a start and end time (overnight works) and a list of websites.
 
-- **Allow window:** the listed websites work *only* during the window. Outside every allow window they're blocked, even with time left.
-- **Block window:** the listed websites are blocked *during* the window and work normally otherwise.
-- **Fry Time:** no filter during this time, for a limited amount of time. During the window each listed website's feed blocking is paused until *that website* uses up its own minutes: the same number for every website, or a custom number per website (or the whole window). When a website's minutes run out it's back to its normal settings for the rest of the window, while the others keep theirs; the website itself stays usable. Time left counts down in an on-page timer. While it's on, the website's dot glows in the sidebar and an orange Fry Time bar explains why its switches aren't hiding anything.
+- **Allow window:** the websites work *only* during the window, and are blocked outside every allow window, even with time left.
+- **Block window:** the websites are blocked *during* the window and work normally otherwise.
+- **Fry Time window:** feed blocking pauses during the window for a set number of minutes per website: the same for every website, or custom for each. When a website's minutes run out, its usual settings come back for the rest of the window. Fry Time never unblocks a blocked website or lifts a daily limit.
 
-Windows can't contradict each other. A block window that overlaps an allow or Fry Time window on the same website still saves, so you can fix it by editing either one, but **both windows pause** until you do: the editor warns about the clash before you save, a message explains it after saving, and both cards show **Paused** with the reason. Daily limits always still apply. The editor's **All websites** button selects every supported website at once.
+A block window that overlaps an allow or Fry Time window on the same website still saves, but both pause, clearly marked, until you edit one of them.
 
-*Example:* YouTube has a 10-minute limit and allow windows at 12–1 pm and 6–8 pm. That's 10 minutes total for the day, usable in either window, and YouTube is blocked at 3 pm even if none of it was used. A block window from 9 am to 5 pm on weekdays would instead keep YouTube off during work hours.
+*Example:* YouTube has a 10-minute limit and allow windows at 12–1 pm and 6–8 pm. That's 10 minutes for the day, usable in either window, and YouTube is blocked at 3 pm even if none of it was used.
 
-*Example (one browser for research and fun):* hide YouTube's home feed and Shorts with no daily limit, then add a Fry Time window from 7–9 pm with 30 minutes. All day, search and links work with the feed hidden; in the evening the feed and Shorts open up for 30 minutes, then hide again.
+*Example (one browser for research and fun):* hide YouTube's home feed and Shorts all day, then add a Fry Time window from 7–9 pm with 30 minutes. Search and links work all day; in the evening the feed and Shorts open up for 30 minutes.
 
-## Experimental
+## Earn
 
-The **Experimental** page holds features that work but may still change.
+Pick a goal website and how many minutes to spend there, then what meeting the goal does:
 
-- **Earn your website time:** pick a goal website (say duolingo.com), how many minutes to spend there, and what meeting the goal does:
-  - **Unlock websites:** the websites you choose stay blocked every day until the goal is met, then open right away and lock again at midnight. The block screen says how many minutes are left and links to the goal website.
-  - **Earn Fry Time:** each time the goal is met, feed blocking pauses on the websites you choose for some minutes (the same every time, or different each time such as 1, then 5, then 10), one pool shared by those websites and added to whatever is left, used whenever you visit them that day. Only active time on the goal website counts (its tab in front while you're using the computer; opening ScreenFry pauses it). **Strict mode** counts only unbroken time: leaving the goal website starts the time toward the goal over. A live clock counts up by the second on the goal website, in the popup and on the Earn page, and a notice shows the moment you earn Fry Time or unlock a website. Fry Time only does something on a website with a filter on, and never on a blocked one (a block outranks a filter). A goal can pay out once, several times or as often as you like each day. Earned Fry Time is its own: it works outside Fry Time windows and never uses up a window's minutes (during a window, the window's minutes go first).
+- **Unlock websites:** the websites you choose stay blocked each day until the goal is met.
+- **Earn Fry Time:** each time the goal is met, feed blocking pauses on the websites you choose for some minutes: the same every time, or more each time (say 1, then 5, then 10). A goal can pay out once, several times or without limit each day.
 
-  Time on the goal website counts like a daily limit does (focused tab or playback, once per website), and only on that website. A goal website can't be one of its own websites, and an unlocking goal can't lock another goal's website (it could never be earned).
-- **Share your setup, with loadouts:** keep up to five setups (websites, limits, windows, earn goals and feed blocking) as **loadouts**. The one in use is your live settings; **Use this loadout** saves it and switches, through your password. **Copy share code** puts one loadout into a line of text (no usage, history or password) to send to a friend; paste a code into an empty loadout to fill it, or into a full one to replace it. Codes start with `SF2-` and hold only what differs from a fresh install, so a typical setup is under 200 characters (older `SCREENFRY-1-` codes still work). After pasting, a slideshow shows what the code changes in that loadout, one slide per website with each setting as now → after; apply it from the last slide, or with Accept all at any point. Applying keeps today's usage, Fry Time and earn progress for websites, windows and goals you already had (matched by website or name). Every loadout starts empty, and Restore defaults or Reset All Data empties them all.
+Only active time counts: the goal website's tab in front while you're using the Mac. **Strict mode** counts only unbroken time, so leaving the goal website starts the count over. A live clock shows your progress on the website, in the toolbar popup and on the Earn page, and a notice appears the moment you earn something.
+
+## Share and loadouts
+
+Keep up to five setups (websites, limits, windows, earn goals and feed blocking) as **loadouts** and switch between them. **Copy share code** turns one into a short line of text (no usage, history or password) to send to a friend. Pasting a code shows what it changes, one slide per website, before you apply it.
+
+The Mac app keeps five loadouts of its own, each holding every browser's setup at once:
+- **Save ScreenFry Setup** saves every browser's setup together.
+- **Use in All Browsers** gives each browser its own setup back.
+- Codes move a setup from Safari to Chrome or back.
+
+## The Mac app
+
+ScreenFry's app lives in the menu bar and starts at login.
+
+- **Setup:** it walks you through turning on ScreenFry in Safari and Chrome, and shows whether each is connected.
+- **Updates:** with **Install updates automatically** on (in the window and the menu), new versions install in the background, waiting while its window is open. Otherwise the menu bar icon turns orange and **Update to …** shows what's new. Both browsers update along with the app and keep their settings.
+- **Restart Chrome:** when Chrome needs a restart to finish an update, a **Restart Chrome** button appears.
 
 ## Install
 
-### Download (Mac)
+1. [Download](https://github.com/yasserjaghoori/ScreenFry/releases/latest) `ScreenFry-<version>.dmg`, open it and drag **ScreenFry** onto **Applications**.
+2. Open ScreenFry from Applications.
+3. Follow its two cards:
+   - **Safari:** turn ScreenFry on in Safari's settings, then allow it on websites.
+   - **Chrome:** turn on Developer mode on Chrome's Extensions page, then drag the ScreenFry tile onto it.
 
-1. Download the latest `ScreenFry-<version>.dmg` from [Releases](https://github.com/yasserjaghoori/ScreenFry/releases).
-2. Open it and drag **ScreenFry** onto **Applications**, then open ScreenFry from Applications.
-3. The app walks you through turning on **Safari** (one switch in Safari's settings, then allow it on websites) and **Chrome** (turn on Developer mode, then drag the ScreenFry tile onto Chrome's Extensions page).
+**Uninstalling:** choose **ScreenFry → Uninstall…** (also at the bottom of the window).
+- **Keep Settings** removes the app, while Safari and Chrome keep ScreenFry's settings for a reinstall.
+- **Erase Everything** first clears ScreenFry's settings, windows, usage and password in both browsers, then removes every file.
 
-Releases are signed with a Developer ID and notarized by Apple, so they open normally and Safari lists the extension without any developer settings.
+Details are in [Distribution](docs/DISTRIBUTION.md).
 
-### Build the installer yourself
+## Privacy
 
-You'll need [Node.js](https://nodejs.org) (the version in `.nvmrc`), Xcode signed in to your Apple ID (Xcode → Settings → Accounts), and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+ScreenFry has no account, server or analytics. Settings and usage stay in each browser on your Mac. The only network request is the Mac app's hourly update check to GitHub. Full details are in [Privacy](docs/PRIVACY.md).
 
-```bash
-npm ci
-npm run dmg:local
-```
+## Limitations
 
-This builds `dist/ScreenFry-<version>.dmg`, signed with your Mac's Apple Development identity, so Safari shows the extension without any developer settings.
+- Websites change their layouts, which can break individual controls until ScreenFry is updated.
+- A regular video link with nothing marking it as a Short can't always be recognized as one.
+- The password protects settings inside ScreenFry. It can't stop someone from turning the extension off or removing it.
+- Safari and Chrome don't share settings, time or passwords (share codes can copy a setup across).
 
-Install it the same way as a download.
-
-### Updating and uninstalling
-
-**Updating:** drag a newer build over the old app. Both browsers update together and keep their settings. Chrome's card shows **Connected** once the new version checks in, with nothing to redo. **Check for Updates…** opens the Releases page until release signing is set up, then uses the automatic updater. Version 0.6.0 changed the app's identifiers, so settings from earlier builds don't carry over: uninstall the old version first and set ScreenFry up again.
-
-**Uninstalling:** **ScreenFry → Uninstall…** (also at the bottom of the window). **Keep Settings** removes the app and its extension files; Safari and Chrome keep ScreenFry's settings for a reinstall. **Erase Everything** removes every trace: ScreenFry in Safari and in Chrome first wipes its settings, windows, usage and password (each browser is opened in the background if it's closed; Chrome also removes the extension), then ScreenFry's files and preferences on your Mac are deleted. A browser that doesn't answer within about a minute and a half gets **Try Again** or **Uninstall Anyway**. Safari remembers that you once turned ScreenFry on, so after a reinstall it may start switched on, with fresh settings. Details are in [Distribution](docs/DISTRIBUTION.md).
-
-### Build from source
-
-To load the extensions without the Mac app (for development):
-
-```bash
-npm ci
-npm run build
-```
-
-#### Chrome
-
-1. Open `chrome://extensions` and turn on **Developer mode**.
-2. Click **Load unpacked** and choose the `dist/chrome` folder.
-3. Pin ScreenFry from the puzzle-piece menu.
-4. *Optional:* under **Details**, turn on **Allow in Incognito**.
-
-After rebuilding, click **Reload** on the ScreenFry card.
-
-#### Safari (macOS)
-
-You'll also need Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
-
-1. Build and generate the project:
-   ```bash
-   npm run build:safari
-   xcodegen generate --spec safari/ScreenFry/project.yml
-   ```
-2. Open `safari/ScreenFry/ScreenFry.xcodeproj`, pick a signing team for both targets, and run the **ScreenFry** scheme. This builds **ScreenFry.app**.
-3. In Safari → **Settings → Extensions**, turn on **ScreenFry**.
-4. Still there, click **Edit Websites** and set **Other Websites** to **Allow**. Safari can otherwise request access separately on individual websites. Website permissions and ScreenFry's controls are separate: granting access does not enable any blocking choices.
-5. *Optional:* turn on **Allow in Private Browsing**.
-
-Keep a single copy of ScreenFry.app installed; two copies register two extensions. More detail is in [Safari setup](docs/SAFARI.md).
+More in [Enforcement limits](docs/THREAT_MODEL.md).
 
 ## Development
 
+You'll need [Node.js](https://nodejs.org) (the version in `.nvmrc`). Building the Mac app also needs Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+
 ```bash
+npm ci
 npm run check       # unit tests, type check and a verified Chrome build
 npm run test:e2e    # Chrome integration tests in a throwaway profile
-npm run icons       # regenerate every icon from the source artwork
+npm run dmg:local   # the Mac app and installer, signed with your Apple Development identity
 ```
 
-Run builds and integration tests one at a time, since both use `dist/chrome`.
+To try the Chrome extension alone, run `npm run build`, open `chrome://extensions`, turn on **Developer mode** and **Load unpacked** the `dist/chrome` folder. Safari needs the Mac app: see [Safari](docs/SAFARI.md). Run builds and integration tests one at a time, since both use `dist/chrome`.
 
 | Folder | What's in it |
 | --- | --- |
 | `apps/extension` | Dashboard, popup, blocked page, background and content scripts |
-| `packages/feed-blockers` | **The site registry:** every website's domains, controls and Shorts-style blocking |
+| `packages/feed-blockers` | **The site registry:** every website's domains and controls ([Adding a website](docs/ADDING_A_SITE.md)) |
 | `packages/policy-engine` | Decides whether a page is allowed right now |
 | `packages/core` | Settings, password checks, time tracking and data migration |
 | `packages/browser-adapters` | Messaging, storage and Chrome/Safari differences |
-| `safari/ScreenFry` | The Mac app that packages the Safari extension |
-
-> Everything uses the ScreenFry name: the repository, Xcode project and scheme, npm package (`screenfry`) and the app's bundle identifiers (`com.screenfry.ScreenFry` and `com.screenfry.ScreenFry.Extension`).
-
-## Limitations
-
-- Websites change their layouts, which can break individual controls until they're updated.
-- A regular video link with nothing marking it as a Short can't always be recognized as one.
-- The password protects settings inside ScreenFry. It can't stop someone from turning the extension off or removing it.
-- Chrome and Safari don't share settings, time or passwords.
-
-More in [Enforcement limits](docs/THREAT_MODEL.md) and [Privacy](docs/PRIVACY.md).
+| `safari/ScreenFry` | The Mac app, which carries the Safari extension and installs the Chrome one |
 
 ## Credits
 
 The interface is inspired by [SocialFocus](https://socialfocus.app); none of its code or artwork is used. Some feed selectors are adapted from [Saner Social Media](https://github.com/tobiasdalhof/sanersocialmedia) under the MIT license, whose full notice ships with both builds.
 
-**Docs:** [Project brief](docs/PROJECT_BRIEF.md) · [Architecture](docs/ARCHITECTURE.md) · [Development setup](docs/SETUP.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Distribution](docs/DISTRIBUTION.md) · [Adding a website](docs/ADDING_A_SITE.md) · [Branding](assets/branding/README.md) · [AI handoff](docs/AI_HANDOFF.md)
+**Docs:** [Architecture](docs/ARCHITECTURE.md) · [Development setup](docs/SETUP.md) · [Testing](docs/TESTING.md) · [Safari](docs/SAFARI.md) · [Distribution](docs/DISTRIBUTION.md) · [Adding a website](docs/ADDING_A_SITE.md) · [Privacy](docs/PRIVACY.md) · [Project brief](docs/PROJECT_BRIEF.md) · [Branding](assets/branding/README.md) · [AI handoff](docs/AI_HANDOFF.md)

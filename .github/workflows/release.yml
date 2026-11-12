@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       prerelease:
-        description: Mark as a pre-release
+        description: Mark as a pre-release (1.0 and later are full releases)
         type: boolean
-        default: true
+        default: false
   push:
     tags: ["v*"]
 
@@ -33,6 +33,17 @@ jobs:
       HAS_SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      # Every installed copy updates from what this publishes, so only main is released:
+      # feature branches (like codex/next) must merge into main first.
+      - name: Release only from main
+        run: |
+          git fetch -q origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::Releases come only from main. Merge this branch into main first."
+            exit 1
+          fi
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc

@@ -2,6 +2,8 @@
 
 The user-facing product is now **ScreenFry**, following Claude's 0.4.0 rename and ember redesign. The local folder and Xcode project/scheme use ScreenFry, and the npm package uses screenfry. The GitHub repository URL and stable browser bundle/storage identifiers retain their legacy values for compatibility. The functional scope below is unchanged.
 
+> Since this brief, ScreenFry 1.0 grew to nine websites (adding TikTok, Facebook, LinkedIn and Quora), block and Fry Time windows, the Earn and Share pages, and the menu bar Mac app with loadouts and automatic updates. AGENTS.md and README.md describe the current scope; the brief below is the original approval.
+
 ## Approved scope — November 7, 2026
 
 Combine the feed-blocking approach of Saner Social Media with SocialFocus-style grouped, per-website controls. Launch on Chrome and Safari for **YouTube, Instagram, X, Reddit and Substack**.
