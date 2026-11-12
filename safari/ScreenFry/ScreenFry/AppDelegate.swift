@@ -89,12 +89,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return !key.isEmpty
     }
 
-    /// Started by logging in: stay in the menu bar without opening the window.
+    /// Started by logging in (or reopened by an automatic update): menu bar only, no window.
     private var launchedAtLogin = false
+    /// A downloaded update waiting to install (see `installPendingUpdate`).
+    fileprivate var pendingInstall: (() -> Void)?
     private var menuBar: MenuBarItem?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
-        launchedAtLogin = LoginItem.launchedAtLogin()
+        // Reopened by an automatic update counts like starting at login: menu bar only.
+        let afterUpdate = UserDefaults.standard.bool(forKey: Self.relaunchedAfterUpdateKey)
+        UserDefaults.standard.removeObject(forKey: Self.relaunchedAfterUpdateKey)
+        launchedAtLogin = LoginItem.launchedAtLogin() || afterUpdate
         // Set the Dock icon from a bundled image as well as the asset catalog, so a stale
         // LaunchServices icon cache can never leave the Dock showing the generic placeholder.
         if let url = Bundle.main.url(forResource: "BrandIcon", withExtension: "png"),
@@ -266,9 +271,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.title = "ScreenFry"
         // Closed windows are kept, so the menu bar icon can show this one again.
         window.isReleasedWhenClosed = false
-        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
+        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
             // Only the menu bar icon is left: no Dock icon until the window opens again.
             NSApp.setActivationPolicy(.accessory)
+            // An update that was waiting for the window to close installs now.
+            self?.installPendingUpdate()
         }
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
@@ -1147,6 +1154,18 @@ private final class FlippedSetupView: NSView {
     override var isFlipped: Bool { true }
 }
 
+extension AppDelegate {
+    static let relaunchedAfterUpdateKey = "relaunchedAfterUpdate"
+
+    /// Installs a downloaded update now, unless the window is open (then when it closes).
+    func installPendingUpdate() {
+        guard let install = pendingInstall, window?.isVisible != true else { return }
+        pendingInstall = nil
+        UserDefaults.standard.set(true, forKey: Self.relaunchedAfterUpdateKey)
+        install()
+    }
+}
+
 #if canImport(Sparkle)
 /// Update notices: when Sparkle finds a newer version, the menu bar icon turns orange and its
 /// menu offers the update. A check you start yourself still shows Sparkle's window; a
@@ -1162,6 +1181,23 @@ extension AppDelegate: SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     }
 
     var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    /// "Install updates automatically": Sparkle has downloaded an update and would install it
+    /// when ScreenFry quits, which a menu bar app hardly ever does. Install it now instead
+    /// (ScreenFry closes, updates and reopens in the menu bar), or as soon as its window closes
+    /// if it's open, so it never restarts while you're using it.
+    func updater(
+        _ updater: SPUUpdater,
+        willInstallUpdateOnQuit item: SUAppcastItem,
+        immediateInstallationBlock immediateInstallHandler: @escaping () -> Void
+    ) -> Bool {
+        DispatchQueue.main.async {
+            self.pendingInstall = immediateInstallHandler
+            self.menuBar?.showUpdate(item.displayVersionString)
+            self.installPendingUpdate()
+        }
+        return true
+    }
 
     func standardUserDriverShouldHandleShowingScheduledUpdate(
         _ update: SUAppcastItem, andInImmediateFocus immediateFocus: Bool

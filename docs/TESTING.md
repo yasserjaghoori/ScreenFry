@@ -16,6 +16,10 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Automatic updates install right away — November 11, 2026
+
+- Install updates automatically didn't install 0.7.8: Sparkle checked only every six hours and, with automatic downloads, installs when the app quits, which a menu bar app that starts at login hardly ever does. It now checks hourly, and once an update is downloaded ScreenFry installs it straight away (closing and reopening in the menu bar without its window), waiting only while its window is open. Built; the update path itself can only run from 0.7.9 to a later version.
+
 ## Menu bar icon, update notices and the welcome page — November 11, 2026
 
 - Menu bar: ScreenFry's logo as a black silhouette (template image from `assets/menubar/menubar-icon.svg`, so macOS colors it like other menu bar icons), a greyed-out "ScreenFry v…" line at the top of its menu, and, once Sparkle finds a newer version, an orange icon with "Update to ScreenFry …". Scheduled checks only pop Sparkle's window when ScreenFry is in front (gentle reminders). The icon rendered as expected at preview size; the menu bar itself wasn't captured.
