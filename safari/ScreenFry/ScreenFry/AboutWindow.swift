@@ -14,7 +14,7 @@ enum AboutWindow {
         logo.image = NSApp.applicationIconImage
         logo.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([logo.widthAnchor.constraint(equalToConstant: 72), logo.heightAnchor.constraint(equalToConstant: 72)])
-        let title = NSTextField(labelWithString: "ScreenFry")
+        let title = NSTextField(labelWithString: Flavor.current.name)
         title.font = .systemFont(ofSize: 22, weight: .bold)
         let subtitle = NSTextField(labelWithString: "Version \(version) · Less feed. More day.")
         subtitle.font = .systemFont(ofSize: 12)

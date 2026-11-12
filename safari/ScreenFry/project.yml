@@ -32,17 +32,21 @@ targets:
     info:
       path: ScreenFry/Info.plist
       properties:
-        CFBundleDisplayName: ScreenFry
+        CFBundleDisplayName: $(SCREENFRY_DISPLAY_NAME)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.productivity
         # Shows Safari's "Allow unsigned extensions" steps. The release workflow turns it off
         # for Developer ID builds, which Safari lists without developer settings.
         ScreenFryShowSafariDeveloperSetup: true
+        # Which ScreenFry this is (docs/DISTRIBUTION.md): "official" uses the Chrome Web Store
+        # extension; "developer" (ScreenFry Developer, greyed icon) installs the unpacked one.
+        ScreenFryChannel: $(SCREENFRY_CHANNEL)
         # Sparkle: checks this feed every hour (its shortest) and offers updates, which it only installs
         # when signed with the private key matching SUPublicEDKey (see docs/DISTRIBUTION.md).
         # The feed lives on the fixed "updates" release, because "latest" skips pre-releases.
-        SUFeedURL: https://github.com/yasserjaghoori/ScreenFry/releases/download/updates/appcast.xml
+        # Each flavor has its own feed, so it always updates to itself.
+        SUFeedURL: $(SCREENFRY_FEED_URL)
         SUPublicEDKey: "ocy3JWCzTMESE33TkpwLfHPGeGmqzyqr3dZUoFPMrEE="
         SUEnableAutomaticChecks: true
         SUAllowsAutomaticUpdates: true
@@ -59,6 +63,14 @@ targets:
         # (its settings start fresh), so keep them stable from 0.6.0 on.
         PRODUCT_NAME: ScreenFry
         PRODUCT_BUNDLE_IDENTIFIER: com.screenfry.ScreenFry
+        # The official flavor. ScreenFry Developer is the same app built with
+        # SCREENFRY_CHANNEL=developer, SCREENFRY_DISPLAY_NAME="ScreenFry Developer",
+        # ASSETCATALOG_COMPILER_APPICON_NAME=AppIconDeveloper and its own feed
+        # (scripts/build-flavor.sh). Both keep this bundle identifier: macOS and Safari see one
+        # ScreenFry, with one Safari extension and one set of settings.
+        SCREENFRY_CHANNEL: official
+        SCREENFRY_DISPLAY_NAME: ScreenFry
+        SCREENFRY_FEED_URL: https://github.com/yasserjaghoori/ScreenFry/releases/download/updates/appcast.xml
         # Required for notarization once the app is Developer ID signed.
         ENABLE_HARDENED_RUNTIME: YES
         MARKETING_VERSION: "1.0.0"

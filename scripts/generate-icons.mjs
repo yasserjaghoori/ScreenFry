@@ -54,17 +54,33 @@ for (const size of [16, 19, 24, 32, 38, 48, 64])
   writeFileSync(join(publicIcons, `toolbar-color-${size}.png`), png(toolbarColor, size));
 }
 
-const images = [];
-for (const points of [16, 32, 128, 256, 512])
-  for (const scale of [1, 2]) {
-    const filename = `appicon-${points}@${scale}x.png`;
-    writeFileSync(join(appIcons, filename), png(logo, points * scale));
-    images.push({ filename, idiom: "mac", scale: `${scale}x`, size: `${points}x${points}` });
-  }
-writeFileSync(
-  join(appIcons, "Contents.json"),
-  JSON.stringify({ images, info: { author: "xcode", version: 1 } }, null, 2) + "\n",
+/** A macOS AppIcon set plus the Dock and setup-window fallback image for one logo. */
+function appIcon(svg, folder, fallback) {
+  mkdirSync(folder, { recursive: true });
+  const images = [];
+  for (const points of [16, 32, 128, 256, 512])
+    for (const scale of [1, 2]) {
+      const filename = `appicon-${points}@${scale}x.png`;
+      writeFileSync(join(folder, filename), png(svg, points * scale));
+      images.push({ filename, idiom: "mac", scale: `${scale}x`, size: `${points}x${points}` });
+    }
+  writeFileSync(
+    join(folder, "Contents.json"),
+    JSON.stringify({ images, info: { author: "xcode", version: 1 } }, null, 2) + "\n",
+  );
+  // Dock and setup-window fallback for installations with a stale LaunchServices cache.
+  writeFileSync(fallback, png(svg, 1024));
+}
+appIcon(logo, appIcons, brandIcon);
+// ScreenFry Developer (the unpacked Chrome extension, docs/NEXT.md) uses the greyed logo,
+// already framed like icon-1024.png.
+const developer = readFileSync(join(root, "assets/branding/screenfry-developer.png"));
+const developerLogo = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024">
+  <image width="1024" height="1024" xlink:href="data:image/png;base64,${developer.toString("base64")}"/>
+</svg>`;
+appIcon(
+  developerLogo,
+  join(root, "safari/ScreenFry/ScreenFry/Assets.xcassets/AppIconDeveloper.appiconset"),
+  join(root, "safari/ScreenFry/ScreenFry/BrandIconDeveloper.png"),
 );
-// Dock and setup-window fallback for installations with a stale LaunchServices cache.
-writeFileSync(brandIcon, png(logo, 1024));
 console.log("Generated ScreenFry melting-monitor extension, toolbar and macOS icons.");

@@ -45,8 +45,15 @@ for (const image of ["ChromeDeveloperModeOff.png", "ChromeDeveloperModeOn.png"])
   if (!existsSync(join(app, "Contents/Resources", image)))
     errors.push(`missing Chrome setup screenshot ${image}`);
 }
-if (!/^https:\/\/github\.com\/.+\/appcast\.xml$/.test(appInfo.SUFeedURL ?? ""))
-  errors.push("update feed URL is missing");
+// Each flavor (docs/DISTRIBUTION.md) updates from its own feed, so it never turns into the other.
+const feeds = { official: "appcast.xml", developer: "appcast-developer.xml" };
+if (!(appInfo.ScreenFryChannel in feeds))
+  errors.push(`unknown ScreenFryChannel ${appInfo.ScreenFryChannel}`);
+else if (!(appInfo.SUFeedURL ?? "").startsWith("https://github.com/") || !appInfo.SUFeedURL.endsWith(`/${feeds[appInfo.ScreenFryChannel]}`))
+  errors.push(`update feed URL ${appInfo.SUFeedURL} doesn't match the ${appInfo.ScreenFryChannel} flavor`);
+const displayNames = { official: "ScreenFry", developer: "ScreenFry Developer" };
+if (appInfo.ScreenFryChannel in displayNames && appInfo.CFBundleDisplayName !== displayNames[appInfo.ScreenFryChannel])
+  errors.push(`display name ${appInfo.CFBundleDisplayName} doesn't match the ${appInfo.ScreenFryChannel} flavor`);
 const info = plist(join(extension, "Contents/Info.plist"));
 if (
   info.NSExtension?.NSExtensionPointIdentifier !==
@@ -104,8 +111,10 @@ if (!errors.length) {
         errors.push(`incorrect embedded PNG ${path}`);
     }
   }
-  if (!existsSync(join(app, "Contents/Resources/AppIcon.icns")))
-    errors.push("missing native app icon");
+  // ScreenFry Developer uses the greyed AppIconDeveloper set.
+  const iconName = appInfo.ScreenFryChannel === "developer" ? "AppIconDeveloper" : "AppIcon";
+  if (appInfo.CFBundleIconName !== iconName || !existsSync(join(app, `Contents/Resources/${iconName}.icns`)))
+    errors.push(`missing native app icon ${iconName}`);
   if (!existsSync(join(app, "Contents/Resources/BrandIcon.png")))
     errors.push("missing bundled Dock icon");
   const packageVersion = JSON.parse(

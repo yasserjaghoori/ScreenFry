@@ -1,7 +1,10 @@
 name: Release
 
-# Builds ScreenFry.app (with the Safari and Chrome extensions inside), packages the
-# drag-to-Applications disk image, and publishes a GitHub Release with the update feed.
+# Builds both flavors of the Mac app (with the Safari and Chrome extensions inside):
+# ScreenFry.app (Chrome extension from the Chrome Web Store) and ScreenFry Developer.app
+# (unpacked Chrome extension, greyed icon). Packages the drag-to-Applications disk image
+# offering both, and publishes a GitHub Release with each flavor's update feed
+# (appcast.xml and appcast-developer.xml, docs/DISTRIBUTION.md).
 # Optional secrets switch on the later steps (docs/DISTRIBUTION.md):
 #   DEVELOPER_ID_P12, DEVELOPER_ID_P12_PASSWORD, APPLE_TEAM_ID  -> Developer ID signing
 #   APPLE_ID, APPLE_APP_PASSWORD (with APPLE_TEAM_ID)          -> notarization
@@ -28,6 +31,8 @@ jobs:
     timeout-minutes: 150
     env:
       HOMEBREW_NO_AUTO_UPDATE: "1"
+      OFFICIAL_APP: dist/safari/Build/Products/Release/ScreenFry.app
+      DEVELOPER_APP: dist/safari-developer/Build/Products/Release/ScreenFry Developer.app
       HAS_DEVELOPER_ID: ${{ secrets.DEVELOPER_ID_P12 != '' }}
       HAS_NOTARY: ${{ secrets.APPLE_APP_PASSWORD != '' }}
       HAS_SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
@@ -90,7 +95,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "" "$KEYCHAIN"
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
 
-      - name: Build ScreenFry.app
+      - name: Build ScreenFry.app and ScreenFry Developer.app
         run: |
           if [ "$HAS_DEVELOPER_ID" = "true" ]; then
             # No injected get-task-allow: the notary service rejects it.
@@ -101,17 +106,19 @@ jobs:
             # signed Sparkle framework, so test builds leave it off.
             SIGNING=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= ENABLE_HARDENED_RUNTIME=NO)
           fi
-          xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj -scheme ScreenFry \
-            -configuration Release -derivedDataPath dist/safari "${SIGNING[@]}" build
-          if [ "$HAS_DEVELOPER_ID" = "true" ]; then
-            # Sign Sparkle's helpers and every other executable for notarization.
-            scripts/sign-developer-id.sh dist/safari/Build/Products/Release/ScreenFry.app
-          fi
-          node scripts/verify-safari.mjs dist/safari/Build/Products/Release/ScreenFry.app
-          node scripts/verify-macos-signing.mjs dist/safari/Build/Products/Release/ScreenFry.app
+          scripts/build-flavor.sh official Release "${SIGNING[@]}"
+          scripts/build-flavor.sh developer Release "${SIGNING[@]}"
+          for APP in "$OFFICIAL_APP" "$DEVELOPER_APP"; do
+            if [ "$HAS_DEVELOPER_ID" = "true" ]; then
+              # Sign Sparkle's helpers and every other executable for notarization.
+              scripts/sign-developer-id.sh "$APP"
+            fi
+            node scripts/verify-safari.mjs "$APP"
+            node scripts/verify-macos-signing.mjs "$APP"
+          done
 
       - name: Package disk image
-        run: npm run dmg -- dist/safari/Build/Products/Release/ScreenFry.app
+        run: npm run dmg -- "$OFFICIAL_APP" "$DEVELOPER_APP"
 
       - name: Sign disk image
         if: env.HAS_DEVELOPER_ID == 'true'
@@ -132,6 +139,10 @@ jobs:
             exit 1
           fi
           xcrun stapler staple "$DMG"
+          # Notarizing the disk image registered both apps inside it too: staple their tickets,
+          # so the update archives below open without a network check.
+          xcrun stapler staple "$OFFICIAL_APP"
+          xcrun stapler staple "$DEVELOPER_APP"
 
       - name: Update feed
         if: env.HAS_SPARKLE_KEY == 'true'
@@ -139,21 +150,32 @@ jobs:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           TOOLS=$(find dist/safari/SourcePackages/artifacts -type d -path "*Sparkle*/bin" | head -1)
-          mkdir -p dist/updates
-          cp "dist/ScreenFry-${{ steps.version.outputs.version }}.dmg" dist/updates/
-          # Beside the disk image, generate_appcast embeds it as the update window's notes.
-          node scripts/release-notes.mjs "${{ steps.version.outputs.version }}" --html \
-            > "dist/updates/ScreenFry-${{ steps.version.outputs.version }}.html"
-          echo "$SPARKLE_PRIVATE_KEY" | "$TOOLS/generate_appcast" --ed-key-file - \
-            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/" \
-            -o dist/updates/appcast.xml dist/updates
+          VERSION="${{ steps.version.outputs.version }}"
+          # One update archive and feed per flavor, so each only ever updates to itself. The
+          # disk image holds both apps, so it can't be the update archive any more.
+          feed() { # <app> <archive name> <feed file>
+            local dir="dist/updates/${3%.xml}"
+            mkdir -p "$dir"
+            ditto -c -k --sequesterRsrc --keepParent "$1" "$dir/$2.zip"
+            # Beside the archive, generate_appcast embeds it as the update window's notes.
+            node scripts/release-notes.mjs "$VERSION" --html > "$dir/$2.html"
+            echo "$SPARKLE_PRIVATE_KEY" | "$TOOLS/generate_appcast" --ed-key-file - \
+              --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/" \
+              -o "dist/updates/$3" "$dir"
+          }
+          feed "$OFFICIAL_APP" "ScreenFry-$VERSION" appcast.xml
+          feed "$DEVELOPER_APP" "ScreenFry-Developer-$VERSION" appcast-developer.xml
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          FILES=("dist/ScreenFry-${{ steps.version.outputs.version }}.dmg")
-          [ -f dist/updates/appcast.xml ] && FILES+=(dist/updates/appcast.xml)
+          VERSION="${{ steps.version.outputs.version }}"
+          FILES=("dist/ScreenFry-$VERSION.dmg")
+          # Each flavor's update archive, which its feed downloads from this release.
+          if [ -f dist/updates/appcast.xml ]; then
+            FILES+=("dist/updates/appcast/ScreenFry-$VERSION.zip" "dist/updates/appcast-developer/ScreenFry-Developer-$VERSION.zip")
+          fi
           PRE=""
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.prerelease }}" = "true" ]; then PRE="--prerelease"; fi
           if [ "$HAS_DEVELOPER_ID" != "true" ]; then
@@ -164,11 +186,12 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" "${FILES[@]}" \
             --target "${{ github.sha }}" --title "ScreenFry ${{ steps.version.outputs.version }}" \
             --notes "$NOTES" $PRE
-          # The app's update feed: a fixed "updates" release (GitHub's "latest" link skips
-          # pre-releases), refreshed with each signed release's appcast.xml.
+          # The apps' update feeds: a fixed "updates" release (GitHub's "latest" link skips
+          # pre-releases), refreshed with each signed release's appcast.xml (ScreenFry) and
+          # appcast-developer.xml (ScreenFry Developer).
           if [ -f dist/updates/appcast.xml ]; then
             gh release view updates >/dev/null 2>&1 || gh release create updates --prerelease \
               --target "${{ github.sha }}" --title "ScreenFry update feed" \
-              --notes "ScreenFry's in-app updater reads appcast.xml here. Download ScreenFry from its versioned releases."
-            gh release upload updates dist/updates/appcast.xml --clobber
+              --notes "ScreenFry's in-app updater reads appcast.xml (and ScreenFry Developer's appcast-developer.xml) here. Download ScreenFry from its versioned releases."
+            gh release upload updates dist/updates/appcast.xml dist/updates/appcast-developer.xml --clobber
           fi
