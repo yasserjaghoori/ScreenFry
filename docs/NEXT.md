@@ -1,6 +1,6 @@
 # ScreenFry next: store extensions, two-way installer, community
 
-This branch (`codex/next`) holds work that isn't ready for the public release. `main` stays the released app: bug fixes land on `main` and ship through the update feed, and this branch merges `main` in regularly to keep them. A feature merges into `main` through a pull request when it's ready to ship. The release workflow refuses to run from anything not already on `main`, so nothing here can reach users' automatic updates by accident.
+This branch (`dev/next`) holds work that isn't ready for the public release. `main` stays the released app: bug fixes land on `main` and ship through the update feed, and this branch merges `main` in regularly to keep them. A feature merges into `main` through a pull request when it's ready to ship. The release workflow refuses to run from anything not already on `main`, so nothing here can reach users' automatic updates by accident.
 
 Order of work: **1 → 2 → 3**, then **4 → 5** (they share a backend).
 
@@ -62,4 +62,4 @@ Who spent the most time on their Earn goal websites (learning apps, reading, exe
 
 - Start each session with `git fetch && git merge origin/main` so bug fixes from `main` are here.
 - `npm run check` and `npm run test:e2e` as on `main`. Build the Mac app locally with `npm run dmg:local`; don't run the Release workflow (it refuses anyway).
-- Ship a finished piece by opening a pull request from a branch off `codex/next` into `main`, with its `CHANGELOG.md` entry under Unreleased.
+- Ship a finished piece by opening a pull request from a branch off `dev/next` into `main`, with its `CHANGELOG.md` entry under Unreleased.
