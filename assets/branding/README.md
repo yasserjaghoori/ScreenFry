@@ -7,3 +7,5 @@ Run `npm run icons` to regenerate every color extension icon, favicon, UI logo, 
 The toolbar uses a matching monochrome outline drawn in `scripts/generate-icons.mjs`, exported to SVG and PNG. Safari tints toolbar icons from their alpha channel, so the color artwork's glow would become a broad silhouette. The outline retains the monitor, clock hands and melting drips at small sizes.
 
 Do not regenerate the old clock mark or replace the supplied artwork with an AI approximation.
+
+`screenfry-developer.png` is the greyed, slightly faded logo for the installer's "ScreenFry Developer" choice (docs/NEXT.md): `icon-1024.png` desaturated with Core Image, at 80% opacity.

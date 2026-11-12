@@ -2,6 +2,8 @@
 
 Read `docs/PROJECT_BRIEF.md`, `README.md`, and the relevant architecture/testing docs before changing behavior.
 
+**On `codex/next`** (unreleased features, user-requested): read `docs/NEXT.md` first. It's the plan for the Chrome Web Store extension, the installer's two choices (official vs. developer extensions), the setup library and search, and the Earn leaderboard. `main` is the released app; merge `origin/main` into this branch at the start of each session, ship finished pieces to `main` by pull request, and never run the Release workflow from here (it refuses). The community features may use the backend described in `docs/NEXT.md`, opt-in only; everything else below still applies.
+
 - The one working copy on Sam's Mac is `~/ScreenFry` (repository: https://github.com/yasserjaghoori/ScreenFry). Work only there; don't create or use copies elsewhere, such as under `Documents/ChatGPT`.
 - This is Sam and Yasser's productivity project. Start with Chrome and Safari extensions; a native macOS companion and iOS app are later phases.
 - Preserve local-first operation: Phase 1 has no backend, accounts, analytics, or API keys.
