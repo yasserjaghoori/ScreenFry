@@ -38,6 +38,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Open ScreenFry's settings page in each browser, shown once ScreenFry runs there.
     private lazy var safariOpenButton = openSettingsButton(tag: 0)
     private lazy var chromeOpenButton = openSettingsButton(tag: 1)
+    /// Shown only while ScreenFry in Chrome hasn't picked up an update: quits and reopens Chrome.
+    private lazy var chromeRestartButton: NSButton = {
+        let b = button("Restart Chrome", #selector(restartChrome(_:)), primary: false)
+        b.controlSize = .regular
+        if #available(macOS 26.0, *) { b.borderShape = .capsule }
+        b.isHidden = true
+        b.toolTip = "Quit and reopen Chrome so ScreenFry there finishes updating."
+        return b
+    }()
     private var chromeDropAccepted = false
     private var chromePreparationError: String?
     private lazy var chromeConfirmation = NSButton(checkboxWithTitle: "ScreenFry appears in Chrome’s Extensions page", target: self, action: #selector(confirmChromeSetup(_:)))
@@ -375,7 +384,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             chromeRows = [helperLabel("Google Chrome isn’t installed. Install it, then reopen ScreenFry to set it up.")]
         }
-        let chrome = card(title: "Chrome", dot: chromeDot, status: chromeStatus, rows: chromeRows, accessory: chromeInstalled ? chromeOpenButton : nil)
+        let chromeButtons = NSStackView(views: [chromeRestartButton, chromeOpenButton])
+        chromeButtons.spacing = 8
+        let chrome = card(title: "Chrome", dot: chromeDot, status: chromeStatus, rows: chromeRows, accessory: chromeInstalled ? chromeButtons : nil)
 
         let request = NSButton(title: "Browser not listed here? Press here to request a new one.", target: self, action: #selector(requestBrowser(_:)))
         request.isBordered = false
@@ -477,6 +488,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dot.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([dot.widthAnchor.constraint(equalToConstant: 8), dot.heightAnchor.constraint(equalToConstant: 8)])
         status.font = .systemFont(ofSize: 12, weight: .medium)
+        // One line that shortens with "…" rather than widening the window when the card also
+        // has buttons; longer guidance goes in the card's note line.
+        status.lineBreakMode = .byTruncatingTail
+        status.maximumNumberOfLines = 1
+        status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         status.textColor = .secondaryLabelColor
         let statusRow = NSStackView(views: [dot, status])
         statusRow.spacing = 6
@@ -622,6 +638,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         chromeSteps.isHidden = chromeCheckIn != nil && !chromeStepsShownByUser
         chromeStepsToggle.isHidden = chromeCheckIn == nil
         chromeOpenButton.isHidden = chromeCheckIn == nil
+        if chromeCheckIn == nil { chromeRestartButton.isHidden = true }
         chromeStepsToggle.title = chromeSteps.isHidden ? "Show setup steps" : "Hide setup steps"
         if let error = chromePreparationError {
             chromeStatus.stringValue = "Couldn’t prepare Chrome: \(error)"
@@ -630,9 +647,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Proof from Chrome itself. An app update lands once Chrome runs: the extension
             // reloads when it sees the new build (Chrome must be open for that).
             let current = checkIn.version.isEmpty || checkIn.version == version
+            chromeRestartButton.isHidden = current
             chromeStatus.stringValue = current
                 ? "Connected · ScreenFry \(checkIn.version.isEmpty ? version : checkIn.version)"
-                : "Connected · updating to \(version) (open/restart Chrome to complete)"
+                : "Updating to \(version)"
             chromeDot.layer?.backgroundColor = (current ? NSColor.systemGreen : NSColor.systemOrange).cgColor
         } else if UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) {
             chromeStatus.stringValue = "Setup confirmed by you"
@@ -671,6 +689,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: Actions
+
+    /// "Restart Chrome": after a warning about tabs, quit Chrome as ⌘Q would and open it again,
+    /// so ScreenFry there loads the new version.
+    @objc private func restartChrome(_ sender: Any?) {
+        let alert = NSAlert()
+        alert.messageText = "Restart Chrome?"
+        alert.informativeText = "Chrome quits and opens again so ScreenFry there can finish updating. Unless Chrome is set to continue where you left off (Settings → On startup), your open tabs will close."
+        alert.addButton(withTitle: "Restart Chrome")
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Open Chrome’s Startup Setting")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: break
+        case .alertThirdButtonReturn:
+            openChromePage("chrome://settings/onStartup")
+            return
+        default: return
+        }
+        guard let chromeApp = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.chromeBundleID) else { return }
+        let running = NSRunningApplication.runningApplications(withBundleIdentifier: Self.chromeBundleID)
+        running.forEach { $0.terminate() }
+        chromeRestartButton.isEnabled = false
+        chromeRestartButton.title = "Restarting…"
+        let started = Date()
+        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
+            guard let self else { return timer.invalidate() }
+            let stillOpen = running.contains { !$0.isTerminated }
+            if stillOpen, Date().timeIntervalSince(started) < 20 { return }
+            timer.invalidate()
+            self.chromeRestartButton.isEnabled = true
+            self.chromeRestartButton.title = "Restart Chrome"
+            if stillOpen {
+                // Chrome is probably asking something first (unsaved forms, downloads).
+                self.showAlert("Chrome didn’t quit", "Chrome may be asking you something first. Answer it, or quit Chrome yourself and open it again.")
+                return
+            }
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            NSWorkspace.shared.openApplication(at: chromeApp, configuration: configuration) { _, error in
+                if let error { NSLog("ScreenFry: unable to reopen Chrome: \(error.localizedDescription)") }
+            }
+        }
+    }
+
+    /// Opens a chrome:// page (and copies its address, as Chrome may decline outside requests).
+    private func openChromePage(_ address: String) {
+        guard let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.chromeBundleID),
+              let page = URL(string: address) else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(address, forType: .string)
+        NSWorkspace.shared.open([page], withApplicationAt: chrome, configuration: NSWorkspace.OpenConfiguration()) { _, _ in }
+    }
 
     private func openSettingsButton(tag: Int) -> NSButton {
         let b = button("Open ScreenFry Settings", #selector(openScreenFrySettings(_:)), primary: true)
@@ -801,6 +870,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             var lines: [String] = []
             if let checkIn = SettingsTransfer.checkIn(browser) {
                 lines.append("ScreenFry in \(browser.name) last checked in \(ago(checkIn.at)).")
+                if browser == .chrome, !checkIn.version.isEmpty, checkIn.version != version {
+                    lines.append("Updating to \(version): open/restart Chrome to complete. Restart Chrome above does it for you.")
+                }
             } else {
                 lines.append("Not connected yet. Open \(browser.name) with ScreenFry turned on; it checks in with this app about once a minute.")
             }

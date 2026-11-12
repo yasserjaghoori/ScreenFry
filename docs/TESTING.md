@@ -16,6 +16,10 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Restart Chrome button — November 11, 2026
+
+- While ScreenFry in Chrome hasn't picked up an update, the Chrome card shows "Updating to …", a Restart Chrome pill beside Open ScreenFry Settings, and a note line saying to open/restart Chrome. The button warns that open tabs close unless Chrome continues where it left off (with a way to that setting), quits Chrome as ⌘Q would, waits up to 20 seconds, and opens it again; if Chrome doesn't quit (it may be asking something), it says so. Seen in a separate-id test copy with an older Chrome check-in; the warning was opened and cancelled, so Chrome itself wasn't restarted in testing.
+
 ## Fry Time chips and loadout names — November 11, 2026
 
 - Websites with Fry Time running show a small dripping-logo chip with the time left ("4:32", whole minutes from ten) right after their name: in the settings page's website list (instead of the "Fry Time" pill) and in the popup's website picker, including the current website. Checked in a throwaway Chrome with a Fry Time window on Reddit (5:00) and LinkedIn (30m), light and dark.
