@@ -23,21 +23,27 @@ echo "Signing as \"$CERT_NAME\" (team $TEAM)"
 
 npm run build:safari
 xcodegen generate --spec safari/ScreenFry/project.yml
-xcodebuild -project safari/ScreenFry/ScreenFry.xcodeproj -scheme ScreenFry \
-  -configuration Release -derivedDataPath dist/safari \
-  -allowProvisioningUpdates CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM" \
-  build | grep -E "error:|warning: .*sign|\*\* BUILD" || true
+# Both flavors (docs/DISTRIBUTION.md): ScreenFry and ScreenFry Developer.
+for FLAVOR in official developer; do
+  scripts/build-flavor.sh "$FLAVOR" Release -allowProvisioningUpdates \
+    CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM" | grep -E "error:|warning: .*sign|\*\* BUILD|^Built" || true
+done
 
 APP=dist/safari/Build/Products/Release/ScreenFry.app
-node scripts/verify-safari.mjs "$APP"
-node scripts/verify-macos-signing.mjs "$APP"
-npm run dmg -- "$APP"
+DEVELOPER_APP="dist/safari-developer/Build/Products/Release/ScreenFry Developer.app"
+for BUILT in "$APP" "$DEVELOPER_APP"; do
+  node scripts/verify-safari.mjs "$BUILT"
+  node scripts/verify-macos-signing.mjs "$BUILT"
+done
+npm run dmg -- "$APP" "$DEVELOPER_APP"
 
-# Building registers this copy (and its Safari extension) with macOS. Unregister it so Safari
-# doesn't list a second ScreenFry and the installed app doesn't report another copy.
+# Building registers these copies (and their Safari extension) with macOS. Unregister them so
+# Safari doesn't list a second ScreenFry and the installed app doesn't report another copy.
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
-pluginkit -r "$APP/Contents/PlugIns/ScreenFry Extension.appex" 2>/dev/null || true
-"$LSREGISTER" -u "$APP" 2>/dev/null || true
+for BUILT in "$APP" "$DEVELOPER_APP"; do
+  pluginkit -r "$BUILT/Contents/PlugIns/ScreenFry Extension.appex" 2>/dev/null || true
+  "$LSREGISTER" -u "$BUILT" 2>/dev/null || true
+done
 echo
 echo "Next: quit ScreenFry, eject any open ScreenFry installer, open the new disk image in dist/,"
-echo "drag ScreenFry onto Applications (Replace), and open it from Applications."
+echo "drag ScreenFry (or ScreenFry Developer) onto Applications (Replace), and open it from Applications."

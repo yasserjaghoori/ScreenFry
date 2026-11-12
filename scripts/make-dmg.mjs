@@ -1,12 +1,13 @@
 // Builds the drag-to-Applications download: dist/ScreenFry-<version>.dmg (macOS only).
-//   npm run dmg -- [path/to/ScreenFry.app]
-// The window shows ScreenFry beside an Applications shortcut over assets/dmg/background.png.
+//   npm run dmg -- [path/to/ScreenFry.app] [path/to/ScreenFry Developer.app]
+// The window offers the two flavors (docs/DISTRIBUTION.md) side by side, ScreenFry and the
+// greyed ScreenFry Developer, beside an Applications shortcut over assets/dmg/background.png.
 // Dropping a newer ScreenFry onto Applications replaces the old one; bundle identifiers never
 // change, so Safari keeps the extension and its settings, and the app refreshes Chrome's copy.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync, cpSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 
 if (process.platform !== "darwin") {
   console.error("make-dmg runs on macOS (it uses hdiutil).");
@@ -14,8 +15,16 @@ if (process.platform !== "darwin") {
 }
 const root = resolve(import.meta.dirname, "..");
 const app = resolve(process.argv[2] ?? "dist/safari/Build/Products/Release/ScreenFry.app");
-if (!existsSync(app)) {
-  console.error(`No app at ${app}. Build it first (see docs/DISTRIBUTION.md).`);
+const developer = resolve(
+  process.argv[3] ?? "dist/safari-developer/Build/Products/Release/ScreenFry Developer.app",
+);
+for (const path of [app, developer])
+  if (!existsSync(path)) {
+    console.error(`No app at ${path}. Build both flavors first (see docs/DISTRIBUTION.md).`);
+    process.exit(1);
+  }
+if (basename(app) !== "ScreenFry.app" || basename(developer) !== "ScreenFry Developer.app") {
+  console.error("Pass ScreenFry.app, then ScreenFry Developer.app.");
   process.exit(1);
 }
 const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -33,10 +42,11 @@ try {
       icon: join(root, "apps/extension/public/icons/icon-512.png"),
       background: join(root, "assets/dmg/background.png"),
       "icon-size": 112,
-      window: { size: { width: 660, height: 400 } },
+      window: { size: { width: 760, height: 440 } },
       contents: [
-        { x: 170, y: 190, type: "file", path: app },
-        { x: 490, y: 190, type: "link", path: "/Applications" },
+        { x: 150, y: 210, type: "file", path: app },
+        { x: 350, y: 210, type: "file", path: developer },
+        { x: 610, y: 210, type: "link", path: "/Applications" },
       ],
       format: "UDZO",
     }),
@@ -75,6 +85,7 @@ try {
     console.warn("appdmg failed; building a plain disk image instead (local builds only).");
     const staging = join(work, "staging");
     cpSync(app, join(staging, "ScreenFry.app"), { recursive: true, verbatimSymlinks: true });
+    cpSync(developer, join(staging, "ScreenFry Developer.app"), { recursive: true, verbatimSymlinks: true });
     symlinkSync("/Applications", join(staging, "Applications"));
     execFileSync("hdiutil", ["create", "-volname", "ScreenFry", "-srcfolder", staging, "-ov", "-format", "UDZO", out], {
       stdio: "inherit",
@@ -90,7 +101,7 @@ function verifyLayout(dmg) {
   const mount = mkdtempSync(join(tmpdir(), "screenfry-dmg-check-"));
   execFileSync("hdiutil", ["attach", "-nobrowse", "-readonly", "-mountpoint", mount, dmg], { stdio: "ignore" });
   try {
-    const missing = [".background", ".DS_Store", "ScreenFry.app", "Applications"].filter(
+    const missing = [".background", ".DS_Store", "ScreenFry.app", "ScreenFry Developer.app", "Applications"].filter(
       (name) => !existsSync(join(mount, name)),
     );
     if (missing.length) {

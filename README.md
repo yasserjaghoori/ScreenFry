@@ -94,11 +94,11 @@ ScreenFry's app lives in the menu bar and starts at login.
 
 ## Install
 
-1. [Download](https://github.com/yasserjaghoori/ScreenFry/releases/latest) `ScreenFry-<version>.dmg`, open it and drag **ScreenFry** onto **Applications**.
+1. [Download](https://github.com/yasserjaghoori/ScreenFry/releases/latest) `ScreenFry-<version>.dmg`, open it and drag **ScreenFry** onto **Applications**. (The greyed **ScreenFry Developer** beside it is the same app with Chrome's extension loaded unpacked, in Developer mode, for people who want that. Install one or the other.)
 2. Open ScreenFry from Applications.
 3. Follow its two cards:
    - **Safari:** turn ScreenFry on in Safari's settings, then allow it on websites.
-   - **Chrome:** turn on Developer mode on Chrome's Extensions page, then drag the ScreenFry tile onto it.
+   - **Chrome:** add ScreenFry from the Chrome Web Store. (ScreenFry Developer: turn on Developer mode on Chrome's Extensions page, then drag the ScreenFry tile onto it.)
 
 **Uninstalling:** choose **ScreenFry → Uninstall…** (also at the bottom of the window).
 - **Keep Settings** removes the app, while Safari and Chrome keep ScreenFry's settings for a reinstall.

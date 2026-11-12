@@ -50,11 +50,18 @@ enum ChromeInstaller {
         return version(at: folder)
     }
 
-    /// Copies the bundled build into place when it is missing or a different build.
-    /// Returns true when files were written.
+    /// Whether this app keeps the unpacked folder: always in ScreenFry Developer; in the
+    /// official ScreenFry only while a folder from before is there (Chrome may still load it),
+    /// since its Chrome extension comes from the Chrome Web Store.
+    static var keepsFolder: Bool {
+        Flavor.current == .developer || FileManager.default.fileExists(atPath: folder.path)
+    }
+
+    /// Copies the bundled build into place when it is missing or a different build (and this
+    /// flavor keeps the folder). Returns true when files were written.
     @discardableResult
     static func sync() throws -> Bool {
-        guard let source = bundled, let wanted = buildID(at: source) else { return false }
+        guard keepsFolder, let source = bundled, let wanted = buildID(at: source) else { return false }
         if buildID(at: folder) == wanted { return false }
         let fm = FileManager.default
         let parent = folder.deletingLastPathComponent()

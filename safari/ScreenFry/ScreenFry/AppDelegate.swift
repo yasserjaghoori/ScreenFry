@@ -118,7 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         launchedAtLogin = LoginItem.launchedAtLogin() || afterUpdate
         // Set the Dock icon from a bundled image as well as the asset catalog, so a stale
         // LaunchServices icon cache can never leave the Dock showing the generic placeholder.
-        if let url = Bundle.main.url(forResource: "BrandIcon", withExtension: "png"),
+        if let url = Bundle.main.url(forResource: Flavor.current.brandIconName, withExtension: "png"),
            let image = NSImage(contentsOf: url) {
             NSApp.applicationIconImage = image
         }
@@ -252,7 +252,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             notice.stringValue = "A ScreenFry installer disk is still mounted. Eject it when you’re done with it."
             notice.isHidden = false
         } else if let other = others.first {
-            notice.stringValue = "Another copy of ScreenFry is installed at \(other.deletingLastPathComponent().path). Keep only one: move the other copy to the Trash."
+            // ScreenFry and ScreenFry Developer are one app to macOS and Safari: keep one.
+            notice.stringValue = "\(other.deletingPathExtension().lastPathComponent) is also installed, in \(other.deletingLastPathComponent().path). Keep only one: move the other to the Trash."
             notice.isHidden = false
         }
     }
@@ -300,7 +301,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "ScreenFry"
+        window.title = Flavor.current.name
         // Closed windows are kept, so the menu bar icon can show this one again.
         window.isReleasedWhenClosed = false
         NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
@@ -325,7 +326,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             logo.widthAnchor.constraint(equalToConstant: 64),
             logo.heightAnchor.constraint(equalToConstant: 64),
         ])
-        let title = NSTextField(labelWithString: "ScreenFry")
+        let title = NSTextField(labelWithString: Flavor.current.name)
         title.font = .systemFont(ofSize: 26, weight: .bold)
         let subtitle = NSTextField(labelWithString: "Version \(version) · Less feed. More day.")
         subtitle.font = .systemFont(ofSize: 13)
@@ -389,7 +390,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.refreshState()
             }
             chromeConfirmation.state = UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) ? .on : .off
-            let steps: [NSView] = [
+            let steps: [NSView] = Flavor.current == .official ? webStoreSteps() : [
                 stepRow(1, "Open the Extensions page.", action: button("Open Chrome Extensions", #selector(openChromeExtensions(_:)), primary: true)),
                 stepRow(2, "Turn on Developer mode (top-right switch on that page).", bold: "top-right switch"),
                 developerModeScreenshots(),
@@ -571,6 +572,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return label
     }
 
+    /// The official ScreenFry's Chrome steps: add it from the Chrome Web Store. Someone coming
+    /// from the Developer mode copy is told how to bring their setup along.
+    private func webStoreSteps() -> [NSView] {
+        var steps: [NSView] = [
+            stepRow(1, "Open ScreenFry in the Chrome Web Store.", action: button("Open Chrome Web Store", #selector(openChromeWebStore(_:)), primary: true)),
+            stepRow(2, "Click Add to Chrome, then Add extension.", bold: "Add to Chrome"),
+            helperLabel("Pin ScreenFry from Chrome’s puzzle-piece menu. Once ScreenFry runs in Chrome it checks in with this app, and this card shows it’s connected."),
+        ]
+        if FileManager.default.fileExists(atPath: ChromeInstaller.folder.path) {
+            steps.append(helperLabel("Using ScreenFry in Developer mode already? The two keep separate settings. Before adding the Web Store version, press Save ScreenFry Setup in Loadouts below. Once it’s added, press Use in All Browsers, then remove the Developer mode copy (the one with “Load unpacked” details) from Chrome’s Extensions page."))
+        }
+        return steps
+    }
+
     /// Developer mode off → on, as Chrome shows it. Both pictures open Chrome's Extensions page.
     private func developerModeScreenshots() -> NSView {
         func screenshot(_ name: String, caption: String) -> NSButton {
@@ -673,7 +688,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if let checkIn = chromeCheckIn {
             // Proof from Chrome itself. An app update lands once Chrome runs: the extension
             // reloads when it sees the new build (Chrome must be open for that).
-            let current = checkIn.version.isEmpty || checkIn.version == version
+            // The Web Store copy updates on Chrome's schedule (after the store's review), so a
+            // version behind this app's is normal there and Restart Chrome wouldn't help.
+            let fromStore = SettingsTransfer.extensionId(.chrome) == ChromeNativeHost.storeExtensionID
+            let current = fromStore || checkIn.version.isEmpty || checkIn.version == version
             chromeRestartButton.isHidden = current
             chromeStatus.stringValue = current
                 ? "Connected · ScreenFry \(checkIn.version.isEmpty ? version : checkIn.version)"
@@ -685,6 +703,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if chromeDropAccepted {
             chromeStatus.stringValue = "Folder dropped — confirm below"
             chromeDot.layer?.backgroundColor = NSColor.systemOrange.cgColor
+        } else if Flavor.current == .official {
+            chromeStatus.stringValue = "Ready to add from the Chrome Web Store"
+            chromeDot.layer?.backgroundColor = Self.ember.cgColor
         } else if ChromeInstaller.installedVersion != nil {
             chromeStatus.stringValue = "Ready to add to Chrome"
             chromeDot.layer?.backgroundColor = Self.ember.cgColor
@@ -787,7 +808,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let chrome = sender.tag == 1
         let bundleID = chrome ? Self.chromeBundleID : "com.apple.Safari"
         let address = chrome
-            ? "chrome-extension://\(SettingsTransfer.extensionId(.chrome) ?? ChromeInstaller.unpackedExtensionId)/dashboard.html#settings"
+            ? "chrome-extension://\(SettingsTransfer.extensionId(.chrome) ?? (Flavor.current == .developer ? ChromeInstaller.unpackedExtensionId : ChromeNativeHost.storeExtensionID))/dashboard.html#settings"
             : "https://open.screenfry.invalid/settings"
         guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
               let page = URL(string: address) else { return }
@@ -800,6 +821,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SFSafariApplication.showPreferencesForExtension(withIdentifier: extensionIdentifier) { error in
             if let error { NSLog("ScreenFry: unable to open Safari settings: \(error.localizedDescription)") }
         }
+    }
+
+    @objc private func openChromeWebStore(_ sender: Any?) {
+        guard let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: Self.chromeBundleID) else { return }
+        NSWorkspace.shared.open([Flavor.chromeWebStoreURL], withApplicationAt: chrome, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+            if let error { NSLog("ScreenFry: unable to open the Chrome Web Store: \(error.localizedDescription)") }
+        }
+    }
+
+    /// The menu's "Switch to … Extensions": the two flavors are separate downloads (in the same
+    /// disk image), so explain the difference and open the download.
+    @objc private func switchFlavor(_ sender: Any?) {
+        let target = Flavor.current.other
+        let alert = NSAlert()
+        alert.messageText = "Switch to \(target.name)?"
+        alert.informativeText = target == .official
+            ? "ScreenFry gets Chrome’s ScreenFry from the Chrome Web Store: one click to add, updated by Chrome, no Developer mode. Safari stays the same.\n\nOpen the download, drag ScreenFry (the full-color icon) to Applications and open it. Then move this one to the Trash. In Chrome, save your setup in Loadouts first: the Web Store version starts with its own settings."
+            : "ScreenFry Developer loads Chrome’s ScreenFry from a folder on this Mac in Developer mode, so it updates the moment the app does. Safari stays the same.\n\nOpen the download, drag ScreenFry Developer (the grey icon) to Applications and open it. Then move this one to the Trash. In Chrome, save your setup in Loadouts first: the Developer mode version keeps its own settings."
+        alert.addButton(withTitle: "Open Download")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        NSWorkspace.shared.open(Flavor.downloadURL)
     }
 
     @objc private func openChromeExtensions(_ sender: Any?) {
@@ -1249,6 +1292,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             autoUpdateMenuItem = auto
         }
         appMenu.addItem(.separator())
+        let switchItem = NSMenuItem(
+            title: Flavor.current == .official ? "Switch to Developer Extensions…" : "Switch to Official Extensions…",
+            action: #selector(switchFlavor(_:)), keyEquivalent: "")
+        switchItem.target = self
+        appMenu.addItem(switchItem)
         let uninstallItem = NSMenuItem(title: "Uninstall ScreenFry…", action: #selector(uninstall(_:)), keyEquivalent: "")
         uninstallItem.target = self
         appMenu.addItem(uninstallItem)

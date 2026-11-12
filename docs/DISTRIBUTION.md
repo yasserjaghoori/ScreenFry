@@ -2,14 +2,24 @@
 
 ScreenFry ships as one Mac app, downloaded from GitHub Releases as a disk image. Releases are signed with the Bhron, LLC Developer ID and notarized by Apple, so they open normally and Safari lists the extension without developer settings. Users drag the app into Applications and open it. The app carries both browser extensions and keeps them updated together.
 
+The disk image offers the app in two flavors, side by side. They are one app to macOS and Safari (the same bundle identifier, the same Safari extension and settings); only Chrome differs:
+
+| | **ScreenFry** (full-color icon) | **ScreenFry Developer** (greyed icon) |
+| --- | --- | --- |
+| Chrome extension | From the [Chrome Web Store](https://chromewebstore.google.com/detail/epoooaclakcopjgkplhmbffbgcjhmdfe), updated by Chrome | Loaded unpacked, in Developer mode, from the folder the app keeps current |
+| Built with | `scripts/build-flavor.sh official` | `scripts/build-flavor.sh developer` (`ScreenFryChannel` = `developer`, `AppIconDeveloper`) |
+| Update feed | `appcast.xml` | `appcast-developer.xml` |
+
+Each flavor updates from its own feed, so it stays itself. Copies from before the two flavors (1.0) read `appcast.xml`, so they update to **ScreenFry**: their unpacked Chrome extension keeps getting updates as long as its folder is there, and the Chrome card explains moving to the Web Store version (save the setup in Loadouts, add it, Use in All Browsers, remove the old one). **Switch to Developer/Official Extensions…** in the app menu explains the difference and opens the download; the app warns while both are installed. The Mac app's Chrome connection accepts both Chrome extensions (`ChromeNativeHost.allowedOrigins`).
+
 ## What the user does
 
 1. Download `ScreenFry-<version>.dmg` from the [Releases page](https://github.com/yasserjaghoori/ScreenFry/releases) and open it.
 2. Drag **ScreenFry** onto **Applications**, then open it from Applications. (If it's opened straight from the download, it asks to be moved first.)
 3. **Safari:** click **Open Safari Settings**, turn ScreenFry on, then set **Edit Websites → Other Websites → Allow**.
-4. **Chrome:** click **Open Chrome Extensions**, turn on **Developer mode**, and drag the **ScreenFry for Chrome** tile from the app onto that page.
+4. **Chrome:** click **Open Chrome Web Store** and **Add to Chrome**. In ScreenFry Developer: click **Open Chrome Extensions**, turn on **Developer mode**, and drag the **ScreenFry for Chrome** tile from the app onto that page.
 
-Both are one-time steps. Apple requires the user to turn a Safari extension on themselves. Google doesn't let any Mac app install a Chrome extension from outside the Chrome Web Store: Chrome 137 removed the `--load-extension` option because malware abused it. So Chrome is loaded from a folder the app maintains.
+Both are one-time steps. Apple requires the user to turn a Safari extension on themselves. Google doesn't let any Mac app install a Chrome extension from outside the Chrome Web Store: Chrome 137 removed the `--load-extension` option because malware abused it. So ScreenFry Developer's Chrome extension is loaded from a folder the app maintains.
 
 ### Testing on your own Mac (recommended)
 
@@ -45,17 +55,18 @@ The app also warns if another copy of ScreenFry is installed. Two copies registe
 1. Bump the version: `package.json`, `package-lock.json`, `apps/extension/public/manifest.json`, `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `safari/ScreenFry/project.yml` (and the generated `project.pbxproj`).
 2. In `CHANGELOG.md`, rename `## Unreleased` to `## <version>` and start a new empty `## Unreleased` above it. The workflow refuses to release a version without notes: `scripts/release-notes.mjs` turns that section into the update window's "what's new" (embedded in `appcast.xml`) and the GitHub release notes.
 3. Push a tag `v<version>`, or run the **Release** workflow manually from the Actions tab. From 1.0, releases are full releases (GitHub marks the newest one Latest, which the README's download link opens); tick **Mark as a pre-release** only for a test build. The `updates` release that holds the feed stays a pre-release and must never be deleted: every installed copy checks it.
-4. The workflow tests, builds, signs (ad-hoc or Developer ID), packages the DMG, writes `appcast.xml` when an update key exists, and publishes the GitHub Release.
+4. The workflow tests, builds both flavors, signs them (ad-hoc or Developer ID), packages the DMG with both, notarizes it (which covers both apps, then staples each), zips each app as its update archive, writes `appcast.xml` and `appcast-developer.xml` when an update key exists, and publishes the GitHub Release.
+5. Publish the same version's Chrome extension to the Chrome Web Store: `npm run package:chrome-store`, upload the zip on the item's Package tab, and submit it for review (store/chrome-web-store.md). Until it's approved, ScreenFry's Chrome copy stays on the previous version, which the app shows as connected.
 
 **Developer ID signing and notarization** use these repository secrets, all set: `DEVELOPER_ID_P12` (the Bhron, LLC "Developer ID Application" certificate and key, base64), `DEVELOPER_ID_P12_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_ID` and `APPLE_APP_PASSWORD` (an app-specific password from account.apple.com). After the Xcode build, `scripts/sign-developer-id.sh` re-signs Sparkle's helpers, the extension and the app from the inside out, with a timestamp, the hardened runtime and no `get-task-allow`. Apple's notary service rejects the app otherwise. If notarization fails, the workflow prints Apple's log. The certificate is valid until December 2027 and lives in the Account Holder's login keychain; only the Account Holder can create a replacement.
 
-To build a disk image locally on a Mac: `npm run build:safari`, `xcodegen generate --spec safari/ScreenFry/project.yml`, build the **ScreenFry** scheme in Release, then `npm run dmg -- <path to ScreenFry.app>`.
+To build a disk image locally on a Mac: `npm run build:safari`, `xcodegen generate --spec safari/ScreenFry/project.yml`, `scripts/build-flavor.sh official Release` and `scripts/build-flavor.sh developer Release` (plus signing settings), then `npm run dmg -- <ScreenFry.app> <ScreenFry Developer.app>`. `npm run dmg:local` does all of it. After editing `assets/dmg/background.svg`, run `node scripts/render-dmg-background.mjs`.
 
 ## In-app updates (on since 0.7.6)
 
 Sparkle only installs updates signed with ScreenFry's private EdDSA key; the app carries the matching public key (`SUPublicEDKey` in `safari/ScreenFry/project.yml`). The key was made on November 11, 2026 with Sparkle's `generate_keys --account screenfry`: the private key is in Sam's login Keychain (account `screenfry`) and in the repository **secret** `SPARKLE_PRIVATE_KEY`; the public key is also the repository **variable** `SPARKLE_PUBLIC_KEY`. Never commit the private key.
 
-- **The feed** is `appcast.xml` on a fixed release tagged `updates`, refreshed by every signed release (GitHub's `releases/latest` link skips pre-releases, so it can't be used while releases are pre-releases).
+- **The feeds** are `appcast.xml` (ScreenFry) and `appcast-developer.xml` (ScreenFry Developer) on a fixed release tagged `updates`, refreshed by every signed release (GitHub's `releases/latest` link skips pre-releases, so it can't be used while releases are pre-releases). Each points at its flavor's zipped app on the version's release.
 - **The app** lives in the menu bar (closing its window keeps it running there, without a Dock icon) and starts at login, so it checks every hour, and from **Check for Updates…**. When it finds a newer version the menu bar icon turns orange and the menu offers it. With **Install updates automatically** on, it downloads the update and installs it right away, closing and reopening in the menu bar, instead of Sparkle's default of waiting for a quit, which a menu bar app hardly ever does. While its window is open, background checks wait (so it never restarts under you, and never sits on a downloaded update, which stops Sparkle noticing newer ones); closing the window checks at once. **Check for Updates…** and the menu's **Update to …** always respond: they install an update already downloaded, or open Sparkle's window with the version's notes, a download bar and Install and Relaunch. After any update, ScreenFry checks again a few seconds after reopening, so a version released meanwhile follows straight away. The feed's newest version is always the one offered, so an old copy goes to the latest in one update. **Start at login** is on the first time it runs from Applications and can be turned off in the window or the menu bar menu; Uninstall removes it.
 - **Users on 0.7.5 or earlier** have no key, so they need one manual download to reach an updating build.
 - To replace the key: run `generate_keys --account screenfry` (and `-x file` to export), update both repository entries and `SUPublicEDKey`, and ship one release manually, since older builds only trust the old key.
@@ -64,9 +75,9 @@ Sparkle only installs updates signed with ScreenFry's private EdDSA key; the app
 
 With an Apple Developer Program membership, create a **Developer ID Application** certificate. Then add these repository secrets: `DEVELOPER_ID_P12` (base64 of the exported .p12), `DEVELOPER_ID_P12_PASSWORD`, `APPLE_TEAM_ID`, plus `APPLE_ID` and `APPLE_APP_PASSWORD` (an app-specific password) for notarization. The Release workflow then signs, notarizes and staples automatically. Safari 18.4 or newer accepts Developer ID–signed, notarized extensions without developer settings.
 
-## Later: Chrome Web Store
+## Chrome Web Store
 
-An unlisted Web Store listing would give one-click Chrome installs and automatic updates. The app's Chrome card could then link to the listing instead of the folder. Store-installed copies skip the folder reload check and the pages' stale-background heal (both need `installType` `development`, `isUnpackedChrome`), leaving updates to Chrome.
+ScreenFry's Chrome extension is item `epoooaclakcopjgkplhmbffbgcjhmdfe` (store/chrome-web-store.md). Store-installed copies skip the folder reload check and the pages' stale-background heal (both need `installType` `development`, `isUnpackedChrome`), leaving updates to Chrome. The unpacked and store copies keep separate settings; the app's loadouts move a setup between them.
 
 ## Verifying signing before shipping
 
