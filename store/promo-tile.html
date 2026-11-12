@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- The Chrome Web Store small promo tile (440×280), rendered by scripts/store-images.mjs. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 440px; height: 280px; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(120% 90% at 85% 110%, rgba(244, 98, 31, 0.55) 0%, rgba(214, 58, 22, 0.18) 45%, transparent 70%),
+      radial-gradient(80% 70% at 0% 0%, rgba(255, 154, 60, 0.18) 0%, transparent 60%),
+      #14100d;
+    color: #f4ece4;
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    padding: 0 34px;
+    box-sizing: border-box;
+  }
+  img { width: 132px; height: 132px; flex: none; filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45)); }
+  h1 { margin: 0 0 8px; font-size: 40px; letter-spacing: -0.02em; font-weight: 800; }
+  p { margin: 0; font-size: 22px; line-height: 1.25; font-weight: 600; color: #ffb27a; }
+</style>
+</head>
+<body>
+  <img id="logo" alt="">
+  <div>
+    <h1>ScreenFry</h1>
+    <p>Less feed.<br>More day.</p>
+  </div>
+  <script>
+    document.getElementById("logo").src = new URLSearchParams(location.search).get("logo") || "";
+  </script>
+</body>
+</html>

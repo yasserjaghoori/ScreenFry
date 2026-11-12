@@ -21,6 +21,7 @@ import {
 import {
   detectBrowser,
   hasIdleApi,
+  isUnpackedChrome,
   queryPrivateAccess,
   sessionArea,
 } from "@browser/platform";
@@ -837,10 +838,9 @@ async function reopenAfterReload() {
 }
 void reopenAfterReload();
 async function reloadIfUpdatedOnDisk() {
-  if (browser !== "chrome") return;
+  // Store installs (and Safari) are updated by the browser, background included.
+  if (!(await isUnpackedChrome())) return;
   try {
-    const self = await chrome.management.getSelf();
-    if (self.installType !== "development") return;
     const { version } = (await (
       await fetch(chrome.runtime.getURL("manifest.json"), { cache: "no-store" })
     ).json()) as { version?: string };

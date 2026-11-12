@@ -11,8 +11,11 @@ import Foundation
 ///     and answers in `setup-result.json`. Each check-in also carries the browser's current
 ///     setup as a share code (`setupCode`), so the app can save it as one of its loadouts.
 ///   - `pending-erase.json` → Erase Everything: the extension wipes its storage (Safari keeps an
-///     extension's storage after the app is deleted) and Chrome's also removes itself;
-///     `erase-sent.json` records that the request was handed over.
+///     extension's storage after the app is deleted) and Chrome's also removes itself. It stays
+///     until the app is gone, so every copy that checks in gets it (Chrome can run both the
+///     unpacked and the Web Store copy); `erase-sent.json` lists the copies it was handed to.
+///   - `copies.json` records when each copy (by extension id) last checked in, so the app knows
+///     which copies to wait for.
 ///
 /// Safari: the sandboxed extension handler uses its own container. Chrome: the app binary,
 /// launched by Chrome as a native messaging host, uses Application Support/ScreenFry.
@@ -26,6 +29,7 @@ struct SettingsBridge {
     static let setupResultName = "setup-result.json"
     static let eraseName = "pending-erase.json"
     static let eraseSentName = "erase-sent.json"
+    static let copiesName = "copies.json"
 
     let directory: URL
     var checkInURL: URL { directory.appendingPathComponent(Self.checkInName) }
@@ -35,6 +39,7 @@ struct SettingsBridge {
     var setupResultURL: URL { directory.appendingPathComponent(Self.setupResultName) }
     var eraseURL: URL { directory.appendingPathComponent(Self.eraseName) }
     var eraseSentURL: URL { directory.appendingPathComponent(Self.eraseSentName) }
+    var copiesURL: URL { directory.appendingPathComponent(Self.copiesName) }
 
     /// `<Application Support>/ScreenFry/Bridge/<name>` for the running process (inside a
     /// sandbox this resolves within the container).
@@ -54,12 +59,18 @@ struct SettingsBridge {
         let fm = FileManager.default
         try? fm.createDirectory(at: directory, withIntermediateDirectories: true)
         let now = ISO8601DateFormatter().string(from: Date())
+        let extensionId = message["extensionId"] as? String ?? ""
+        if !extensionId.isEmpty {
+            var copies = Self.read(copiesURL) as? [String: String] ?? [:]
+            copies[extensionId] = now
+            Self.write(copies, to: copiesURL)
+        }
         Self.write([
             "at": now,
             "version": message["version"] as? String ?? "",
             "passwordProtected": message["passwordProtected"] as? Bool ?? false,
             // Lets the app open ScreenFry's own pages in that browser.
-            "extensionId": message["extensionId"] as? String ?? "",
+            "extensionId": extensionId,
             // The version ScreenFry's running code was built as (0.7.6 on); missing means the
             // browser still runs code from before 0.7.3 whatever its manifest says.
             "codeVersion": message["codeVersion"] as? String ?? "",
@@ -89,8 +100,10 @@ struct SettingsBridge {
         if fm.fileExists(atPath: eraseURL.path) {
             reply["erase"] = true
             reply["uninstall"] = true // what 0.6.4–0.6.5 Chrome extensions understand
-            Self.write(["at": now], to: eraseSentURL)
-            try? fm.removeItem(at: eraseURL)
+            // Kept for the other copies; the app deletes the bridge when it's done.
+            var sentTo = Self.read(eraseSentURL)?["extensionIds"] as? [String] ?? []
+            if !extensionId.isEmpty, !sentTo.contains(extensionId) { sentTo.append(extensionId) }
+            Self.write(["at": now, "extensionIds": sentTo], to: eraseSentURL)
         } else if let reset = Self.read(resetURL), reset["id"] is String {
             reply["reset"] = reset
         } else if let setup = Self.read(setupURL), setup["id"] is String, setup["code"] is String {
