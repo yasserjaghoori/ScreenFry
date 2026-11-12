@@ -93,6 +93,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var updater = SPUStandardUpdaterController(
         startingUpdater: Self.updatesConfigured, updaterDelegate: self, userDriverDelegate: self)
     #endif
+    /// A copy built for testing under its own bundle ID (ending ".uitest").
+    static var isTestCopy: Bool { Bundle.main.bundleIdentifier?.hasSuffix(".uitest") == true }
     private static var updatesConfigured: Bool {
         let key = Bundle.main.infoDictionary?["SUPublicEDKey"] as? String ?? ""
         return !key.isEmpty
@@ -100,6 +102,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Started by logging in (or reopened by an automatic update): menu bar only, no window.
     private var launchedAtLogin = false
+    /// Reopened by an automatic update (see `installPendingUpdate`).
+    private var relaunchedAfterUpdate = false
+    /// Sparkle is checking or downloading in the background without a window of its own.
+    fileprivate var silentUpdateRunning = false
     /// A downloaded update waiting to install (see `installPendingUpdate`).
     fileprivate var pendingInstall: (() -> Void)?
     private var menuBar: MenuBarItem?
@@ -108,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Reopened by an automatic update counts like starting at login: menu bar only.
         let afterUpdate = UserDefaults.standard.bool(forKey: Self.relaunchedAfterUpdateKey)
         UserDefaults.standard.removeObject(forKey: Self.relaunchedAfterUpdateKey)
+        relaunchedAfterUpdate = afterUpdate
         launchedAtLogin = LoginItem.launchedAtLogin() || afterUpdate
         // Set the Dock icon from a bundled image as well as the asset catalog, so a stale
         // LaunchServices icon cache can never leave the Dock showing the generic placeholder.
@@ -133,10 +140,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onToggleAutoUpdate: { [weak self] in self?.toggleAutoUpdate(nil) },
             onToggleLogin: { [weak self] in self?.toggleLogin(nil) })
         LoginItem.turnOnByDefaultOnce()
+        #if canImport(Sparkle)
+        if Self.updatesConfigured {
+            // Just updated (in the background or from Sparkle's window): look again straight
+            // away, so a version released since the one downloaded follows now, not an hour later.
+            let lastRun = UserDefaults.standard.string(forKey: Self.lastRunVersionKey)
+            UserDefaults.standard.set(version, forKey: Self.lastRunVersionKey)
+            if relaunchedAfterUpdate || (lastRun != nil && lastRun != version) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+                    self?.updater.updater.checkForUpdatesInBackground()
+                }
+            }
+        }
+        #endif
         loginBox.state = LoginItem.isEnabled ? .on : .off
         if launchedAtLogin { NSApp.setActivationPolicy(.accessory) }
-        installChromeExtension()
-        warnAboutOtherCopies()
+        // Test copies (docs/TESTING.md) leave the real ScreenFry's Chrome setup alone.
+        if !Self.isTestCopy {
+            installChromeExtension()
+            warnAboutOtherCopies()
+        }
         refreshState()
         // Browsers check in about once a minute; keep their status current.
         transferTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
@@ -283,8 +306,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
             // Only the menu bar icon is left: no Dock icon until the window opens again.
             NSApp.setActivationPolicy(.accessory)
-            // An update that was waiting for the window to close installs now.
-            self?.installPendingUpdate()
+            // After it has closed: updates download in the background again, and one that
+            // was waiting for the window installs now.
+            DispatchQueue.main.async {
+                self?.installPendingUpdate()
+                self?.checkSkippedUpdates()
+            }
         }
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
@@ -813,8 +840,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let url = url.url { NSWorkspace.shared.open(url) }
     }
 
-    /// "Install updates automatically": Sparkle downloads new versions in the background and
-    /// installs them when ScreenFry quits (it still checks, and asks, when this is off).
+    /// "Install updates automatically": ScreenFry downloads a new version in the background and
+    /// installs it straight away, waiting while its window is open (it still checks, and asks,
+    /// when this is off).
     private lazy var autoUpdateBox: NSButton = {
         let b = NSButton(checkboxWithTitle: "Install updates automatically", target: self, action: #selector(toggleAutoUpdate(_:)))
         b.font = .systemFont(ofSize: 11)
@@ -822,7 +850,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if canImport(Sparkle)
         b.state = Self.updatesConfigured && updater.updater.automaticallyDownloadsUpdates ? .on : .off
         #endif
-        b.toolTip = "ScreenFry checks for a new version every few hours. With this on, it downloads it and installs it the next time ScreenFry quits."
+        b.toolTip = "ScreenFry checks for a new version every hour. With this on, it installs new versions in the background, waiting while this window is open."
         return b
     }()
     private var autoUpdateMenuItem: NSMenuItem?
@@ -844,6 +872,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         #if canImport(Sparkle)
+        // An update already downloaded in the background: install it now (Sparkle won't start
+        // another check while it waits). ScreenFry reopens on the new version.
+        if pendingInstall != nil {
+            installPendingUpdate(force: true)
+            return
+        }
+        // A background download is running with nothing to show; it installs on its own.
+        if silentUpdateRunning, !updater.updater.canCheckForUpdates {
+            showAlert("ScreenFry is already updating",
+                      "It's downloading the newest version now and will install it in a moment.")
+            return
+        }
+        // Sparkle's window: what's new, a download bar, then Install and Relaunch. It brings
+        // forward an update it is already showing.
         updater.checkForUpdates(sender)
         #endif
     }
@@ -1229,12 +1271,26 @@ private final class FlippedSetupView: NSView {
 extension AppDelegate {
     static let relaunchedAfterUpdateKey = "relaunchedAfterUpdate"
 
-    /// Installs a downloaded update now, unless the window is open (then when it closes).
-    func installPendingUpdate() {
-        guard let install = pendingInstall, window?.isVisible != true else { return }
+    static let lastRunVersionKey = "lastRunVersion"
+
+    /// Installs a downloaded update now, unless the window is open (then when it closes, or
+    /// when you click Update, which forces it and reopens ScreenFry with its window).
+    func installPendingUpdate(force: Bool = false) {
+        let windowOpen = window?.isVisible == true
+        guard let install = pendingInstall, force || !windowOpen else { return }
         pendingInstall = nil
-        UserDefaults.standard.set(true, forKey: Self.relaunchedAfterUpdateKey)
+        if !windowOpen { UserDefaults.standard.set(true, forKey: Self.relaunchedAfterUpdateKey) }
         install()
+    }
+
+    /// The window closed: look for an update now, since background checks wait while it's
+    /// open (see `updater(_:mayPerform:)`). With automatic installs on, it installs right away.
+    func checkSkippedUpdates() {
+        #if canImport(Sparkle)
+        guard Self.updatesConfigured, updater.updater.automaticallyDownloadsUpdates,
+              updater.updater.canCheckForUpdates else { return }
+        updater.updater.checkForUpdatesInBackground()
+        #endif
     }
 }
 
@@ -1253,6 +1309,24 @@ extension AppDelegate: SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
     }
 
     var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    /// With automatic installs on, a background check downloads and installs without asking,
+    /// so it waits while the window is open (ScreenFry never restarts under you, and never sits
+    /// on a downloaded update, which would stop it noticing newer ones). The window closing
+    /// checks straight away; Check for Updates always works.
+    func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
+        let silent = updateCheck == .updatesInBackground && updater.automaticallyDownloadsUpdates
+        if silent, window?.isVisible == true {
+            throw NSError(domain: "ScreenFry", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Waiting for ScreenFry's window to close before updating in the background.",
+            ])
+        }
+        silentUpdateRunning = silent
+    }
+
+    func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
+        silentUpdateRunning = false
+    }
 
     /// "Install updates automatically": Sparkle has downloaded an update and would install it
     /// when ScreenFry quits, which a menu bar app hardly ever does. Install it now instead
