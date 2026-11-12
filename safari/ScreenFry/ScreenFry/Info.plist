@@ -31,7 +31,7 @@
 	<key>SUPublicEDKey</key>
 	<string>ocy3JWCzTMESE33TkpwLfHPGeGmqzyqr3dZUoFPMrEE=</string>
 	<key>SUScheduledCheckInterval</key>
-	<integer>21600</integer>
+	<integer>3600</integer>
 	<key>ScreenFryShowSafariDeveloperSetup</key>
 	<true/>
 </dict>
