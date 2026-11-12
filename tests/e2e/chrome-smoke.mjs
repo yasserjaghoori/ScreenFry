@@ -201,11 +201,13 @@ try {
     path: join(root, "dist/chrome"),
   });
   check("extension loads", !!extId);
-  await sleep(800);
-  const targets = (await cdp("Target.getTargets")).targetInfos;
+  // The welcome page opens once the background has read its state, so wait for it
+  // rather than guessing how long a slow runner needs.
+  const welcomeOpen = async () =>
+    (await cdp("Target.getTargets")).targetInfos.some((t) => t.url.includes("onboarding.html"));
   check(
     "welcome page opens on install",
-    targets.some((t) => t.url.includes("onboarding.html")),
+    await waitFor(welcomeOpen, "welcome page", 10000).catch(() => false),
   );
   controller = await open(`chrome-extension://${extId}/dashboard.html`);
   const send = (req) =>
@@ -215,6 +217,7 @@ try {
     );
   const getState = async () => (await send({ type: "GET_STATE" })).data;
   const body = () => evaluate(controller.session, "document.body.innerText");
+  await waitFor(async () => /Websites/.test(await body()), "dashboard", 10000).catch(() => {});
   check(
     "website controls work without mandatory onboarding or PIN",
     /Websites/.test(await body()) &&
