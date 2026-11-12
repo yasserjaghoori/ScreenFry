@@ -48,6 +48,8 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          # Every release says what's new (the update window and the release notes show it).
+          node scripts/release-notes.mjs "$VERSION"
 
       - name: Add the update signing public key
         if: env.HAS_SPARKLE_KEY == 'true'
@@ -128,6 +130,9 @@ jobs:
           TOOLS=$(find dist/safari/SourcePackages/artifacts -type d -path "*Sparkle*/bin" | head -1)
           mkdir -p dist/updates
           cp "dist/ScreenFry-${{ steps.version.outputs.version }}.dmg" dist/updates/
+          # Beside the disk image, generate_appcast embeds it as the update window's notes.
+          node scripts/release-notes.mjs "${{ steps.version.outputs.version }}" --html \
+            > "dist/updates/ScreenFry-${{ steps.version.outputs.version }}.html"
           echo "$SPARKLE_PRIVATE_KEY" | "$TOOLS/generate_appcast" --ed-key-file - \
             --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/" \
             -o dist/updates/appcast.xml dist/updates
@@ -143,7 +148,7 @@ jobs:
           if [ "$HAS_DEVELOPER_ID" != "true" ]; then
             NOTES="Test build (not yet signed by Apple). See docs/DISTRIBUTION.md for the first-open steps."
           else
-            NOTES="ScreenFry ${{ steps.version.outputs.version }}"
+            NOTES="$(node scripts/release-notes.mjs "${{ steps.version.outputs.version }}" --md)"
           fi
           gh release create "${{ steps.version.outputs.tag }}" "${FILES[@]}" \
             --target "${{ github.sha }}" --title "ScreenFry ${{ steps.version.outputs.version }}" \

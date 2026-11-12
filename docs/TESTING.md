@@ -16,6 +16,15 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Updates always respond, newest version, release notes — November 12, 2026
+
+- Sam's report: Update to … and Check for Updates did nothing, quitting installed the update, and 0.7.9 needed two updates (0.8.0, then 0.8.1). Cause, from Sparkle 2.10.1's source: with automatic downloads, Sparkle downloaded 0.8.0 and kept that session open waiting to install (ScreenFry held it while its window was open). While a session is open, `checkForUpdates` only logs an error and returns, and no scheduled check runs, so 0.8.1 went unseen until 0.8.0 installed on quit.
+- Now background checks with automatic installs wait while the window is open (`updater(_:mayPerform:)`), closing the window checks at once, the buttons install an already-downloaded update or open Sparkle's window, and every relaunch after an update checks again after five seconds.
+- Tested end to end with test copies (bundle ID `com.screenfry.uitest`, Safari extension removed, Apple Development signed; test copies now skip the Chrome setup so they can't touch the real one), a throwaway EdDSA key and a local feed offering 0.9.1 and 0.9.2 with notes made the release workflow's way:
+  - From 0.9.0 with the window open: Sparkle's window offered **0.9.2** (not 0.9.1) with its notes; Remind Me Later, then Check for Updates brought it back; Install Update showed the download bar, Ready to Install, and Install and Relaunch reopened 0.9.2 with its window.
+  - From 0.9.0 with automatic installs on: nothing happened while the window was open; closing it fetched the feed, downloaded 0.9.2, installed it and reopened without a window, then checked the feed again five seconds later.
+- Not covered: the menu bar menu itself (it calls the same code as the app menu's Check for Updates), and a real update from 0.8.1, which runs the old code; the first update to this version may still need clicking or quitting once.
+
 ## Restart Chrome button — November 11, 2026
 
 - While ScreenFry in Chrome hasn't picked up an update, the Chrome card shows "Updating to …", a Restart Chrome pill beside Open ScreenFry Settings, and a note line saying to open/restart Chrome. The button warns that open tabs close unless Chrome continues where it left off (with a way to that setting), quits Chrome as ⌘Q would, waits up to 20 seconds, and opens it again; if Chrome doesn't quit (it may be asking something), it says so. Seen in a separate-id test copy with an older Chrome check-in; the warning was opened and cancelled, so Chrome itself wasn't restarted in testing.
