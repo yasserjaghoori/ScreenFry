@@ -36,7 +36,7 @@ jobs:
         with:
           fetch-depth: 0
       # Every installed copy updates from what this publishes, so only main is released:
-      # feature branches (like codex/next) must merge into main first.
+      # feature branches (like dev/next) must merge into main first.
       - name: Release only from main
         run: |
           git fetch -q origin main

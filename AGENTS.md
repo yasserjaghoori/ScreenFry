@@ -15,4 +15,4 @@ Read `docs/PROJECT_BRIEF.md`, `README.md`, and the relevant architecture/testing
 - Every release's changes go in `CHANGELOG.md` (short, plain words, under "Unreleased" until the release names it; user-requested): the Mac app's update window and the GitHub release show them.
 - Use Node from `.nvmrc` and `npm ci`. Run `npm run check` after code changes and `npm run test:e2e` for extension integration changes.
 - Builds share `dist/chrome`; do not run a build while the Chrome smoke test is using it. Run `npm run build:safari` before regenerating or building the Safari project.
-- Do not commit personal message exports, browsing data, passwords, signing identities, or generated build output. Work on a `codex/` branch and preserve collaborators' changes.
+- Do not commit personal message exports, browsing data, passwords, signing identities, or generated build output. Work on a branch named `dev/<what it does>` (for example `dev/fix-chrome-status` or `dev/release-1.0.1`; unreleased features live on `dev/next`) and preserve collaborators' changes.
