@@ -636,13 +636,23 @@ function ShareSettings({
   const [pasteError, setPasteError] = useState("");
   const [busy, setBusy] = useState(false);
   const settings = loadoutSettings(state, selected, Date.now());
-  const name = `Loadout ${selected + 1}`;
+  const nameOf = (i: number) => state.loadoutNames?.[i]?.trim() || `Loadout ${i + 1}`;
+  const name = nameOf(selected);
+  const [renaming, setRenaming] = useState(false);
+  const [draftName, setDraftName] = useState("");
 
   useEffect(() => {
     setMyCode("");
     setCopied(false);
     setPasted("");
+    setRenaming(false);
   }, [selected]);
+  async function saveName() {
+    const r = await send<AppState>({ type: "RENAME_LOADOUT", index: selected, name: draftName });
+    if (!r.ok) return onNotice({ kind: "error", text: r.error });
+    onState(r.data);
+    setRenaming(false);
+  }
   // Decode and check the pasted code as it's typed, then lay out what it would change in
   // this loadout (an empty loadout is compared with a fresh install).
   const comparedWith = settings ?? createDefaultState();
@@ -753,13 +763,46 @@ function ShareSettings({
               className={`loadout-tab ${selected === i ? "selected" : ""} ${filled ? "" : "empty"}`}
               onClick={() => setSelected(i)}
             >
-              <strong>Loadout {i + 1}</strong>
+              <strong>{nameOf(i)}</strong>
               <span>{i === active ? "In use" : filled ? "Saved" : "Empty"}</span>
             </button>
           );
         })}
       </div>
       <div className="loadout-panel" role="tabpanel" aria-label={name}>
+        {renaming ? (
+          <form
+            className="row loadout-rename"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void saveName();
+            }}
+          >
+            <input
+              aria-label="Loadout name"
+              maxLength={30}
+              autoFocus
+              placeholder={`Loadout ${selected + 1}`}
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+            />
+            <button className="button">Save name</button>
+            <button type="button" className="button secondary" onClick={() => setRenaming(false)}>
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            className="button ghost loadout-rename-button"
+            onClick={() => {
+              setDraftName(state.loadoutNames?.[selected] ?? "");
+              setRenaming(true);
+            }}
+          >
+            Rename {name}
+          </button>
+        )}
         {settings ? (
           <>
             <div className="share-preview">
@@ -889,7 +932,7 @@ function ShareSlides({
           {websites ? ` across ${websites} website${websites === 1 ? "" : "s"}` : ""}.
         </p>
         {!last && (
-          <button type="button" className="button secondary" disabled={busy} onClick={onApply}>
+          <button type="button" className="button accent-outline" disabled={busy} onClick={onApply}>
             {busy ? "Saving…" : `Accept all ${total} changes`}
           </button>
         )}

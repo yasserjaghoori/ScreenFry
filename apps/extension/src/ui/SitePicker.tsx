@@ -23,11 +23,14 @@ export function SitePicker({
   value,
   onChange,
   status,
+  badge,
 }: {
   value: FeedSite;
   onChange: (site: FeedSite) => void;
   /** Optional right-hand text for each site, e.g. "4m today". */
-  status?: (site: FeedSite) => string;
+  status?: (site: FeedSite) => React.ReactNode;
+  /** Optional badge right after a site's name, e.g. its Fry Time left. */
+  badge?: (site: FeedSite) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(value);
@@ -74,7 +77,10 @@ export function SitePicker({
         }}
       >
         <Avatar id={value} />
-        <span className="site-select-name">{current.name}</span>
+        <span className="site-select-name">
+          {current.name}
+          {badge?.(value)}
+        </span>
         {status && <span className="site-select-status">{status(value)}</span>}
         <svg
           className="site-select-chevron"
@@ -120,7 +126,10 @@ export function SitePicker({
             onClick={() => choose(s.id)}
           >
             <Avatar id={s.id} />
-            <span className="site-select-name">{s.name}</span>
+            <span className="site-select-name">
+              {s.name}
+              {badge?.(s.id)}
+            </span>
             {status && (
               <span className="site-select-status">{status(s.id)}</span>
             )}

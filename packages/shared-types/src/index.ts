@@ -150,6 +150,8 @@ export interface AppState {
    */
   loadouts?: (LoadoutSettings | null)[];
   activeLoadout?: number;
+  /** Names given to the loadouts ("" or missing: "Loadout 1"…). */
+  loadoutNames?: string[];
   usage: Record<string, UsageDay>;
   usageAsOf?: number;
   feedSettings: FeedSettings;

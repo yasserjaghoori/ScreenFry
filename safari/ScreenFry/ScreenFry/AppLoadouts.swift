@@ -94,6 +94,7 @@ final class AppLoadoutsPanel: NSObject {
     private var copyButton: NSButton!
     private var sendButton: NSButton!
     private var emptyButton: NSButton!
+    private var renameButton: NSButton!
     private var selected = 0
 
     init(browsers: [SettingsBrowser], window: NSWindow) {
@@ -125,10 +126,11 @@ final class AppLoadoutsPanel: NSObject {
         let paste = button("Paste a Code…", #selector(paste(_:)), false)
         copyButton = button("Copy Code", #selector(copy(_:)), false)
         emptyButton = button("Empty", #selector(empty(_:)), false)
+        renameButton = button("Rename…", #selector(rename(_:)), false)
         sendButton = button("Use in All Browsers", #selector(send(_:)), true)
         let row1 = NSStackView(views: [saveButton, paste])
         row1.spacing = 8
-        let row2 = NSStackView(views: [sendButton, copyButton, emptyButton])
+        let row2 = NSStackView(views: [sendButton, copyButton, renameButton, emptyButton])
         row2.spacing = 8
         refresh()
         return [
@@ -160,6 +162,7 @@ final class AppLoadoutsPanel: NSObject {
         copyButton.isEnabled = loadout != nil
         sendButton.isEnabled = loadout != nil && browsers.contains { SettingsTransfer.checkIn($0) != nil }
         emptyButton.isEnabled = loadout != nil
+        renameButton.isEnabled = loadout != nil
         var lines: [String] = []
         for browser in browsers {
             if let name = SettingsTransfer.pendingSetup(browser) {
@@ -238,6 +241,24 @@ final class AppLoadoutsPanel: NSObject {
         NSPasteboard.general.setString(loadout.shareText, forType: .string)
         status.isHidden = false
         status.stringValue = "Copied “\(loadout.name)”’s share code."
+    }
+
+    @objc private func rename(_ sender: Any?) {
+        guard var loadout = AppLoadouts.all()[selected] else { return }
+        let alert = NSAlert()
+        alert.messageText = "Rename loadout \(selected + 1)"
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.stringValue = loadout.name
+        field.placeholderString = "Name, like Exam week"
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = field.stringValue.trimmingCharacters(in: .whitespaces)
+        loadout.name = name.isEmpty ? "Loadout \(selected + 1)" : String(name.prefix(40))
+        AppLoadouts.set(selected, loadout)
+        refresh()
     }
 
     @objc private func empty(_ sender: Any?) {

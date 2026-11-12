@@ -12,7 +12,7 @@ import { AppSetupOffer } from "../ui/AppSetupOffer";
 import { healStaleBackground } from "../ui/healBackground";
 import { SettingsGate } from "../ui/SettingsGate";
 import { siteStatus } from "../ui/siteStatus";
-import { FryTimeBar, fryTimeSummary } from "../ui/FryTime";
+import { FryChip, fryTimeSummary } from "../ui/FryTime";
 import { Windows } from "./Windows";
 import { Settings } from "./Settings";
 import { About } from "./About";
@@ -235,11 +235,11 @@ function Dashboard() {
                       {s.symbol}
                     </span>
                     <span className="website-name">
-                      {s.name}
+                      <span className="website-name-row">
+                        {s.name}
+                        {status.fryTime && <FryChip fry={status.fryTime} site={s.name} />}
+                      </span>
                       <small>{status.label}</small>
-                      {status.fryTime && (
-                        <FryTimeBar fry={status.fryTime} site={s.name} compact />
-                      )}
                     </span>
                     <span className="site-chevron">›</span>
                   </button>

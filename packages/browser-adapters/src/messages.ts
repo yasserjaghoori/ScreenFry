@@ -21,6 +21,7 @@ export type Request = (
   | { type: "SET_LOADOUT_FROM_CODE"; index: number; code: string }
   | { type: "COPY_TO_LOADOUT"; index: number }
   | { type: "CLEAR_LOADOUT"; index: number }
+  | { type: "RENAME_LOADOUT"; index: number; name: string }
   | { type: "SET_FEEDS"; feedSettings: FeedSettings }
   | {
       type: "SET_PREFERENCES";

@@ -130,6 +130,13 @@ h3 {
   color: var(--ink);
   box-shadow: none;
 }
+/* Orange outline on a warm tint, like the popup's selected section button. */
+.button.accent-outline {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  box-shadow: none;
+}
 .button.ghost {
   background: transparent;
   color: var(--green);
@@ -634,6 +641,44 @@ select:focus {
 .fry-bar.compact { display: inline-flex; margin: 6px 0 4px; cursor: help; }
 .fry-bar.compact .fry-bar-strip { padding: 2px 9px; border-radius: 999px; font-size: 11px; box-shadow: none; }
 .fry-bar.compact .fry-bar-strip i { width: 4px; height: 7px; }
+/* Fry Time chip: the dripping logo and the time left, beside a website's name. */
+.fry-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px 1px 5px;
+  border-radius: 999px;
+  background: linear-gradient(100deg, #ff9a3c, #f4621f 70%, #e8501a);
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+  vertical-align: middle;
+}
+.fry-chip strong { font-weight: 800; }
+.fry-mark-mini { width: 13px; height: 13px; flex: none; }
+.fry-chip i {
+  position: absolute;
+  top: calc(100% - 3px);
+  left: 30%;
+  width: 3px;
+  height: 6px;
+  border-radius: 40% 40% 55% 55%;
+  background: linear-gradient(#ffb15a, #f4621f);
+  transform-origin: top;
+  animation: fry-chip-drip 2.6s cubic-bezier(0.45, 0, 0.8, 0.6) infinite;
+  pointer-events: none;
+}
+.fry-chip i:nth-of-type(2) { left: 68%; animation-delay: -1.3s; }
+/* A short drip that fades before it reaches the line below. */
+@keyframes fry-chip-drip {
+  0%, 15% { transform: translateY(0) scaleY(0.2); opacity: 0; }
+  35% { opacity: 1; }
+  75% { transform: translateY(4px) scaleY(1); opacity: 0.6; }
+  100% { transform: translateY(6px) scaleY(0.4); opacity: 0; }
+}
 @keyframes fry-bar-drip {
   0%, 15% { transform: translateY(0) scaleY(0.2); opacity: 0; }
   30% { opacity: 1; }

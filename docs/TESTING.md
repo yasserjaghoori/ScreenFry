@@ -16,6 +16,12 @@ The Chrome integration test uses a throwaway profile and protocol-served local f
 
 Do not run a build while the integration test is using `dist/chrome`.
 
+## Fry Time chips and loadout names — November 11, 2026
+
+- Websites with Fry Time running show a small dripping-logo chip with the time left ("4:32", whole minutes from ten) right after their name: in the settings page's website list (instead of the "Fry Time" pill) and in the popup's website picker, including the current website. Checked in a throwaway Chrome with a Fry Time window on Reddit (5:00) and LinkedIn (30m), light and dark.
+- Loadouts can be renamed on the Share page and in the Mac app; Accept all uses the orange-outline style; the Chrome status reads "open/restart Chrome to complete". AGENTS.md now records that moving setups between browsers is a feature.
+- `npm run check`: 167 unit tests; `npm run test:e2e`: 69 checks; the Mac app builds.
+
 ## Automatic updates install right away — November 11, 2026
 
 - Install updates automatically didn't install 0.7.8: Sparkle checked only every six hours and, with automatic downloads, installs when the app quits, which a menu bar app that starts at login hardly ever does. It now checks hourly, and once an update is downloaded ScreenFry installs it straight away (closing and reopening in the menu bar without its window), waiting only while its window is open. Built; the update path itself can only run from 0.7.9 to a later version.
