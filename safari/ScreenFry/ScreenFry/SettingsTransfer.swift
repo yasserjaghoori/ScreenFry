@@ -154,7 +154,18 @@ enum ChromeNativeHost {
             .joined()
     }
 
-    /// Lets the ScreenFry folder's extension (and nothing else) talk to this app.
+    /// ScreenFry's Chrome Web Store extension (an Unlisted item for now). Its ID is fixed by
+    /// the store, so it's the same on every Mac.
+    static let storeExtensionID = "epoooaclakcopjgkplhmbffbgcjhmdfe"
+
+    /// The extensions allowed to talk to this app: the ScreenFry folder's unpacked copy and
+    /// the Chrome Web Store copy (nothing else).
+    static var allowedOrigins: [String] {
+        [unpackedExtensionID(path: ChromeInstaller.folder.path), storeExtensionID]
+            .map { "chrome-extension://\($0)/" }
+    }
+
+    /// Lets ScreenFry's own Chrome extensions talk to this app.
     static func register() throws {
         guard let executable = Bundle.main.executablePath else { return }
         let manifest: [String: Any] = [
@@ -162,7 +173,7 @@ enum ChromeNativeHost {
             "description": "ScreenFry check-ins, reset and erase",
             "path": executable,
             "type": "stdio",
-            "allowed_origins": ["chrome-extension://\(unpackedExtensionID(path: ChromeInstaller.folder.path))/"],
+            "allowed_origins": allowedOrigins,
         ]
         try FileManager.default.createDirectory(at: manifestURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         if let existing = SettingsBridge.read(manifestURL),

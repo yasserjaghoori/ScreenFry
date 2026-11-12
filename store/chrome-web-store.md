@@ -53,4 +53,4 @@ Fill these into the [developer dashboard](https://chrome.google.com/webstore/dev
 
 ## Distribution
 
-Start **Unlisted** for testing with the Mac app; switch to **Public** after the installer's two choices (docs/NEXT.md) are ready. Regions: all.
+Extension ID: `epoooaclakcopjgkplhmbffbgcjhmdfe` (the Mac app's native host allows it: `ChromeNativeHost.storeExtensionID`). Start **Unlisted** for testing with the Mac app; switch to **Public** after the installer's two choices (docs/NEXT.md) are ready. Regions: all.
