@@ -41,6 +41,23 @@ struct SettingsBridge {
     var eraseSentURL: URL { directory.appendingPathComponent(Self.eraseSentName) }
     var copiesURL: URL { directory.appendingPathComponent(Self.copiesName) }
 
+    /// The App Group shared by the Mac App Store app and its Safari extension
+    /// (`ScreenFryAppGroup` in both Info.plists). A sandboxed app can't read the extension's
+    /// own container, so there they meet in the group's folder instead.
+    static var appGroup: String? {
+        Bundle.main.object(forInfoDictionaryKey: "ScreenFryAppGroup") as? String
+    }
+
+    /// Safari's bridge: in the App Group folder when there is one (Mac App Store), otherwise
+    /// the extension's own container (`SettingsBrowser.safari` reads it from the app).
+    static func safari() -> SettingsBridge? {
+        guard let group = appGroup,
+              let shared = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+        else { return nil }
+        return SettingsBridge(directory: shared
+            .appendingPathComponent("Library/Application Support/ScreenFry/Bridge/Safari", isDirectory: true))
+    }
+
     /// `<Application Support>/ScreenFry/Bridge/<name>` for the running process (inside a
     /// sandbox this resolves within the container).
     static func local(_ name: String) -> SettingsBridge {

@@ -18,7 +18,7 @@ final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             }
             return
         }
-        Self.complete(context, SettingsBridge.local("Safari").handle(message))
+        Self.complete(context, (SettingsBridge.safari() ?? SettingsBridge.local("Safari")).handle(message))
     }
 
     private static func complete(_ context: NSExtensionContext, _ reply: [String: Any]) {
