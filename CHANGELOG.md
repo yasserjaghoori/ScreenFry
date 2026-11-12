@@ -7,6 +7,8 @@ Add changes under "Unreleased"; a release turns that heading into its version
 
 ## Unreleased
 
+## 0.8.2
+
 - Update and Check for Updates always respond now: they install an update that's already downloaded, or open the update window with what's new and a download bar.
 - Updates always fetch the newest version, so you go straight from an old version to the latest in one update.
 - Automatic updates wait while ScreenFry's window is open, so it never restarts while you're using it, and install as soon as you close it.
