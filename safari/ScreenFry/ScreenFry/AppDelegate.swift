@@ -632,7 +632,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let current = checkIn.version.isEmpty || checkIn.version == version
             chromeStatus.stringValue = current
                 ? "Connected · ScreenFry \(checkIn.version.isEmpty ? version : checkIn.version)"
-                : "Connected · updating to \(version) (open Chrome to complete)"
+                : "Connected · updating to \(version) (open/restart Chrome to complete)"
             chromeDot.layer?.backgroundColor = (current ? NSColor.systemGreen : NSColor.systemOrange).cgColor
         } else if UserDefaults.standard.bool(forKey: Self.chromeConfirmedKey) {
             chromeStatus.stringValue = "Setup confirmed by you"

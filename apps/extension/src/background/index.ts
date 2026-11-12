@@ -667,6 +667,8 @@ async function handle(
       return actions.copyToLoadout(auth, request.index);
     case "CLEAR_LOADOUT":
       return actions.clearLoadout(auth, request.index);
+    case "RENAME_LOADOUT":
+      return actions.renameLoadout(auth, request.index, request.name);
     case "IMPORT_SHARE_CODE": {
       const r = await actions.importShareCode(auth, request.code);
       if (r.ok) {

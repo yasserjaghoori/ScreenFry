@@ -916,7 +916,7 @@
 @media (max-width: 640px) {
   .modal-head { top: -20px; margin: -20px -20px 0; padding: 16px 20px 10px; }
 }
-.website-name .fry-bar.compact { justify-self: start; }
+.website-name-row { display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
 
 /* Custom Fry Time: a minutes box beside each selected website. */
 .check-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
@@ -1108,3 +1108,7 @@
   margin: 4px 0;
 }
 .banner.app-setup { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+/* Renaming a loadout: a small inline form above its summary. */
+.loadout-rename { gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.loadout-rename input { flex: 1; min-width: 160px; }
+.loadout-rename-button { justify-self: start; margin-bottom: 10px; padding-left: 0; }

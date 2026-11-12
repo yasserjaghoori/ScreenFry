@@ -202,6 +202,11 @@ export function migrateState(
     state.activeLoadout = raw.activeLoadout;
     if (state.loadouts) state.loadouts[raw.activeLoadout] = null;
   }
+  const names = Array.isArray(raw.loadoutNames) ? (raw.loadoutNames as unknown[]) : [];
+  if (names.some((n) => typeof n === "string" && n.trim()))
+    state.loadoutNames = Array.from({ length: LOADOUT_COUNT }, (_, i) =>
+      typeof names[i] === "string" ? String(names[i]).trim().slice(0, 30) : "",
+    );
   state.rules = Array.isArray(raw.rules)
     ? (raw.rules as Record<string, unknown>[]).filter(object).map(
         (r): WebsiteRule => ({

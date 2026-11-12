@@ -11,6 +11,7 @@ import type { AppState, FeedSite } from "@shared/index";
 import { EarnClock, useEarnLive } from "../ui/EarnClock";
 import { earnRemaining } from "@policy/index";
 import { SiteControls } from "../ui/SiteControls";
+import { FryChip } from "../ui/FryTime";
 import { healStaleBackground } from "../ui/healBackground";
 import { SettingsGate } from "../ui/SettingsGate";
 import { SitePicker } from "../ui/SitePicker";
@@ -162,10 +163,19 @@ function Popup() {
   const statusLabels = useMemo(
     () =>
       state &&
-      (Object.fromEntries(launchSites.map((s) => [s.id, siteStatus(state, s.id).label])) as Record<
-        FeedSite,
-        string
-      >),
+      (Object.fromEntries(
+        launchSites.map((s) => {
+          const status = siteStatus(state, s.id);
+          return [
+            s.id,
+            {
+              label: status.label,
+              // Fry Time left shows right after a website's name, here and on the current one.
+              fry: status.fryTime && <FryChip fry={status.fryTime} site={s.name} />,
+            },
+          ];
+        }),
+      ) as Record<FeedSite, { label: string; fry: React.ReactNode }>),
     [state],
   );
   const open = (page: string) =>
@@ -257,7 +267,8 @@ function Popup() {
           setSite(next);
           setError("");
         }}
-        status={statusLabels ? (id) => statusLabels[id] : undefined}
+        status={statusLabels ? (id) => statusLabels[id].label : undefined}
+        badge={statusLabels ? (id) => statusLabels[id].fry : undefined}
       />
       {error && (
         <p className="error" role="alert">

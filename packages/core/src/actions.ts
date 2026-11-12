@@ -649,6 +649,19 @@ export const copyToLoadout = (ctx: ActionContext, index: number) =>
         return { ...s, loadouts: next };
       });
 /** Empties a saved loadout. The one in use can't be emptied (switch away first). */
+/** Names a loadout. Only a label, so it needs no password; an empty name goes back to "Loadout N". */
+export async function renameLoadout(ctx: ActionContext, index: number, name: string): Promise<ActionResult<AppState>> {
+  if (!slot(index)) return fail("Choose a loadout from 1 to 5.");
+  const clean = String(name ?? "").trim().slice(0, 30);
+  return {
+    ok: true,
+    data: await ctx.store.update((s) => {
+      const names = Array.from({ length: LOADOUT_COUNT }, (_, i) => s.loadoutNames?.[i] ?? "");
+      names[index] = clean;
+      return { ...s, loadoutNames: names };
+    }),
+  };
+}
 export async function clearLoadout(ctx: ActionContext, index: number): Promise<ActionResult<AppState>> {
   if (!slot(index)) return fail("Choose a loadout from 1 to 5.");
   if (index === ((await ctx.store.get()).activeLoadout ?? 0))
