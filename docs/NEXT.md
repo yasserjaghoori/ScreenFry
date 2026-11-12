@@ -10,9 +10,9 @@ Today Chrome runs ScreenFry as an unpacked extension (Developer mode, dragged in
 
 - [ ] Sam signs in to the [Chrome Web Store developer dashboard](https://chrome.google.com/webstore/devconsole) (account paid for) in Claude's browser when asked.
 - [ ] `npm run package:chrome-store` builds `dist/ScreenFry-chrome-store-<version>.zip` from `dist/chrome`. Upload it as a new item, **Unlisted** at first, so it can be tested without being public.
-- [ ] Fill in the listing from [store/chrome-web-store.md](../store/chrome-web-store.md): description, screenshots (1280×800), small promo tile (440×280), privacy practices and a reason for each permission. Expect an in-depth review because of `<all_urls>`.
+- [ ] Fill in the listing from [store/chrome-web-store.md](../store/chrome-web-store.md): description, screenshots (1280×800), small promo tile (440×280), privacy practices and a reason for each permission. `npm run store:images` makes the screenshots and tile in `dist/store`. The Chrome Web Store dashboard doesn't open in Claude's built-in browser; use Sam's Chrome. Expect an in-depth review because of `<all_urls>`.
 - [ ] Record the store's extension ID. The Mac app's native messaging host only lets the unpacked extension in (`allowed_origins` in `ChromeNativeHost.register`, `SettingsTransfer.swift`): add the store ID, so check-ins, loadouts and Erase Everything work with either.
-- [ ] The folder update check (`reloadIfUpdatedOnDisk`) already skips store installs (`installType` isn't `development`). Make sure the stale-background heal (`healStaleBackground`, and the background's version check) also leaves store installs to Chrome's own updates.
+- [x] The folder update check (`reloadIfUpdatedOnDisk`, with the background's version check) and the pages' stale-background heal (`healStaleBackground`) run only for the unpacked copy (`isUnpackedChrome`: `installType` is `development`); Chrome updates store installs itself.
 - [ ] Settings don't move between the unpacked and store copies (different extension IDs, separate storage). Offer a share code: the app can save the unpacked copy's setup as a loadout and **Use in All Browsers** into the store copy. Write that path down in the app's Chrome card.
 - [ ] Once approved, switch the listing to **Public**.
 

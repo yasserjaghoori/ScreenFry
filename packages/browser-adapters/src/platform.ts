@@ -10,6 +10,20 @@ export function detectBrowser(): BrowserKind {
 }
 
 /**
+ * Whether Chrome runs ScreenFry unpacked (Developer mode, from the folder the Mac app keeps
+ * current). Only that copy needs ScreenFry's own update checks and stale-background reloads:
+ * Chrome updates a Web Store install itself. Unknown counts as not unpacked.
+ */
+export async function isUnpackedChrome(): Promise<boolean> {
+  if (detectBrowser() !== 'chrome') return false;
+  try {
+    return (await chrome.management.getSelf()).installType === 'development';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Chrome exposes a supported permission query. Safari has no equivalent, so it always reports
  * `unverified` here; coverage can only be observed by seeing a private tab (see background).
  */

@@ -26,9 +26,9 @@ Fill these into the [developer dashboard](https://chrome.google.com/webstore/dev
 >
 > On a Mac, the ScreenFry app adds Safari, keeps your setups for every browser and updates everything together.
 
-**Screenshots (1280×800, up to 5):** Websites page (YouTube controls), the Shorts choice, Windows page, Earn page, a "Time is up!" screen. `tests/e2e/chrome-smoke.mjs` captures dashboard pages to `dist/screenshots` locally; crop or re-capture at 1280×800.
+**Screenshots (1280×800, up to 5):** Websites page (YouTube controls), Windows page, Earn page, Share page (loadouts), a "Time is up!" screen. `npm run store:images` (`scripts/store-images.mjs`) loads the build in a throwaway headless Chrome, adds a sample setup and writes them to `dist/store`.
 
-**Small promo tile (440×280):** logo and "Less feed. More day." on the dark ember background.
+**Small promo tile (440×280):** logo and "Less feed. More day." on the dark ember background (`store/promo-tile.html`, written to `dist/store/promo-tile-440x280.png` by the same command).
 
 ## Privacy practices
 

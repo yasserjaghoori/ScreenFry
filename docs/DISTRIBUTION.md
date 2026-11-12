@@ -66,7 +66,7 @@ With an Apple Developer Program membership, create a **Developer ID Application*
 
 ## Later: Chrome Web Store
 
-An unlisted Web Store listing would give one-click Chrome installs and automatic updates. The app's Chrome card could then link to the listing instead of the folder. Store-installed copies skip the folder reload check (`installType` isn't `development`).
+An unlisted Web Store listing would give one-click Chrome installs and automatic updates. The app's Chrome card could then link to the listing instead of the folder. Store-installed copies skip the folder reload check and the pages' stale-background heal (both need `installType` `development`, `isUnpackedChrome`), leaving updates to Chrome.
 
 ## Verifying signing before shipping
 
