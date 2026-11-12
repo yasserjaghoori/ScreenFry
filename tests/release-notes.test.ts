@@ -8,7 +8,7 @@ const { version } = JSON.parse(readFileSync(new URL("../package.json", import.me
 describe("release notes", () => {
   it("has notes for the current version, and a place for the next one", () => {
     expect(sectionFor(changelog, version)).toBeTruthy();
-    expect(sectionFor(changelog, "Unreleased")).toBeTruthy();
+    expect(changelog).toMatch(/^## Unreleased$/m);
   });
 
   it("stops at the next version and becomes an embeddable HTML list", () => {
