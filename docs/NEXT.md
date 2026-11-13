@@ -42,13 +42,15 @@ Plan (decide before building):
 
 Browse and search setups other people share ("YouTube for studying", "no Shorts, 30 minutes of Reddit"), preview what one changes, and apply it to a loadout. Share codes (`SF2-`, settings only) are already the format.
 
-This is ScreenFry's first backend, so it changes the local-first rule for this feature only:
+This is ScreenFry's first backend, so it changes the local-first rule for this feature only. **The full plan is in [SETUP_LIBRARY.md](SETUP_LIBRARY.md)**: the API, data schema, code validation, privacy, UI flow, store review, tests and build order.
 
-- [ ] Opt-in and separate: browsing and applying setups needs no account; publishing one may need one. Nothing is sent unless you publish. The core app keeps working with no network.
-- [ ] Choose the backend. Suggested: Cloudflare Workers + D1 (cheap, no servers, simple API: publish, search by website/tag, get, report), or Supabase if accounts come first.
-- [ ] API and schema: setup (code, title, description, websites, tags, created, upvotes, reports), with moderation (report, hide after N reports, admin delete). Rate limits.
-- [ ] UI: a **Library** tab on the Share page (search, filters by website, preview slides that already exist for pasted codes, "Use in loadout N").
-- [ ] Privacy page, AGENTS.md and README updates before it ships. Never include usage or history in a published setup.
+Decided (Sam, November 12, 2026): an anonymous key for each install to publish (no accounts), setups go live at once and are hidden after 3 reports, Cloudflare Workers + D1 in `services/library` in this repo, and a Library tab on the Share page first (the Mac app later).
+
+- [x] Opt-in and separate: browsing and applying setups needs no key. Publishing, upvoting and reporting make an anonymous key for the install. Nothing about you or your settings is sent unless you publish. The core app keeps working with no network.
+- [x] Choose the backend: Cloudflare Workers + D1.
+- [ ] Still open: the API's address (workers.dev or a custom domain), the tag list, and the contact shown for reports.
+- [ ] Build it in the order in [SETUP_LIBRARY.md](SETUP_LIBRARY.md#build-order).
+- [ ] Privacy page, AGENTS.md, README and store listing updates before it ships. Never include usage or history in a published setup.
 
 ## 5. Earn leaderboard
 
@@ -56,7 +58,7 @@ Who spent the most time on their Earn goal websites (learning apps, reading, exe
 
 - [ ] Opt-in, with a display name; only the weekly Earn minutes per goal website are sent (never other websites, never history). Leave any time.
 - [ ] Needs accounts or device keys to stop easy cheating: Sign in with Apple or an anonymous key pair per install. Accept that a browser extension can't fully stop faked numbers; keep it friendly (friends' boards, weekly resets).
-- [ ] Same backend as the library. UI: a board on the Earn page; the Mac app could show your rank in the menu.
+- [ ] Same backend as the library (Cloudflare Workers + D1, `services/library`), and the same anonymous install keys. UI: a board on the Earn page; the Mac app could show your rank in the menu.
 
 ## Working on this branch
 
